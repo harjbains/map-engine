@@ -440,3 +440,47 @@ export function buildTurnInstruction(path: TraversedEdge[], graph: RoadGraph, mi
   }
   return null;
 }
+
+export type EvaluatedRoute = {
+  coordinates: [number, number][];
+  distanceMiles: number;
+  durationMinutes: number;
+  minorRoadMiles: number;
+  finalMinorRoadMiles: number;
+  instruction: TurnInstruction | null;
+};
+
+const ROUTE_PROFILES: RouteProfile[] = ["fast", "short", "avoid-lanes"];
+
+export function evaluateRouteProfiles(
+  ways: GraphWay[],
+  nodes: Map<number, GraphNode>,
+  origin: RoutePoint,
+  destination: RoutePoint,
+): Partial<Record<RouteProfile, EvaluatedRoute>> {
+  const evaluated: Partial<Record<RouteProfile, EvaluatedRoute>> = {};
+  for (const profile of ROUTE_PROFILES) {
+    const graph = buildRoadGraph(ways, nodes, profile);
+    const startNode = snapNearestNode(graph, origin);
+    const goalNode = snapNearestNode(graph, destination);
+    if (startNode === null || goalNode === null) continue;
+    const path = findShortestPath(graph, startNode, goalNode);
+    if (!path) continue;
+    const plan = computeRoutePlan(path, graph);
+    if (!plan || !plan.coordinates.length) continue;
+    const instruction = buildTurnInstruction(path, graph);
+    let coordinates: [number, number][] = plan.coordinates.map((point) => [point.longitude, point.latitude]);
+    coordinates = coordinates.map((coordinate, index) => index === 0
+      ? [origin.longitude, origin.latitude]
+      : (index === coordinates.length - 1 ? [destination.longitude, destination.latitude] : coordinate));
+    evaluated[profile] = {
+      coordinates,
+      distanceMiles: plan.metres / 1609.344,
+      durationMinutes: Math.max(1, Math.round(plan.durationSeconds / 60)),
+      minorRoadMiles: plan.minorMetres / 1609.344,
+      finalMinorRoadMiles: plan.finalMinorMetres / 1609.344,
+      instruction,
+    };
+  }
+  return evaluated;
+}

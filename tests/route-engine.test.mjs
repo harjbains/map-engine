@@ -74,6 +74,22 @@ test("fast, short and avoid-lanes profiles choose different roads", () => {
   assert.ok(core.roadWeightPerMetre("tertiary", { lanes: "1" }) > core.roadWeightPerMetre("tertiary", {}));
 });
 
+test("evaluateRouteProfiles returns all three options from one corridor", () => {
+  const { nodes, ways } = profileFixture();
+  const origin = { latitude: 52.0, longitude: -2.0 };
+  const destination = { latitude: 52.0, longitude: -2.0046 };
+  const evaluated = core.evaluateRouteProfiles(ways, nodes, origin, destination);
+  assert.ok(evaluated.fast);
+  assert.ok(evaluated.short);
+  assert.ok(evaluated["avoid-lanes"]);
+  assert.ok(evaluated.fast.distanceMiles > 0);
+  assert.ok(evaluated.fast.durationMinutes > 0);
+  assert.ok(evaluated.fast.coordinates[0][0] === origin.longitude);
+  assert.ok(evaluated.short.distanceMiles < evaluated.fast.distanceMiles);
+  assert.ok(evaluated["avoid-lanes"].distanceMiles <= evaluated.fast.distanceMiles * 1.5);
+  assert.ok(evaluated.fast.finalMinorRoadMiles > 0);
+});
+
 function profileFixture() {
   const nodes = new Map([
     [1, node(1, 52.0, -2.0)],

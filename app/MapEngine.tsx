@@ -17,6 +17,7 @@ import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, form
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensureSafetyLayers, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
+import type { RouteOptionEntry } from "./lib/route-graph";
 import type { RouteProfile } from "./lib/route-engine-core";
 
 const ROUTE_PROFILE_LABELS: Record<RouteProfile, string> = { fast: "Fast", short: "Short", "avoid-lanes": "Avoid lanes" };
@@ -86,6 +87,8 @@ export default function MapEngine() {
   const [activeRoute, setActiveRoute] = useState<ActiveRoute | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeClock, setRouteClock] = useState(0);
+  const [routeOptions, setRouteOptions] = useState<RouteOptionEntry[] | null>(null);
+  const routeOptionsRef = useRef<RouteOptionEntry[] | null>(null);
   const [routeDetailsOpen, setRouteDetailsOpen] = useState(false);
   const [openPostcodeGroup, setOpenPostcodeGroup] = useState<PostcodeGroupId | null>(null);
 
@@ -757,6 +760,8 @@ export default function MapEngine() {
     deviatedSinceRef.current = 0;
     setRouteLoading(false);
     setActiveRoute(null);
+    setRouteOptions(null);
+    routeOptionsRef.current = null;
     setRouteDetailsOpen(false);
     const map = mapRef.current;
     if (map) setRouteData(map, null);
@@ -789,9 +794,14 @@ export default function MapEngine() {
       controller.abort();
     }, ROUTE_TIMEOUT_MS);
     try {
-      const { calculatePreferredRoute } = await import("./lib/route-graph");
-      const { route, fallback } = await calculatePreferredRoute(origin, destination, controller.signal, settingsRef.current.routeProfile);
+      const { calculateRouteOptions } = await import("./lib/route-graph");
+      const { options, fallback } = await calculateRouteOptions(origin, destination, controller.signal);
       if (routeAbortRef.current !== controller) return;
+      routeOptionsRef.current = options;
+      setRouteOptions(options);
+      const selectedOption = options.find((option) => option.profile === settingsRef.current.routeProfile) ?? options[0];
+      if (!selectedOption) throw new Error("No suitable route was found.");
+      const route = selectedOption.route;
       const map = mapRef.current;
       if (!map) throw new Error("The map is not available.");
       await waitForMapStyle(map, controller.signal);
@@ -853,14 +863,18 @@ export default function MapEngine() {
       controller.abort();
     }, ROUTE_TIMEOUT_MS);
     try {
-      const { calculatePreferredRoute } = await import("./lib/route-graph");
-      const { route, fallback } = await calculatePreferredRoute(origin, destination, controller.signal, settingsRef.current.routeProfile);
+      const { calculateRouteOptions } = await import("./lib/route-graph");
+      const { options, fallback } = await calculateRouteOptions(origin, destination, controller.signal);
       if (routeAbortRef.current !== controller) return;
+      routeOptionsRef.current = options;
+      setRouteOptions(options);
+      const selectedOption = options.find((option) => option.profile === settingsRef.current.routeProfile) ?? options[0];
+      if (!selectedOption) return;
       const map = mapRef.current;
       if (!map) return;
       await waitForMapStyle(map, controller.signal);
-      setRouteData(map, route);
-      setActiveRoute({ ...route, destination });
+      setRouteData(map, selectedOption.route);
+      setActiveRoute({ ...selectedOption.route, destination });
       setRouteClock(Date.now());
       setMapMessage(fallback ? "Route updated using the fastest available roads." : "Route updated to your current road.");
       window.setTimeout(() => setMapMessage(null), 3_000);
@@ -875,13 +889,18 @@ export default function MapEngine() {
     }
   }, []);
 
-  const changeRouteProfile = useCallback((profile: RouteProfile) => {
-    if (settingsRef.current.routeProfile === profile) return;
+  const chooseRouteOption = useCallback((profile: RouteProfile) => {
+    const option = routeOptionsRef.current?.find((candidate) => candidate.profile === profile);
+    if (!option || !activeRoute) return;
     settingsRef.current.routeProfile = profile;
     updateSettings({ routeProfile: profile });
-    const origin = latestFixRef.current;
-    if (activeRoute && origin) void rerouteToDestination(origin, activeRoute.destination);
-  }, [activeRoute, rerouteToDestination]);
+    const map = mapRef.current;
+    if (!map) return;
+    setRouteData(map, option.route);
+    setActiveRoute({ ...option.route, destination: activeRoute.destination });
+    setRouteClock(Date.now());
+    setMapMessage(null);
+  }, [activeRoute, updateSettings]);
 
   useEffect(() => {
     if (!mapReady || !activeRoute || !fix || simulationActiveRef.current || fix.speedMph < 8) return;
@@ -1021,7 +1040,7 @@ export default function MapEngine() {
           onSelect={(destination) => void selectDestination(destination)}
           onForget={forgetDestination}
           onSave={saveFavourite}
-          onRouteProfile={changeRouteProfile}
+          onRouteProfile={(profile) => { settingsRef.current.routeProfile = profile; updateSettings({ routeProfile: profile }); }}
         />
       )}
 
@@ -1087,11 +1106,13 @@ export default function MapEngine() {
           {activeRoute && (activeRoute.finalMinorRoadMiles ?? 0) <= 0.05 && (activeRoute.minorRoadMiles ?? 0) > 0.05 && (
             <p className="country-lane-note">Includes {(activeRoute.minorRoadMiles ?? 0).toFixed(1)} mi of country lanes</p>
           )}
-          {activeRoute && (
-            <div className="route-preference compact" role="group" aria-label="Route calculation preference">
-              {(Object.keys(ROUTE_PROFILE_LABELS) as RouteProfile[]).map((profile) => (
-                <button key={profile} type="button" disabled={routeLoading} className={settings.routeProfile === profile ? "selected" : ""} aria-pressed={settings.routeProfile === profile} onClick={() => changeRouteProfile(profile)}>
-                  <strong>{ROUTE_PROFILE_LABELS[profile]}</strong>
+          {routeOptions && (
+            <div className="route-options" role="group" aria-label="Route alternatives">
+              {routeOptions.map((option) => (
+                <button key={option.profile} type="button" disabled={routeLoading} className={settings.routeProfile === option.profile ? "selected" : ""} aria-pressed={settings.routeProfile === option.profile} onClick={() => chooseRouteOption(option.profile)}>
+                  <b>{ROUTE_PROFILE_LABELS[option.profile]}</b>
+                  <span>{option.route.durationMinutes} min · {option.route.distanceMiles.toFixed(1)} mi</span>
+                  {(option.route.finalMinorRoadMiles ?? 0) > 0.05 && <small>country lanes</small>}
                 </button>
               ))}
             </div>

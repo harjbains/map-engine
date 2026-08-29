@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2\.3\.2/);
+  assert.match(html, /v2\.4\.0/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -107,8 +107,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.3\.2"/);
-  assert.match(serviceWorker, /map-engine-shell-v1170/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.4\.0"/);
+  assert.match(serviceWorker, /map-engine-shell-v1171/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -403,12 +403,12 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(destinationSearch, /Best time/);
   assert.match(settingsPanel, /Choose how routes are calculated/);
   assert.doesNotMatch(settingsPanel, /route-profile-setting|onRouteProfile|Route calculation preference/);
-  assert.match(mapEngine, /route-preference compact/);
-  assert.match(mapEngine, /changeRouteProfile/);
+  assert.match(mapEngine, /route-options/);
+  assert.match(mapEngine, /chooseRouteOption/);
+  assert.match(mapEngine, /calculateRouteOptions\(origin, destination, controller\.signal\)/);
   assert.match(mapEngine, /onRouteProfile:/);
   assert.match(mapEngine, /country-lane-note/);
   assert.match(mapEngine, /finalMinorRoadMiles/);
-  assert.match(mapEngine, /calculatePreferredRoute\(origin, destination, controller\.signal, settingsRef\.current\.routeProfile\)/);
   assert.match(mapEngine, /Main-road route unavailable/);
   assert.match(routeGraph, /map-engine-route-corridor-v1/);
   assert.match(routeGraph, /DRIVABLE_HIGHWAY/);

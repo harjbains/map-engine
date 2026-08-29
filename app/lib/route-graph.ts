@@ -6,6 +6,7 @@ import {
   buildTurnInstruction,
   computeRoutePlan,
   distanceMetres,
+  evaluateRouteProfiles,
   findShortestPath,
   snapNearestNode,
   type GraphNode,
@@ -151,6 +152,59 @@ export type PreferredRouteResult = {
   route: CalculatedRoute;
   fallback: boolean;
 };
+
+export type RouteOptionEntry = {
+  profile: RouteProfile;
+  route: CalculatedRoute;
+};
+
+export type RouteOptionsResult = {
+  options: RouteOptionEntry[];
+  fallback: boolean;
+};
+
+const ROUTE_PROFILES: RouteProfile[] = ["fast", "short", "avoid-lanes"];
+
+export async function calculateRouteOptions(
+  origin: RoutePoint,
+  destination: Destination,
+  signal: AbortSignal,
+): Promise<RouteOptionsResult> {
+  const destinationPoint = { latitude: destination.latitude, longitude: destination.longitude };
+  let corridor: Corridor | null = null;
+  try {
+    corridor = await fetchRouteCorridor(origin, destinationPoint, signal);
+  } catch (error) {
+    if ((error as Error).name === "AbortError") throw error;
+  }
+  const options: RouteOptionEntry[] = [];
+  if (corridor) {
+    const nodes = new Map(corridor.nodes.map((node) => [node.id, node]));
+    const evaluated = evaluateRouteProfiles(corridor.ways, nodes, origin, destinationPoint);
+    for (const profile of ROUTE_PROFILES) {
+      const plan = evaluated[profile];
+      if (!plan) continue;
+      options.push({
+        profile,
+        route: {
+          geometry: { type: "LineString" as const, coordinates: plan.coordinates },
+          distanceMiles: plan.distanceMiles,
+          durationMinutes: plan.durationMinutes,
+          instruction: plan.instruction,
+          minorRoadMiles: plan.minorRoadMiles,
+          finalMinorRoadMiles: plan.finalMinorRoadMiles,
+        },
+      });
+    }
+  }
+  const missing = ROUTE_PROFILES.filter((profile) => !options.some((option) => option.profile === profile));
+  if (missing.length) {
+    const { calculateRoute } = await import("./routing");
+    const fallbackRoute = await calculateRoute(origin, destination, signal);
+    for (const profile of missing) options.push({ profile, route: fallbackRoute });
+  }
+  return { options, fallback: missing.length > 0 };
+}
 
 export async function calculatePreferredRoute(
   origin: RoutePoint,
