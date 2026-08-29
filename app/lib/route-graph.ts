@@ -11,6 +11,7 @@ import {
   type GraphNode,
   type GraphWay,
   type RoutePoint,
+  type RouteProfile,
   type WayTags,
 } from "./route-engine-core";
 
@@ -107,29 +108,30 @@ export async function fetchRouteCorridor(a: RoutePoint, b: RoutePoint): Promise<
   const payload = await fetchOverpass(corridorQuery(corridorBounds(a, b)), 0, 500);
   const corridor = extractCorridor(payload.elements ?? []);
   if (corridor.ways.length >= MAX_CORRIDOR_WAYS || corridor.nodes.length >= MAX_CORRIDOR_NODES) {
-    throw new Error("This journey is too large for main-road routing. Showing the fastest route instead.");
+    throw new Error("This journey is too large for on-device routing. Showing the fastest route instead.");
   }
   saveCorridorCache(key, corridor);
   return corridor;
 }
 
-export async function calculateCountryLanesRoute(
+export async function calculateWeightedRoute(
   origin: RoutePoint,
   destination: Destination,
   signal: AbortSignal,
+  profile: RouteProfile = "fast",
 ): Promise<CalculatedRoute> {
   const destinationPoint = { latitude: destination.latitude, longitude: destination.longitude };
   const corridor = await fetchRouteCorridor(origin, destinationPoint);
   const nodes = new Map(corridor.nodes.map((node) => [node.id, node]));
-  const graph = buildRoadGraph(corridor.ways, nodes);
+  const graph = buildRoadGraph(corridor.ways, nodes, profile);
   const startNode = snapNearestNode(graph, origin, CORRIDOR_SNAP_METRES);
   const goalNode = snapNearestNode(graph, destinationPoint, CORRIDOR_SNAP_METRES);
   if (startNode === null || goalNode === null) throw new Error("The start or destination could not be reached from mapped roads.");
   signal.throwIfAborted?.();
   const path = findShortestPath(graph, startNode, goalNode);
-  if (!path) throw new Error("No suitable main-road route was found.");
+  if (!path) throw new Error("No suitable route was found.");
   const plan = computeRoutePlan(path, graph);
-  if (!plan || !plan.coordinates.length) throw new Error("No suitable main-road route was found.");
+  if (!plan || !plan.coordinates.length) throw new Error("No suitable route was found.");
   const instruction: RouteInstruction | null = buildTurnInstruction(path, graph);
   let coordinates: [number, number][] = plan.coordinates.map((point) => [point.longitude, point.latitude]);
   coordinates = coordinates.map((coordinate, index) => index === 0
@@ -154,14 +156,10 @@ export async function calculatePreferredRoute(
   origin: RoutePoint,
   destination: Destination,
   signal: AbortSignal,
-  avoidCountryLanes: boolean,
+  profile: RouteProfile = "fast",
 ): Promise<PreferredRouteResult> {
-  if (!avoidCountryLanes) {
-    const { calculateRoute } = await import("./routing");
-    return { route: await calculateRoute(origin, destination, signal), fallback: false };
-  }
   try {
-    return { route: await calculateCountryLanesRoute(origin, destination, signal), fallback: false };
+    return { route: await calculateWeightedRoute(origin, destination, signal, profile), fallback: false };
   } catch (error) {
     if ((error as Error).name === "AbortError") throw error;
     const { calculateRoute } = await import("./routing");

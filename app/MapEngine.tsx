@@ -787,7 +787,7 @@ export default function MapEngine() {
     }, ROUTE_TIMEOUT_MS);
     try {
       const { calculatePreferredRoute } = await import("./lib/route-graph");
-      const { route, fallback } = await calculatePreferredRoute(origin, destination, controller.signal, settingsRef.current.avoidCountryLanes);
+      const { route, fallback } = await calculatePreferredRoute(origin, destination, controller.signal, settingsRef.current.routeProfile);
       if (routeAbortRef.current !== controller) return;
       const map = mapRef.current;
       if (!map) throw new Error("The map is not available.");
@@ -851,7 +851,7 @@ export default function MapEngine() {
     }, ROUTE_TIMEOUT_MS);
     try {
       const { calculatePreferredRoute } = await import("./lib/route-graph");
-      const { route, fallback } = await calculatePreferredRoute(origin, destination, controller.signal, settingsRef.current.avoidCountryLanes);
+      const { route, fallback } = await calculatePreferredRoute(origin, destination, controller.signal, settingsRef.current.routeProfile);
       if (routeAbortRef.current !== controller) return;
       const map = mapRef.current;
       if (!map) return;
@@ -1100,6 +1100,7 @@ export default function MapEngine() {
           onCancelDownload={() => abortPackRef.current?.abort()}
           onSaveOfflineArea={() => void saveOfflineArea()}
           onToggle={(key, value) => updateSettings({ [key]: value })}
+          onRouteProfile={(profile) => { if (settingsRef.current.routeProfile !== profile) { rerouteToDestination(); } updateSettings({ routeProfile: profile }); }}
           onDefault3d={(value) => { updateSettings({ default3d: value }); is3dRef.current = value; setIs3d(value); }}
           onAutoZoom={(value) => { if (value) manualZoomRef.current = null; updateSettings({ autoZoom: value }); }}
           onLiveTraffic={(value) => {

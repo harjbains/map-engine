@@ -1,5 +1,7 @@
 export type RoutePoint = { latitude: number; longitude: number };
 
+export type RouteProfile = "fast" | "short" | "avoid-lanes";
+
 export type WayTags = Record<string, string>;
 
 export type GraphWay = {
@@ -79,6 +81,34 @@ const CLASS_PENALTY: Record<RoadClass, number> = {
   road: 2.7,
 };
 
+const CLASS_PENALTY_FAST: Record<RoadClass, number> = {
+  motorway: 1,
+  trunk: 1,
+  primary: 1.05,
+  secondary: 1.1,
+  tertiary: 1.2,
+  unclassified: 1.35,
+  residential: 1.5,
+  living_street: 2.2,
+  service: 2,
+  track: 3,
+  road: 1.8,
+};
+
+const CLASS_PENALTY_SHORT: Record<RoadClass, number> = {
+  motorway: 1,
+  trunk: 1,
+  primary: 1,
+  secondary: 1,
+  tertiary: 1,
+  unclassified: 1,
+  residential: 1,
+  living_street: 1.35,
+  service: 1,
+  track: 1,
+  road: 1,
+};
+
 const MINOR_CLASSES = new Set<RoadClass>(["unclassified", "residential", "living_street", "service", "track", "road"]);
 
 export function roadClassOf(highway: string): RoadClass | null {
@@ -97,9 +127,12 @@ export function classSpeedMph(highway: string): number {
   return roadClass ? CLASS_SPEED_MPH[roadClass] : 8;
 }
 
-export function classPenalty(highway: string): number {
+export function classPenalty(highway: string, profile: RouteProfile = "fast"): number {
   const roadClass = roadClassOf(highway);
-  return roadClass ? CLASS_PENALTY[roadClass] : 14;
+  if (!roadClass) return profile === "fast" ? 14 : 1;
+  if (profile === "short") return CLASS_PENALTY_SHORT[roadClass];
+  if (profile === "avoid-lanes") return CLASS_PENALTY[roadClass];
+  return CLASS_PENALTY_FAST[roadClass];
 }
 
 export function distanceMetres(a: RoutePoint, b: RoutePoint): number {
@@ -120,19 +153,27 @@ export function parseWidth(tags: WayTags): number | null {
   return numeric ? Number(numeric[1]) : null;
 }
 
-export function roadModifiers(tags: WayTags): number {
+export function roadModifiers(tags: WayTags, profile: RouteProfile = "fast"): number {
   let factor = 1;
   const width = parseWidth(tags);
   if (width !== null) {
-    if (width < 3.2) factor *= 1.9;
-    else if (width <= 4.5) factor *= 1.35;
+    if (profile === "avoid-lanes") {
+      if (width < 3.2) factor *= 1.9;
+      else if (width <= 4.5) factor *= 1.35;
+    } else if (profile === "fast") {
+      if (width < 3.2) factor *= 1.35;
+      else if (width <= 4.5) factor *= 1.15;
+    }
   }
-  if (tags.lanes === "1") factor *= 1.3;
+  if (tags.lanes === "1") factor *= profile === "short" ? 1.05 : (profile === "avoid-lanes" ? 1.3 : 1.15);
   const surface = tags.surface ?? "";
-  if (/(cobblestone|pebblestone|gravel|dirt|earth|ground|grass|mud|sand|clay|paved)$/.test(surface)) factor *= 1.55;
+  if (/(cobblestone|pebblestone|gravel|dirt|earth|ground|grass|mud|sand|clay|paved)$/.test(surface)) {
+    factor *= profile === "short" ? 1.2 : (profile === "avoid-lanes" ? 1.55 : 1.35);
+  }
   if (tags.highway === "track" && tags.tracktype) {
     const rating: Record<string, number> = { grade1: 0.9, grade2: 1, grade3: 1.6, grade4: 2.7, grade5: 3.6 };
-    factor *= (rating[tags.tracktype] ?? 1.2);
+    const base = rating[tags.tracktype] ?? 1.2;
+    factor *= profile === "short" ? 1 + (base - 1) * 0.35 : (profile === "avoid-lanes" ? base : 1 + (base - 1) * 0.5);
   }
   return factor;
 }
@@ -148,9 +189,10 @@ export function accessPenalty(tags: WayTags): number {
   return 1;
 }
 
-export function roadWeightPerMetre(highway: string, tags: WayTags): number {
-  const secondsPerMetre = 1 / (classSpeedMph(highway) * 0.44704);
-  return secondsPerMetre * classPenalty(highway) * roadModifiers(tags) * accessPenalty(tags);
+export function roadWeightPerMetre(highway: string, tags: WayTags, profile: RouteProfile = "fast"): number {
+  let secondsPerMetre = 1 / (classSpeedMph(highway) * 0.44704);
+  if (profile === "short") secondsPerMetre = 1 / (38 * 0.44704);
+  return secondsPerMetre * classPenalty(highway, profile) * roadModifiers(tags, profile) * accessPenalty(tags);
 }
 
 export function oneWayOf(highway: string, tags: WayTags): 1 | 0 | -1 {
@@ -179,7 +221,7 @@ function polylineMetres(way: GraphWay, nodes: Map<number, GraphNode>): number {
   return metres;
 }
 
-export function buildRoadGraph(ways: GraphWay[], nodes: Map<number, GraphNode>): RoadGraph {
+export function buildRoadGraph(ways: GraphWay[], nodes: Map<number, GraphNode>, profile: RouteProfile = "fast"): RoadGraph {
   const adjacency = new Map<number, DirectedEdge[]>();
   const wayInfo = new Map<number, { highway: string; name: string; ref: string; metres: number }>();
   const pushEdge = (from: number, to: number, weight: number, wayId: number) => {
@@ -191,7 +233,7 @@ export function buildRoadGraph(ways: GraphWay[], nodes: Map<number, GraphNode>):
   for (const way of ways) {
     if (!roadClassOf(way.highway) || way.nodes.length < 2) continue;
     if (!way.nodes.every((id) => nodes.has(id))) continue;
-    const weightPerMetre = roadWeightPerMetre(way.highway, way.tags);
+    const weightPerMetre = roadWeightPerMetre(way.highway, way.tags, profile);
     const metres = polylineMetres(way, nodes);
     if (!Number.isFinite(weightPerMetre) || !Number.isFinite(metres) || metres <= 0) continue;
     wayInfo.set(way.id, {

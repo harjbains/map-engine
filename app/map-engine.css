@@ -366,6 +366,17 @@
 .drive-shell.dark .map-style-setting > div { border-color:#36464e; background:#182126; }
 .drive-shell.dark .map-style-setting button { color:#8f9ca2; }
 .drive-shell.dark .map-style-setting button.selected { background:#293840; color:#f1f5f6; }
+.route-profile-setting { margin:2px 0 8px; }
+.route-profile-setting > span { display:block; margin-bottom:8px; color:#65737a; font-size:12px; font-weight:750; }
+.route-profile-setting > div { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; padding:4px; border:1px solid #c5c9c7; border-radius:10px; background:#e6e6e0; }
+.route-profile-setting button { min-height:46px; padding:2px 4px; border:0; border-radius:7px; background:transparent; color:#5b686e; font-size:12px; font-weight:800; cursor:pointer; }
+.route-profile-setting strong, .route-profile-setting span { display:block; }
+.route-profile-setting button span { color:inherit; font-size:10px; font-weight:650; margin-top:2px; }
+.route-profile-setting button.selected { background:#fff; color:#1d2a31; box-shadow:0 2px 8px rgba(42,48,50,.12); }
+.drive-shell.dark .route-profile-setting > span { color:#b8c4ca; }
+.drive-shell.dark .route-profile-setting > div { border-color:#36464e; background:#182126; }
+.drive-shell.dark .route-profile-setting button { color:#8f9ca2; }
+.drive-shell.dark .route-profile-setting button.selected { background:#293840; color:#f1f5f6; }
 
 .drive-shell.classic .map-surface::after { background:linear-gradient(180deg,rgba(255,252,244,.07),transparent 30%,transparent 76%,rgba(63,54,42,.05)); }
 .drive-shell.classic .brand-lockup,

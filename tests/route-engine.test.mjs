@@ -38,32 +38,15 @@ test("one-way, roundabout and two-way roads build directed edges", () => {
   assert.equal(core.isMinorRoad("primary"), false);
 });
 
-test("prefers a longer main road and reports a trailing country lane", () => {
-  const nodes = new Map([
-    [1, node(1, 52.0, -2.0000)],
-    [2, node(2, 52.0, -2.0010)],
-    [3, node(3, 52.0, -2.0030)],
-    [4, node(4, 52.0, -2.0025)],
-    [5, node(5, 52.0, -2.0005)],
-    [6, node(6, 52.0, -2.0035)],
-    [7, node(7, 52.1, -3.0)],
-    [8, node(8, 52.1, -3.001)],
-  ]);
-  const graph = core.buildRoadGraph([
-    way(20, "trunk", [1, 2], {}),
-    way(21, "trunk", [2, 3], {}),
-    way(22, "track", [3, 6], {}),
-    way(23, "service", [1, 5], {}),
-    way(24, "service", [5, 4], {}),
-    way(25, "service", [4, 6], {}),
-    way(26, "primary", [7, 8], {}),
-  ], nodes);
+test("fast profile prefers a pseudo main road over a shorter direct lane", () => {
+  const { nodes, ways } = profileFixture();
+  const graph = core.buildRoadGraph(ways, nodes);
   const path = core.findShortestPath(graph, 1, 6);
   assert.ok(path);
   assert.equal(path.some((edge) => edge.wayId === 20), true);
   assert.equal(path.some((edge) => edge.wayId === 21), true);
   assert.equal(path.some((edge) => edge.wayId === 22), true);
-  assert.equal(path.some((edge) => edge.wayId === 24), false);
+  assert.equal(path.some((edge) => edge.wayId === 27), false);
   const plan = core.computeRoutePlan(path, graph);
   assert.ok(plan);
   assert.ok(plan.metres > 0);
@@ -73,6 +56,42 @@ test("prefers a longer main road and reports a trailing country lane", () => {
   const disconnected = core.findShortestPath(graph, 1, 7);
   assert.equal(disconnected, null);
 });
+
+test("fast, short and avoid-lanes profiles choose different roads", () => {
+  const { nodes, ways } = profileFixture();
+  const fast = core.findShortestPath(core.buildRoadGraph(ways, nodes, "fast"), 1, 6);
+  const short = core.findShortestPath(core.buildRoadGraph(ways, nodes, "short"), 1, 6);
+  const avoid = core.findShortestPath(core.buildRoadGraph(ways, nodes, "avoid-lanes"), 1, 6);
+  assert.ok(fast && short && avoid);
+  assert.equal(fast.some((edge) => edge.wayId === 20), true);
+  assert.equal(fast.some((edge) => edge.wayId === 27), false);
+  assert.equal(short.some((edge) => edge.wayId === 27), true);
+  assert.equal(short.some((edge) => edge.wayId === 20), false);
+  assert.equal(avoid.some((edge) => edge.wayId === 20), true);
+  assert.equal(avoid.some((edge) => edge.wayId === 27), false);
+  assert.ok(core.roadWeightPerMetre("track", {}, "fast") < core.roadWeightPerMetre("track", {}, "avoid-lanes"));
+  assert.equal(core.roadWeightPerMetre("motorway", {}, "short"), core.roadWeightPerMetre("unclassified", {}, "short"));
+  assert.ok(core.roadWeightPerMetre("tertiary", { lanes: "1" }) > core.roadWeightPerMetre("tertiary", {}));
+});
+
+function profileFixture() {
+  const nodes = new Map([
+    [1, node(1, 52.0, -2.0)],
+    [2, node(2, 52.0004, -2.001)],
+    [3, node(3, 52.0004, -2.004)],
+    [6, node(6, 52.0, -2.0046)],
+    [7, node(7, 52.1, -3.0)],
+    [8, node(8, 52.1, -3.001)],
+  ]);
+  const ways = [
+    way(20, "trunk", [1, 2], {}),
+    way(21, "trunk", [2, 3], {}),
+    way(22, "track", [3, 6], {}),
+    way(27, "track", [1, 6], {}),
+    way(26, "primary", [7, 8], {}),
+  ];
+  return { nodes, ways };
+}
 
 test("first-turn instruction arrives at a three-way junction", () => {
   const nodes = new Map([
