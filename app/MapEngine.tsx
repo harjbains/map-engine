@@ -1108,13 +1108,16 @@ export default function MapEngine() {
           )}
           {routeOptions && (
             <div className="route-options" role="group" aria-label="Route alternatives">
-              {routeOptions.map((option) => (
-                <button key={option.profile} type="button" disabled={routeLoading} className={settings.routeProfile === option.profile ? "selected" : ""} aria-pressed={settings.routeProfile === option.profile} onClick={() => chooseRouteOption(option.profile)}>
-                  <b>{ROUTE_PROFILE_LABELS[option.profile]}</b>
-                  <span>{option.route.durationMinutes} min · {option.route.distanceMiles.toFixed(1)} mi</span>
-                  {(option.route.finalMinorRoadMiles ?? 0) > 0.05 && <small>country lanes</small>}
-                </button>
-              ))}
+              {routeOptions.map((option) => {
+                const selected = routeOptions.length === 1 || settings.routeProfile === option.profile;
+                return (
+                  <button key={option.profile} type="button" disabled={routeLoading} className={selected ? "selected" : ""} aria-pressed={selected} onClick={() => chooseRouteOption(option.profile)}>
+                    <b>{ROUTE_PROFILE_LABELS[option.profile]}</b>
+                    <span>{option.route.durationMinutes} min · {option.route.distanceMiles.toFixed(1)} mi</span>
+                    {(option.route.finalMinorRoadMiles ?? 0) > 0.05 && <small>country lanes</small>}
+                  </button>
+                );
+              })}
             </div>
           )}
           {routeJourney && (

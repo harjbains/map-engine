@@ -201,7 +201,8 @@ export async function calculateRouteOptions(
   if (missing.length) {
     const { calculateRoute } = await import("./routing");
     const fallbackRoute = await calculateRoute(origin, destination, signal);
-    for (const profile of missing) options.push({ profile, route: fallbackRoute });
+    if (missing.length === ROUTE_PROFILES.length) options.push({ profile: "fast", route: fallbackRoute });
+    else for (const profile of missing) options.push({ profile, route: fallbackRoute });
   }
   return { options, fallback: missing.length > 0 };
 }
