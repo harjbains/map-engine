@@ -1,5 +1,6 @@
 import type { FormEventHandler, RefObject } from "react";
 import type { Destination, DestinationFavourites } from "./config";
+import type { RouteProfile } from "../lib/route-engine-core";
 
 type DestinationSearchProps = {
   inputRef: RefObject<HTMLInputElement | null>;
@@ -12,6 +13,7 @@ type DestinationSearchProps = {
   results: Destination[];
   recent: Destination[];
   favourites: DestinationFavourites;
+  routeProfile: RouteProfile;
   onOpen: () => void;
   onClose: () => void;
   onQueryChange: (query: string) => void;
@@ -20,9 +22,10 @@ type DestinationSearchProps = {
   onSelect: (destination: Destination) => void;
   onForget: (destinationId: string) => void;
   onSave: (key: keyof DestinationFavourites, destination: Destination) => void;
+  onRouteProfile: (profile: RouteProfile) => void;
 };
 
-export function DestinationSearch({ inputRef, open, query, searching, routeLoading, searchAttempted, error, results, recent, favourites, onOpen, onClose, onQueryChange, onSubmit, onQuickDestination, onSelect, onForget, onSave }: DestinationSearchProps) {
+export function DestinationSearch({ inputRef, open, query, searching, routeLoading, searchAttempted, error, results, recent, favourites, routeProfile, onOpen, onClose, onQueryChange, onSubmit, onQuickDestination, onSelect, onForget, onSave, onRouteProfile }: DestinationSearchProps) {
   if (!open) {
     return (
       <button className="destination-search-toggle" onClick={onOpen} aria-label="Open destination search" aria-expanded="false">
@@ -47,6 +50,14 @@ export function DestinationSearch({ inputRef, open, query, searching, routeLoadi
         <button className="destination-submit" type="submit" disabled={searching || routeLoading}>{searching ? "Searching…" : routeLoading ? "Routing…" : "Search"}</button>
         <button className="destination-close" type="button" onClick={onClose} aria-label="Close destination search">×</button>
       </form>
+      <div className="route-preference">
+        <span className="route-preference-label">Route</span>
+        <div role="group" aria-label="Route calculation preference">
+          <button className={routeProfile === "fast" ? "selected" : ""} aria-pressed={routeProfile === "fast"} type="button" onClick={() => onRouteProfile("fast")}><strong>Fast</strong><span>Best time</span></button>
+          <button className={routeProfile === "short" ? "selected" : ""} aria-pressed={routeProfile === "short"} type="button" onClick={() => onRouteProfile("short")}><strong>Short</strong><span>Fewest miles</span></button>
+          <button className={routeProfile === "avoid-lanes" ? "selected" : ""} aria-pressed={routeProfile === "avoid-lanes"} type="button" onClick={() => onRouteProfile("avoid-lanes")}><strong>Avoid narrow lanes</strong><span>Main roads first</span></button>
+        </div>
+      </div>
       <div className="quick-destinations" aria-label="Saved destinations">
         <button type="button" onClick={() => onQuickDestination("home")}><b>⌂</b><span>Home</span><small>{favourites.home ? "Saved" : "Set from search"}</small></button>
         <button type="button" onClick={() => onQuickDestination("hagleyRoad")}><b>H</b><span>Hagley Road</span><small>{favourites.hagleyRoad ? "Saved" : "Find it"}</small></button>

@@ -17,6 +17,9 @@ import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, form
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensureSafetyLayers, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
+import type { RouteProfile } from "./lib/route-engine-core";
+
+const ROUTE_PROFILE_LABELS: Record<RouteProfile, string> = { fast: "Fast", short: "Short", "avoid-lanes": "Avoid lanes" };
 import { styleJsonUrl } from "./lib/tomtom-client";
 const ROAD_LAYERS = ["road-motorway", "road-a", "road-b", "road-local"];
 export default function MapEngine() {
@@ -872,6 +875,14 @@ export default function MapEngine() {
     }
   }, []);
 
+  const changeRouteProfile = useCallback((profile: RouteProfile) => {
+    if (settingsRef.current.routeProfile === profile) return;
+    settingsRef.current.routeProfile = profile;
+    updateSettings({ routeProfile: profile });
+    const origin = latestFixRef.current;
+    if (activeRoute && origin) void rerouteToDestination(origin, activeRoute.destination);
+  }, [activeRoute, rerouteToDestination]);
+
   useEffect(() => {
     if (!mapReady || !activeRoute || !fix || simulationActiveRef.current || fix.speedMph < 8) return;
     if (Date.now() < rerouteCooldownUntilRef.current) return;
@@ -1005,10 +1016,12 @@ export default function MapEngine() {
           onClose={() => { destinationSearchAbortRef.current?.abort(); setDestinationSearching(false); setSearchOpen(false); }}
           onQueryChange={(query) => { setDestinationQuery(query); setDestinationSearchAttempted(false); setDestinationSearchError(null); }}
           onSubmit={submitDestinationSearch}
+          routeProfile={settings.routeProfile}
           onQuickDestination={chooseQuickDestination}
           onSelect={(destination) => void selectDestination(destination)}
           onForget={forgetDestination}
           onSave={saveFavourite}
+          onRouteProfile={changeRouteProfile}
         />
       )}
 
@@ -1074,6 +1087,15 @@ export default function MapEngine() {
           {activeRoute && (activeRoute.finalMinorRoadMiles ?? 0) <= 0.05 && (activeRoute.minorRoadMiles ?? 0) > 0.05 && (
             <p className="country-lane-note">Includes {(activeRoute.minorRoadMiles ?? 0).toFixed(1)} mi of country lanes</p>
           )}
+          {activeRoute && (
+            <div className="route-preference compact" role="group" aria-label="Route calculation preference">
+              {(Object.keys(ROUTE_PROFILE_LABELS) as RouteProfile[]).map((profile) => (
+                <button key={profile} type="button" disabled={routeLoading} className={settings.routeProfile === profile ? "selected" : ""} aria-pressed={settings.routeProfile === profile} onClick={() => changeRouteProfile(profile)}>
+                  <strong>{ROUTE_PROFILE_LABELS[profile]}</strong>
+                </button>
+              ))}
+            </div>
+          )}
           {routeJourney && (
             <div className="journey-live-stats">
               <div><b>ARRIVE</b><em>{routeJourney.arrivalTime}</em></div>
@@ -1100,7 +1122,6 @@ export default function MapEngine() {
           onCancelDownload={() => abortPackRef.current?.abort()}
           onSaveOfflineArea={() => void saveOfflineArea()}
           onToggle={(key, value) => updateSettings({ [key]: value })}
-          onRouteProfile={(profile) => { if (settingsRef.current.routeProfile !== profile) { rerouteToDestination(); } updateSettings({ routeProfile: profile }); }}
           onDefault3d={(value) => { updateSettings({ default3d: value }); is3dRef.current = value; setIs3d(value); }}
           onAutoZoom={(value) => { if (value) manualZoomRef.current = null; updateSettings({ autoZoom: value }); }}
           onLiveTraffic={(value) => {

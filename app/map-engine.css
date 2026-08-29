@@ -25,6 +25,18 @@
 .quick-destinations b { grid-row:1 / 3; display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:#3179b9; color:#fff; font-size:17px; }
 .quick-destinations span { overflow:hidden; font-size:14px; font-weight:850; text-overflow:ellipsis; white-space:nowrap; }
 .quick-destinations small { color:#718087; font-size:10px; }
+.route-preference { padding:0 10px 10px; }
+.route-preference .route-preference-label { display:block; margin:0 0 6px 2px; color:#718087; font-size:10px; font-weight:800; letter-spacing:.1em; }
+.route-preference > div { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+.route-preference button { min-width:0; display:block; padding:8px 4px 7px; border:1px solid rgba(48,64,72,.14); border-radius:10px; background:#edf1f1; color:#253138; cursor:pointer; }
+.route-preference strong { display:block; font-size:11px; font-weight:850; line-height:1.12; }
+.route-preference button span { display:block; color:#718087; font-size:9px; font-weight:650; margin-top:2px; white-space:nowrap; }
+.route-preference button.selected { border-color:#3179b9; background:#e0edf5; box-shadow:inset 0 0 0 1px rgba(49,121,185,.22); }
+.route-preference button:disabled { opacity:.6; cursor:wait; }
+.route-preference.compact { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:9px; padding:0; }
+.route-preference.compact button { padding:6px 2px 5px; border-radius:9px; }
+.route-preference.compact strong { font-size:10px; }
+.route-preference.compact button span { display:none; }
 .destination-submit { height:44px; padding:0 14px; border:0; border-radius:10px; background:#3179b9; color:#fff; font-size:13px; font-weight:850; cursor:pointer; }
 .destination-submit:disabled { opacity:.65; cursor:wait; }
 .destination-close { flex:0 0 auto; width:42px; height:42px; border:0; border-radius:50%; background:#e8e9e5; color:#354249; font-size:28px; line-height:1; cursor:pointer; }
@@ -292,6 +304,9 @@
   .drive-shell.dark .destination-choice:focus-visible { background:#35414a; }
 .drive-shell.dark .quick-destinations button { border-color:#34434a; background:#2c373e; color:#eef3f4; }
 .drive-shell.dark .quick-destinations small { color:#8e9ca2; }
+.drive-shell.dark .route-preference button { border-color:#34434a; background:#2c373e; color:#eef3f4; }
+.drive-shell.dark .route-preference button span { color:#8e9ca2; }
+.drive-shell.dark .route-preference button.selected { border-color:#4a92cc; background:#1b2f40; }
 .drive-shell.dark .destination-result-row + .destination-result-row { border-color:rgba(161,190,205,.1); }
 .drive-shell.dark .destination-save-actions button { border-color:#395e76; background:#1b3443; color:#a8d5f4; }
 .drive-shell.dark .route-instruction { background:#292442; }
