@@ -96,8 +96,8 @@ export async function POST(request: Request) {
 
   const startedAt = Date.now();
   const declaredTimeout = readTimeoutMilliseconds(data);
-  const perMirrorTimeout = Math.max(12_000, declaredTimeout + 5_000);
-  const deadline = startedAt + Math.max(20_000, declaredTimeout + 10_000);
+  const perMirrorTimeout = Math.min(9_000, Math.max(6_000, declaredTimeout + 5_000));
+  const deadline = startedAt + Math.min(15_000, Math.max(10_000, declaredTimeout + 10_000));
 
   let best: MirrorResult | null = null;
   // First wave: stagger all mirrors.
