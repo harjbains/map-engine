@@ -41,17 +41,17 @@ button { font:inherit; }
 .traffic-road-status span { font-size:9px; font-weight:950; letter-spacing:.1em; }
 .traffic-road-status b { overflow:hidden; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
 .traffic-road-status em { font-size:11px; font-style:normal; font-weight:850; white-space:nowrap; }
-.location-card.with-route { width:min(390px,calc(100vw - 166px)); pointer-events:auto; }
+.location-card.with-route { width:min(330px,calc(100vw - 166px)); pointer-events:auto; }
 .location-card.with-route > strong, .location-card.with-route > small { padding-right:62px; }
 .route-details-toggle { position:absolute; top:10px; right:10px; min-width:54px; height:31px; padding:0 8px; border:1px solid rgba(49,121,185,.25); border-radius:8px; background:#e4eef5; color:#286a9f; font-size:10px; font-weight:950; letter-spacing:.08em; cursor:pointer; }
-.journey-destination { display:flex; align-items:center; gap:6px; min-width:0; margin-top:7px; padding:6px 8px; border-radius:7px; background:rgba(49,121,185,.08); }
+.journey-destination { display:flex; align-items:center; gap:6px; min-width:0; margin-top:5px; padding:4px 8px; border-radius:7px; background:rgba(49,121,185,.08); }
 .journey-destination b { flex:0 0 auto; color:#3179b9; font-size:9px; font-weight:950; letter-spacing:.1em; }
-.journey-destination span { min-width:0; overflow:hidden; color:#34454e; font-size:12px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
-.journey-live-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; padding-top:9px; border-top:1px solid rgba(48,64,72,.13); }
+.journey-destination span { min-width:0; overflow:hidden; color:#34454e; font-size:11px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
+.journey-live-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:7px; padding-top:6px; border-top:1px solid rgba(48,64,72,.13); }
 .journey-live-stats div { min-width:0; }
 .journey-live-stats b, .journey-live-stats em { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.journey-live-stats b { margin-bottom:3px; color:#64737a; font-size:11px; font-style:normal; font-weight:950; letter-spacing:.08em; }
-.journey-live-stats em { color:#172026; font-size:22px; font-style:normal; font-weight:950; line-height:1.15; }
+.journey-live-stats b { margin-bottom:2px; color:#64737a; font-size:10px; font-style:normal; font-weight:950; letter-spacing:.08em; }
+.journey-live-stats em { color:#172026; font-size:16px; font-style:normal; font-weight:950; line-height:1.15; }
 .maplibregl-ctrl-bottom-right { right:12px; bottom:238px; }
 .maplibregl-ctrl-attrib { background:rgba(8,13,16,.72)!important; color:#aab5ba; }
 .maplibregl-ctrl-attrib a { color:#d7e0e4; }

@@ -35,6 +35,9 @@ yarn-error.log*
 .vercel
 
 /dist/
+/dist-static/
+/static/
+/tsconfig.tsbuildinfo
 /.wrangler/
 /outputs/
 /work/

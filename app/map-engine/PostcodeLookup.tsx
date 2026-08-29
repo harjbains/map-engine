@@ -23,7 +23,7 @@ export function PostcodeLookup({ fix, openGroup, onChangeGroup }: PostcodeLookup
   return (
     <>
       {selectedGroup && (
-        <section className="postcode-lookup-panel" id="postcode-lookup-panel" role="dialog" aria-modal="false" aria-label={`Birmingham postcodes ${selectedGroup.rangeLabel}`}>
+        <section className="postcode-lookup-panel" id="postcode-lookup-panel" role="dialog" aria-modal="false" aria-label={`Postcode lookup ${selectedGroup.rangeLabel}`}>
           <header>
             <div><span>QUICK POSTCODE LOOKUP</span><h2>{selectedGroup.rangeLabel}</h2></div>
             <p>{fix ? "Approximate direction and distance to each postcode centre" : "Start live position to add ahead, left, right and behind guidance"}</p>
@@ -45,15 +45,12 @@ export function PostcodeLookup({ fix, openGroup, onChangeGroup }: PostcodeLookup
           </div>
         </section>
       )}
-      <nav className="postcode-dock" aria-label="Birmingham postcode quick lookup">
+      <nav className="postcode-dock" aria-label="Postcode quick lookup">
         {BIRMINGHAM_POSTCODE_GROUPS.map((group) => {
           const selected = openGroup === group.id;
-          const [rangeStart, rangeEnd] = group.rangeLabel.split("–");
           return (
             <button type="button" key={group.id} className={selected ? "selected" : ""} aria-label={`Open postcodes ${group.rangeLabel}`} aria-pressed={selected} aria-expanded={selected} aria-controls="postcode-lookup-panel" onClick={() => onChangeGroup(selected ? null : group.id)}>
-              <span className="postcode-range-start">{rangeStart}</span>
-              <i aria-hidden="true" />
-              <span className="postcode-range-end">{rangeEnd}</span>
+              <span className="postcode-range-label">{group.prefix}{group.minimum}+</span>
             </button>
           );
         })}

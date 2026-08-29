@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type maplibregl from "maplibre-gl";
-import { trafficDelayPercent, type RoadTraffic, type TrafficHealthState, type TrafficProbeResponse } from "../lib/traffic";
+import { trafficDelayPercent, type RoadTraffic, type TrafficHealthState } from "../lib/traffic";
+import { probeTraffic, tomTomKey } from "../lib/tomtom-client";
 import type { VehicleFix } from "./config";
 import { refreshTrafficTiles, setTrafficVisibility } from "./map-routing-layers";
 
@@ -20,20 +21,9 @@ export function useTraffic({ mapRef, latestFixRef, mapReady, enabled, online }: 
   const [roadTraffic, setRoadTraffic] = useState<RoadTraffic | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/traffic/status", { cache: "no-store" })
-      .then((response) => response.json() as Promise<TrafficProbeResponse>)
-      .then((result) => {
-        if (cancelled) return;
-        setConfigured(Boolean(result.configured));
-        if (!result.configured) setHealth("error");
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setConfigured(false);
-        setHealth("error");
-      });
-    return () => { cancelled = true; };
+    const configured = Boolean(tomTomKey());
+    setConfigured(configured);
+    if (!configured) setHealth("error");
   }, []);
 
   useEffect(() => {
@@ -57,18 +47,16 @@ export function useTraffic({ mapRef, latestFixRef, mapReady, enabled, online }: 
       const vehicleFix = latestFixRef.current;
       const centre = map.getCenter();
       const point = vehicleFix ?? { latitude: centre.lat, longitude: centre.lng };
-      const params = new URLSearchParams({ lat: String(point.latitude), lon: String(point.longitude) });
       requestRunning = true;
       if (updatedAtRef.current === null) setHealth("checking");
       try {
-        const response = await fetch(`/api/traffic/status?${params}`, { cache: "no-store" });
-        const result = await response.json() as TrafficProbeResponse;
+        const result = await probeTraffic(point.latitude, point.longitude);
         if (cancelled) return;
         if (!result.configured) {
           setConfigured(false);
           setHealth("error");
           setRoadTraffic(null);
-        } else if (response.ok && result.status === "live" && result.flow && result.checkedAt) {
+        } else if (result.status === "live" && result.flow && result.checkedAt) {
           updatedAtRef.current = result.checkedAt;
           setUpdatedAt(result.checkedAt);
           setHealth("live");

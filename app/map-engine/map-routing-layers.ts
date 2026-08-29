@@ -1,5 +1,6 @@
 import type maplibregl from "maplibre-gl";
 import type { CalculatedRoute } from "../lib/routing";
+import { tomTomKey, trafficIncidentTileUrl, trafficTileUrl } from "../lib/tomtom-client";
 
 const EMPTY_ROUTE_DATA = { type: "FeatureCollection", features: [] } as const;
 export const TRAFFIC_SOURCE = "tomtom-live-traffic";
@@ -10,15 +11,14 @@ const TRAFFIC_INCIDENT_POINT_LAYER = "tomtom-live-incident-points";
 const TRAFFIC_INCIDENT_LABEL_LAYER = "tomtom-live-incident-labels";
 const TRAFFIC_LAYERS = [TRAFFIC_LAYER, TRAFFIC_INCIDENT_FLOW_LAYER, TRAFFIC_INCIDENT_POINT_LAYER, TRAFFIC_INCIDENT_LABEL_LAYER];
 
-function trafficTileUrl() {
-  return `/api/traffic/{z}/{x}/{y}?refresh=${Math.floor(Date.now() / 60_000)}`;
-}
-
-function trafficIncidentTileUrl() {
-  return `/api/traffic/incidents/{z}/{x}/{y}?refresh=${Math.floor(Date.now() / 60_000)}`;
-}
-
 export function ensureTrafficLayer(map: maplibregl.Map) {
+  addTrafficGeometry(map, false);
+}
+
+function addTrafficGeometry(map: maplibregl.Map, visible: boolean) {
+  if (!map.isStyleLoaded()) return;
+  if (!tomTomKey()) return;
+  const visibility = visible ? "visible" : "none";
   if (!map.getSource(TRAFFIC_SOURCE)) {
     map.addSource(TRAFFIC_SOURCE, {
       type: "vector",
@@ -37,7 +37,12 @@ export function ensureTrafficLayer(map: maplibregl.Map) {
       attribution: "Traffic incidents © TomTom",
     });
   }
-  const before = map.getLayer("active-route-casing") ? "active-route-casing" : map.getLayer("road-name") ? "road-name" : undefined;
+  const before =
+    map.getLayer("active-route-casing")
+      ? "active-route-casing"
+      : map.getLayer("road-name")
+        ? "road-name"
+        : undefined;
   if (!map.getLayer(TRAFFIC_LAYER)) {
     map.addLayer({
       id: TRAFFIC_LAYER,
@@ -45,10 +50,10 @@ export function ensureTrafficLayer(map: maplibregl.Map) {
       source: TRAFFIC_SOURCE,
       "source-layer": "Traffic flow",
       minzoom: 7,
-      filter: ["<=", ["get", "traffic_level"], 0.88],
-      layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+      filter: ["<=", ["get", "traffic_level"], 0.6],
+      layout: { visibility, "line-cap": "round", "line-join": "round" },
       paint: {
-        "line-color": ["case", ["<=", ["get", "traffic_level"], 0.45], "#7f1d29", ["<=", ["get", "traffic_level"], 0.75], "#d33d32", "#a84608"],
+        "line-color": ["case", ["<=", ["get", "traffic_level"], 0.35], "#6b0f1c", ["<=", ["get", "traffic_level"], 0.45], "#e0242d", "#f2a513"],
         "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.5, 12, 5, 15, 9, 18, 16],
         "line-opacity": 0.96,
       },
@@ -61,7 +66,7 @@ export function ensureTrafficLayer(map: maplibregl.Map) {
       source: TRAFFIC_INCIDENT_SOURCE,
       "source-layer": "Traffic incident flow",
       minzoom: 8,
-      layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+      layout: { visibility, "line-cap": "round", "line-join": "round" },
       paint: {
         "line-color": ["step", ["coalesce", ["get", "magnitude"], 0], "#b75b1c", 2, "#d84332", 3, "#831f27"],
         "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2, 12, 4, 16, 8],
@@ -77,7 +82,7 @@ export function ensureTrafficLayer(map: maplibregl.Map) {
       source: TRAFFIC_INCIDENT_SOURCE,
       "source-layer": "Traffic incident POI",
       minzoom: 9,
-      layout: { visibility: "none" },
+      layout: { visibility },
       paint: {
         "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 7, 14, 10, 18, 13],
         "circle-color": ["match", ["coalesce", ["get", "icon_category_0"], 0], 1, "#cf332d", 6, "#8f1f27", 7, "#d45a18", 8, "#7f1d29", 9, "#b75b1c", 11, "#316f91", 14, "#a84608", "#a84608"],
@@ -95,7 +100,7 @@ export function ensureTrafficLayer(map: maplibregl.Map) {
       "source-layer": "Traffic incident POI",
       minzoom: 9,
       layout: {
-        visibility: "none",
+        visibility,
         "text-field": ["match", ["coalesce", ["get", "icon_category_0"], 0], 1, "!", 6, "J", 7, "L", 8, "×", 9, "W", 11, "~", 14, "B", "!"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 9, 9, 14, 12, 18, 15],
         "text-font": ["Noto Sans Regular"],
@@ -105,19 +110,26 @@ export function ensureTrafficLayer(map: maplibregl.Map) {
       paint: { "text-color": "#ffffff", "text-halo-color": "rgba(0,0,0,.18)", "text-halo-width": 0.5 },
     });
   }
+  for (const layer of TRAFFIC_LAYERS) {
+    if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visibility);
+  }
 }
 
 export function setTrafficVisibility(map: maplibregl.Map, visible: boolean) {
   for (const layer of TRAFFIC_LAYERS) {
     if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visible ? "visible" : "none");
   }
+  if (visible && map.isStyleLoaded()) refreshTrafficTiles(map);
 }
 
 export function refreshTrafficTiles(map: maplibregl.Map) {
-  const source = map.getSource(TRAFFIC_SOURCE) as maplibregl.VectorTileSource | undefined;
-  source?.setTiles([trafficTileUrl()]);
-  const incidentSource = map.getSource(TRAFFIC_INCIDENT_SOURCE) as maplibregl.VectorTileSource | undefined;
-  incidentSource?.setTiles([trafficIncidentTileUrl()]);
+  for (const layer of TRAFFIC_LAYERS) {
+    if (map.getLayer(layer)) map.removeLayer(layer);
+  }
+  if (map.getSource(TRAFFIC_INCIDENT_SOURCE)) map.removeSource(TRAFFIC_INCIDENT_SOURCE);
+  if (map.getSource(TRAFFIC_SOURCE)) map.removeSource(TRAFFIC_SOURCE);
+  addTrafficGeometry(map, true);
+  map.triggerRepaint();
 }
 
 export function collapseAttributionControl(map: maplibregl.Map) {

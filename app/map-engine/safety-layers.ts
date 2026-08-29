@@ -7,6 +7,8 @@ const EMPTY_SAFETY_DATA: SafetyFeatureCollection = { type: "FeatureCollection", 
 const TRAFFIC_LIGHT_IMAGE = "map-engine-traffic-light";
 const ONE_WAY_ARROW_IMAGE = "map-engine-one-way-arrow";
 const ROAD_CLOSURE_IMAGE = "map-engine-road-closure";
+const ROADWORKS_IMAGE = "map-engine-roadworks";
+const SPEED_BUMP_IMAGE = "map-engine-speed-bump";
 const DRIVER_AMENITY_LAYERS = ["safety-clean-air-zone", "safety-ev-charger", "safety-parking"];
 
 function pointToSegmentMetres(point: Point, start: [number, number], end: [number, number]) {
@@ -132,6 +134,56 @@ function createRoadClosureImage() {
   return context.getImageData(0, 0, canvas.width, canvas.height);
 }
 
+function createRoadworksImage() {
+  const pixelRatio = 3;
+  const size = 26;
+  const canvas = document.createElement("canvas");
+  canvas.width = size * pixelRatio;
+  canvas.height = size * pixelRatio;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.scale(pixelRatio, pixelRatio);
+  context.beginPath();
+  context.moveTo(13, 1.5);
+  context.lineTo(21.5, 20);
+  context.lineTo(4.5, 20);
+  context.closePath();
+  context.fillStyle = "#f2a513";
+  context.strokeStyle = "#8a5a12";
+  context.lineWidth = 1.5;
+  context.fill();
+  context.stroke();
+  context.fillStyle = "#ffffff";
+  context.fillRect(8.6, 10, 8.8, 3.1);
+  context.fillRect(10.6, 15.5, 4.8, 2.7);
+  return context.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function createSpeedBumpImage() {
+  const pixelRatio = 3;
+  const width = 22;
+  const height = 16;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * pixelRatio;
+  canvas.height = height * pixelRatio;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.scale(pixelRatio, pixelRatio);
+  context.fillStyle = "#f2f4f3";
+  context.fillRect(0, 8.5, width, 7.5);
+  context.fillStyle = "#c6ccca";
+  context.fillRect(0, 11.5, width, 4.5);
+  context.beginPath();
+  context.arc(width / 2, 10.5, 5.2, Math.PI, 0);
+  context.closePath();
+  context.fillStyle = "#ffd451";
+  context.strokeStyle = "#20272b";
+  context.lineWidth = 1.3;
+  context.fill();
+  context.stroke();
+  return context.getImageData(0, 0, canvas.width, canvas.height);
+}
+
 export function ensureSafetyLayers(map: maplibregl.Map) {
   if (!map.getSource("safety-overlays")) map.addSource("safety-overlays", { type: "geojson", data: EMPTY_SAFETY_DATA as never });
   const trafficLightImage = createTrafficLightImage();
@@ -140,6 +192,10 @@ export function ensureSafetyLayers(map: maplibregl.Map) {
   if (oneWayArrowImage && !map.hasImage(ONE_WAY_ARROW_IMAGE)) map.addImage(ONE_WAY_ARROW_IMAGE, oneWayArrowImage, { pixelRatio: 3 });
   const roadClosureImage = createRoadClosureImage();
   if (roadClosureImage && !map.hasImage(ROAD_CLOSURE_IMAGE)) map.addImage(ROAD_CLOSURE_IMAGE, roadClosureImage, { pixelRatio: 3 });
+  const roadworksImage = createRoadworksImage();
+  if (roadworksImage && !map.hasImage(ROADWORKS_IMAGE)) map.addImage(ROADWORKS_IMAGE, roadworksImage, { pixelRatio: 3 });
+  const speedBumpImage = createSpeedBumpImage();
+  if (speedBumpImage && !map.hasImage(SPEED_BUMP_IMAGE)) map.addImage(SPEED_BUMP_IMAGE, speedBumpImage, { pixelRatio: 3 });
   const before = map.getLayer("road-name") ? "road-name" : undefined;
   const add = (layer: maplibregl.LayerSpecification) => {
     if (!map.getLayer(layer.id)) map.addLayer(layer, before);
@@ -155,6 +211,12 @@ export function ensureSafetyLayers(map: maplibregl.Map) {
   add({ id: "safety-road-closure-line", type: "line", source: "safety-overlays", minzoom: 11.5, filter: ["==", ["get", "kind"], "road_closure"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#df5948", "line-width": ["interpolate", ["linear"], ["zoom"], 11.5, 3, 17, 10], "line-opacity": 0.98 } });
   add({ id: "safety-road-closure-markers", type: "symbol", source: "safety-overlays", minzoom: 12.5, filter: ["==", ["get", "kind"], "road_closure"], layout: { "symbol-placement": "line", "symbol-spacing": ["interpolate", ["linear"], ["zoom"], 12.5, 90, 18, 140], "icon-image": ROAD_CLOSURE_IMAGE, "icon-size": ["interpolate", ["linear"], ["zoom"], 12.5, 0.72, 18, 1], "icon-rotation-alignment": "viewport", "icon-pitch-alignment": "viewport", "icon-allow-overlap": true, "icon-ignore-placement": true } });
   add({ id: "safety-road-closure-label", type: "symbol", source: "safety-overlays", minzoom: 14, filter: ["==", ["get", "kind"], "road_closure"], layout: { "symbol-placement": "line", "symbol-spacing": 420, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 8, 18, 11], "text-offset": [0, 1.2], "text-allow-overlap": false }, paint: { "text-color": "#8f3029", "text-halo-color": "#fff7f3", "text-halo-width": 3 } });
+  add({ id: "safety-roadworks-casing", type: "line", source: "safety-overlays", minzoom: 11.5, filter: ["==", ["get", "kind"], "roadworks"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#8a5a12", "line-width": ["interpolate", ["linear"], ["zoom"], 11.5, 5, 17, 14], "line-opacity": 0.92 } });
+  add({ id: "safety-roadworks-line", type: "line", source: "safety-overlays", minzoom: 11.5, filter: ["==", ["get", "kind"], "roadworks"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#f2a513", "line-width": ["interpolate", ["linear"], ["zoom"], 11.5, 2.8, 17, 9], "line-dasharray": [4, 2], "line-opacity": 0.96 } });
+  add({ id: "safety-roadworks-markers", type: "symbol", source: "safety-overlays", minzoom: 12.5, filter: ["==", ["get", "kind"], "roadworks"], layout: { "symbol-placement": "line", "symbol-spacing": ["interpolate", ["linear"], ["zoom"], 12.5, 110, 18, 170], "icon-image": ROADWORKS_IMAGE, "icon-size": ["interpolate", ["linear"], ["zoom"], 12.5, 0.68, 18, 0.95], "icon-rotation-alignment": "viewport", "icon-pitch-alignment": "viewport", "icon-allow-overlap": true, "icon-ignore-placement": true } });
+  add({ id: "safety-roadworks-label", type: "symbol", source: "safety-overlays", minzoom: 14, filter: ["==", ["get", "kind"], "roadworks"], layout: { "symbol-placement": "line", "symbol-spacing": 400, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 8, 18, 11], "text-allow-overlap": false }, paint: { "text-color": "#7a4e08", "text-halo-color": "#fff6dd", "text-halo-width": 3 } });
+  add({ id: "safety-speed-bump", type: "symbol", source: "safety-overlays", minzoom: 13.5, filter: ["==", ["get", "kind"], "speed_bump"], layout: { "icon-image": SPEED_BUMP_IMAGE, "icon-size": ["interpolate", ["linear"], ["zoom"], 13.5, 0.85, 18, 1.1], "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport" } });
+  add({ id: "safety-speed-bump-label", type: "symbol", source: "safety-overlays", minzoom: 14.5, filter: ["==", ["get", "kind"], "speed_bump"], layout: { "text-field": "BUMP", "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14.5, 7, 18, 9], "text-offset": [0, 1.5], "text-allow-overlap": false }, paint: { "text-color": "#3d4a42", "text-halo-color": "#ffffff", "text-halo-width": 3 } });
   add({ id: "safety-one-way-arrows", type: "symbol", source: "openmaptiles", "source-layer": "transportation", minzoom: 13.5, filter: ["all", ["has", "oneway"], ["match", ["to-string", ["get", "oneway"]], ["1", "-1", "true", "yes"], true, false], ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary"], false, true]], layout: { "symbol-placement": "line", "symbol-spacing": ["interpolate", ["linear"], ["zoom"], 13.5, 74, 18, 120], "icon-image": ONE_WAY_ARROW_IMAGE, "icon-size": ["interpolate", ["linear"], ["zoom"], 13.5, 0.8, 18, 1.05], "icon-rotate": ["case", ["==", ["to-string", ["get", "oneway"]], "-1"], 180, 0], "icon-rotation-alignment": "map", "icon-pitch-alignment": "map", "icon-keep-upright": false, "icon-allow-overlap": true, "icon-ignore-placement": true } });
   add({ id: "safety-speed-limit", type: "symbol", source: "safety-overlays", minzoom: 14.5, filter: ["==", ["get", "kind"], "speed_limit"], layout: { "symbol-placement": "line", "symbol-spacing": 760, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14.5, 8, 18, 11], "text-allow-overlap": false, "text-ignore-placement": false }, paint: { "text-color": "#15191c", "text-halo-color": "#ffffff", "text-halo-width": 3.5 } });
   add({ id: "safety-no-entry-disc", type: "circle", source: "safety-overlays", minzoom: 14, filter: ["==", ["get", "kind"], "no_entry"], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 5, 18, 8], "circle-color": "#d93636", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });

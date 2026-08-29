@@ -8,14 +8,16 @@ import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollec
 import { CompassStrip } from "./map-engine/CompassStrip";
 import { DestinationSearch } from "./map-engine/DestinationSearch";
 import { MapHeader } from "./map-engine/MapHeader";
+import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
-import { distanceKm, liveRouteProgress, nearestLocality, nearestNamedRoad, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
+import { bearingBetween, distanceFromRouteMetres, distanceKm, headingDifference, liveRouteProgress, nearestLocality, nearestNamedRoad, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensureSafetyLayers, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
+import { styleJsonUrl } from "./lib/tomtom-client";
 const ROAD_LAYERS = ["road-motorway", "road-a", "road-b", "road-local"];
 export default function MapEngine() {
   const mapNode = useRef<HTMLDivElement>(null);
@@ -29,6 +31,8 @@ export default function MapEngine() {
   const deviceHeadingRef = useRef<number | null>(null);
   const smoothedRef = useRef<{ lat: number | null; lon: number | null; speed: number | null; bearing: number | null }>({ lat: null, lon: null, speed: null, bearing: null });
   const settingsRef = useRef(DEFAULT_SETTINGS);
+  const styleEpochRef = useRef(0);
+  const themeKeyRef = useRef<number | null>(null);
   const followRef = useRef(false);
   const is3dRef = useRef(true);
   const abortPackRef = useRef<AbortController | null>(null);
@@ -41,17 +45,24 @@ export default function MapEngine() {
   const lastViewUpdateRef = useRef(0);
   const manualZoomRef = useRef<number | null>(null);
   const safetyDataRef = useRef<SafetyFeatureCollection | null>(null);
+  const cameraAlertRef = useRef<{ id: string; since: number; distanceM: number; averageSpeed: boolean } | null>(null);
+  const currentRoadRef = useRef<string | null>(null);
+  const deviatedSinceRef = useRef(0);
+  const reroutingRef = useRef(false);
+  const rerouteCooldownUntilRef = useRef(0);
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [is3d, setIs3d] = useState(true);
   const [follow, setFollow] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const [locationState, setLocationState] = useState<"idle" | "requesting" | "active" | "denied" | "unavailable">("idle");
   const [fix, setFix] = useState<VehicleFix | null>(null);
   const [currentRoad, setCurrentRoad] = useState<string | null>(null);
   const [currentLocality, setCurrentLocality] = useState<string | null>(null);
   const [speedLimitMph, setSpeedLimitMph] = useState<number | null>(null);
+  const [cameraAlert, setCameraAlert] = useState<{ id: string; since: number; distanceM: number; averageSpeed: boolean } | null>(null);
   const [mapMessage, setMapMessage] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
   const [offlinePack, setOfflinePack] = useState<OfflinePack | null>(null);
@@ -80,6 +91,23 @@ export default function MapEngine() {
   const changeFollow = useCallback((next: boolean) => {
     followRef.current = next;
     setFollow(next);
+  }, []);
+
+  const updateSettings = useCallback((patch: Partial<Settings>) => {
+    setSettings((current) => {
+      const next = { ...current, ...patch };
+      localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const reapplyMapTheme = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const key = styleEpochRef.current * 2 + (settingsRef.current.darkMode ? 1 : 0);
+    if (themeKeyRef.current === key) return;
+    themeKeyRef.current = key;
+    applyMapTheme(map, settingsRef.current.darkMode);
   }, []);
 
   useEffect(() => {
@@ -123,6 +151,10 @@ export default function MapEngine() {
     navigator.serviceWorker?.register("/sw.js", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => setMapMessage("Offline app storage could not be started."));
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", onPageShow);
     const installHandler = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as InstallPromptEvent);
@@ -133,23 +165,25 @@ export default function MapEngine() {
       window.removeEventListener("online", onlineHandler);
       window.removeEventListener("offline", offlineHandler);
       window.removeEventListener("beforeinstallprompt", installHandler);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, []);
 
   useEffect(() => {
     settingsRef.current = settings;
-    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
     const map = mapRef.current;
-    if (map?.isStyleLoaded()) {
-      applyMapTheme(map, settings.darkMode);
-      if (map.getLayer("building-3d")) {
-        map.setLayoutProperty("building-3d", "visibility", settings.showBuildings && is3d ? "visible" : "none");
-      }
-      setDriverAmenitiesVisibility(map, settings.showDriverAmenities);
+    if (map) {
       setTrafficVisibility(map, settings.liveTraffic && traffic.configured === true && online);
-      if (followRef.current) map.easeTo({ pitch: is3d ? settings.pitch : 0, duration: 350 });
+      if (map.isStyleLoaded()) {
+        reapplyMapTheme();
+        if (map.getLayer("building-3d")) {
+          map.setLayoutProperty("building-3d", "visibility", settings.showBuildings && is3d ? "visible" : "none");
+        }
+        setDriverAmenitiesVisibility(map, settings.showDriverAmenities);
+        if (followRef.current) map.easeTo({ pitch: is3d ? settings.pitch : 0, duration: 350 });
+      }
     }
-  }, [settings, is3d, traffic.configured, online]);
+  }, [settings, is3d, traffic.configured, online, mapReady]);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -167,7 +201,7 @@ export default function MapEngine() {
     if (!mapNode.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: mapNode.current,
-      style: "/map-style.json",
+      style: styleJsonUrl(),
       center: [DEFAULT_START.longitude, DEFAULT_START.latitude],
       zoom: DEFAULT_START.zoom,
       pitch: 55,
@@ -245,13 +279,15 @@ export default function MapEngine() {
       const initialCentre = map.getCenter();
       const cachedSafety = readCachedSafetyFeatures({ latitude: initialCentre.lat, longitude: initialCentre.lng });
       if (cachedSafety) showSafety(cachedSafety);
-      applyMapTheme(map, settingsRef.current.darkMode);
+      reapplyMapTheme();
       setMapReady(true);
       setMapMessage(null);
       scheduleSafetyRefresh(0);
     });
     const refreshSafetyWhenSettled = () => scheduleSafetyRefresh(0);
-    map.on("idle", refreshSafetyWhenSettled);
+    const onMapIdle = () => { reapplyMapTheme(); refreshSafetyWhenSettled(); };
+    map.on("style.load", () => { styleEpochRef.current += 1; reapplyMapTheme(); });
+    map.on("idle", onMapIdle);
     map.on("error", () => {
       if (!navigator.onLine) setMapMessage("Offline map data is missing here. Reconnect and save this area first.");
     });
@@ -283,7 +319,7 @@ export default function MapEngine() {
       canvasContainer.removeEventListener("dblclick", manualInput);
       canvasContainer.removeEventListener("keydown", manualInput);
       map.off("moveend", refreshSafety);
-      map.off("idle", refreshSafetyWhenSettled);
+      map.off("idle", onMapIdle);
       if (safetyRetryTimer !== null) window.clearTimeout(safetyRetryTimer);
       map.remove();
       mapRef.current = null;
@@ -298,6 +334,26 @@ export default function MapEngine() {
     destinationSearchAbortRef.current?.abort();
     routeAbortRef.current?.abort();
     destinationMarkerRef.current?.remove();
+  }, []);
+
+  const resolveRoadAndLocality = useCallback((map: maplibregl.Map, point: Point) => {
+    if (!map.isStyleLoaded()) return;
+    const namedRoad = nearestNamedRoad(map, point);
+    if (namedRoad) {
+      currentRoadRef.current = namedRoad;
+      setCurrentRoad(namedRoad);
+    } else {
+      const screenPoint = map.project([point.longitude, point.latitude]);
+      const availableLayers = ROAD_LAYERS.filter((id) => Boolean(map.getLayer(id)));
+      const feature = map.queryRenderedFeatures([[screenPoint.x - 18, screenPoint.y - 18], [screenPoint.x + 18, screenPoint.y + 18]], { layers: availableLayers })[0];
+      const renderedRoad = feature ? roadFeatureLabel(feature) : null;
+      if (renderedRoad) {
+        currentRoadRef.current = renderedRoad;
+        setCurrentRoad(renderedRoad);
+      }
+    }
+    const locality = nearestLocality(map, point);
+    if (locality) setCurrentLocality(locality);
   }, []);
 
   const renderFixOnMap = useCallback((nextFix: VehicleFix) => {
@@ -322,23 +378,28 @@ export default function MapEngine() {
     if (roadQueryTimerRef.current !== null) return;
     roadQueryTimerRef.current = window.setTimeout(() => {
       roadQueryTimerRef.current = null;
-      if (!map.isStyleLoaded()) return;
       const pointerFix = latestFixRef.current ?? nextFix;
       setSpeedLimitMph(speedLimitNearPoint(safetyDataRef.current, pointerFix));
-      const namedRoad = nearestNamedRoad(map, pointerFix);
-      if (namedRoad) {
-        setCurrentRoad(namedRoad);
-      } else {
-        const point = map.project([pointerFix.longitude, pointerFix.latitude]);
-        const availableLayers = ROAD_LAYERS.filter((id) => Boolean(map.getLayer(id)));
-        const feature = map.queryRenderedFeatures([[point.x - 18, point.y - 18], [point.x + 18, point.y + 18]], { layers: availableLayers })[0];
-        const renderedRoad = feature ? roadFeatureLabel(feature) : null;
-        if (renderedRoad) setCurrentRoad(renderedRoad);
-      }
-      const locality = nearestLocality(map, pointerFix);
-      if (locality) setCurrentLocality(locality);
+      resolveRoadAndLocality(map, pointerFix);
     }, 90);
-  }, []);
+  }, [resolveRoadAndLocality]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const resolveFromCentre = () => {
+      if (latestFixRef.current || simulationActiveRef.current) return;
+      const centre = map.getCenter();
+      resolveRoadAndLocality(map, { latitude: centre.lat, longitude: centre.lng });
+    };
+    map.on("idle", resolveFromCentre);
+    map.on("moveend", resolveFromCentre);
+    return () => {
+      map.off("idle", resolveFromCentre);
+      map.off("moveend", resolveFromCentre);
+    };
+  }, [mapReady, resolveRoadAndLocality]);
 
   const applyPosition = useCallback((position: GeolocationPosition) => {
     const coords = position.coords;
@@ -368,6 +429,63 @@ export default function MapEngine() {
   useEffect(() => {
     if (mapReady && fix && !simulationActiveRef.current) renderFixOnMap(fix);
   }, [fix, mapReady, renderFixOnMap]);
+
+  useEffect(() => {
+    const active = cameraAlertRef.current;
+    if (!fix) {
+      if (active) {
+        cameraAlertRef.current = null;
+        setCameraAlert(null);
+      }
+      return;
+    }
+    const data = safetyDataRef.current;
+    if (!data || fix.speedMph < 6) {
+      if (active) {
+        cameraAlertRef.current = null;
+        setCameraAlert(null);
+      }
+      return;
+    }
+    const map = mapRef.current;
+    if (!map) return;
+    let nearestCamera: { id: string; distanceKm: number; averageSpeed: boolean } | null = null;
+    const currentRoadName = currentRoadRef.current;
+    for (const feature of data.features) {
+      if (feature.properties.kind !== "speed_camera" || feature.geometry.type !== "Point") continue;
+      const coordinates = feature.geometry.coordinates as [number, number];
+      const cameraPoint = { latitude: coordinates[1], longitude: coordinates[0] };
+      const distanceKmToCamera = distanceKm(fix, cameraPoint);
+      if (distanceKmToCamera < 0.022 || distanceKmToCamera > 0.5) continue;
+      const bearingToCamera = bearingBetween(fix, cameraPoint);
+      if (Math.abs(headingDifference(bearingToCamera, fix.bearing)) > 38) continue;
+      if (currentRoadName) {
+        const cameraRoad = nearestNamedRoad(map, cameraPoint);
+        if (cameraRoad && cameraRoad !== currentRoadName) continue;
+      }
+      if (!nearestCamera || distanceKmToCamera < nearestCamera.distanceKm) {
+        nearestCamera = {
+          id: String(feature.id),
+          distanceKm: distanceKmToCamera,
+          averageSpeed: feature.properties.label === "Average speed",
+        };
+      }
+    }
+    if (nearestCamera) {
+      const distanceM = Math.round(nearestCamera.distanceKm * 1000 / 10) * 10;
+      if (!active || active.id !== nearestCamera.id) {
+        cameraAlertRef.current = { id: nearestCamera.id, since: Date.now(), distanceM, averageSpeed: nearestCamera.averageSpeed };
+        setCameraAlert(cameraAlertRef.current);
+      } else if (active.distanceM !== distanceM || active.averageSpeed !== nearestCamera.averageSpeed) {
+        const updated = { ...active, distanceM, averageSpeed: nearestCamera.averageSpeed };
+        cameraAlertRef.current = updated;
+        setCameraAlert(updated);
+      }
+    } else if (active && Date.now() - active.since >= 2_600) {
+      cameraAlertRef.current = null;
+      setCameraAlert(null);
+    }
+  }, [fix]);
 
   const startLocation = useCallback(async () => {
     if (!navigator.geolocation) {
@@ -429,13 +547,22 @@ export default function MapEngine() {
       navigator.geolocation.clearWatch(watchRef.current);
       watchRef.current = null;
     }
+    const centre = mapRef.current?.getCenter();
+    const origin = centre ? { latitude: centre.lat, longitude: centre.lng } : DEFAULT_START;
+    const metroPerLatitude = 110_574;
+    const metroPerLongitude = 111_320 * Math.cos(origin.latitude * Math.PI / 180);
+    const offset = (latitudeOffsetM: number, longitudeOffsetM: number) => ({
+      latitude: origin.latitude + latitudeOffsetM / metroPerLatitude,
+      longitude: origin.longitude + longitudeOffsetM / metroPerLongitude,
+    });
     const route = [
-      { latitude: 52.4779, longitude: -1.9062 },
-      { latitude: 52.4822, longitude: -1.8980 },
-      { latitude: 52.4872, longitude: -1.8883 },
-      { latitude: 52.4932, longitude: -1.8790 },
-      { latitude: 52.4995, longitude: -1.8690 },
-      { latitude: 52.5070, longitude: -1.8585 },
+      offset(0, 0),
+      offset(-260, 0),
+      offset(-260, 180),
+      offset(0, 360),
+      offset(200, 180),
+      offset(200, -40),
+      offset(0, -40),
     ];
     let leg = 0;
     let direction = 1;
@@ -622,6 +749,9 @@ export default function MapEngine() {
   const endRoute = () => {
     routeAbortRef.current?.abort();
     routeAbortRef.current = null;
+    reroutingRef.current = false;
+    rerouteCooldownUntilRef.current = 0;
+    deviatedSinceRef.current = 0;
     setRouteLoading(false);
     setActiveRoute(null);
     setRouteDetailsOpen(false);
@@ -644,6 +774,9 @@ export default function MapEngine() {
     routeAbortRef.current?.abort();
     const controller = new AbortController();
     routeAbortRef.current = controller;
+    reroutingRef.current = false;
+    rerouteCooldownUntilRef.current = 0;
+    deviatedSinceRef.current = 0;
     setRouteLoading(true);
     setDestinationSearchError(null);
     setMapMessage("Calculating route…");
@@ -699,6 +832,59 @@ export default function MapEngine() {
       if (routeAbortRef.current === controller) setRouteLoading(false);
     }
   };
+
+  const rerouteToDestination = useCallback(async (origin: VehicleFix, destination: Destination) => {
+    if (reroutingRef.current) return;
+    reroutingRef.current = true;
+    routeAbortRef.current?.abort();
+    const controller = new AbortController();
+    routeAbortRef.current = controller;
+    setMapMessage("Recalculating route…");
+    let routeTimedOut = false;
+    const routeTimeout = window.setTimeout(() => {
+      routeTimedOut = true;
+      controller.abort();
+    }, ROUTE_TIMEOUT_MS);
+    try {
+      const { calculateRoute } = await import("./lib/routing");
+      const calculated = await calculateRoute(origin, destination, controller.signal);
+      if (routeAbortRef.current !== controller) return;
+      const map = mapRef.current;
+      if (!map) return;
+      await waitForMapStyle(map, controller.signal);
+      setRouteData(map, calculated);
+      setActiveRoute({ ...calculated, destination });
+      setRouteClock(Date.now());
+      setMapMessage("Route updated to your current road.");
+      window.setTimeout(() => setMapMessage(null), 3_000);
+    } catch (error) {
+      if (!routeTimedOut && (error as Error).name !== "AbortError") {
+        setMapMessage("Could not recalculate the route. Keep following the map to your destination.");
+        window.setTimeout(() => setMapMessage(null), 4_000);
+      }
+    } finally {
+      window.clearTimeout(routeTimeout);
+      reroutingRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!mapReady || !activeRoute || !fix || simulationActiveRef.current || fix.speedMph < 8) return;
+    if (Date.now() < rerouteCooldownUntilRef.current) return;
+    const metres = distanceFromRouteMetres(activeRoute, fix);
+    const now = Date.now();
+    if (metres > 70) {
+      if (deviatedSinceRef.current === 0) {
+        deviatedSinceRef.current = now;
+      } else if (now - deviatedSinceRef.current >= 3_500) {
+        deviatedSinceRef.current = 0;
+        rerouteCooldownUntilRef.current = now + 20_000;
+        void rerouteToDestination(fix, activeRoute.destination);
+      }
+    } else {
+      deviatedSinceRef.current = 0;
+    }
+  }, [fix, activeRoute, mapReady, rerouteToDestination]);
 
   const chooseQuickDestination = (key: keyof DestinationFavourites) => {
     const destination = destinationFavourites[key];
@@ -758,6 +944,10 @@ export default function MapEngine() {
   const routeJourney = activeRoute && fix ? liveRouteProgress(activeRoute, fix, routeClock) : null;
   const currentSpeedMph = Math.round(fix?.speedMph ?? 0);
   const speedWarning = speedLimitMph !== null && (fix?.speedMph ?? 0) > speedLimitMph + 4;
+  const cameraDistanceLabel = (metres: number) => {
+    const feet = metres / 0.3048;
+    return feet < 1_000 ? `${Math.max(10, Math.round(feet / 10) * 10)} ft` : `${(metres / 1609.344).toFixed(1)} mi`;
+  };
 
   return (
     <main className={`drive-shell ${settings.darkMode ? "classic-dark dark" : "classic"}`}>
@@ -772,9 +962,13 @@ export default function MapEngine() {
         trafficState={traffic.state}
         trafficTitle={traffic.title}
         onOpenSettings={() => setSettingsOpen(true)}
-        onToggleDarkMode={() => setSettings((current) => ({ ...current, darkMode: !current.darkMode }))}
+        onToggleDarkMode={() => updateSettings({ darkMode: !settings.darkMode })}
         onToggle3d={toggle3d}
+        legendOpen={legendOpen}
+        onToggleLegend={() => setLegendOpen((current) => !current)}
       />
+
+      <MapLegend open={legendOpen} onClose={() => setLegendOpen(false)} darkMode={settings.darkMode} />
 
       {settings.releaseMode === "current" && activeRoute && routeDetailsOpen && (
         <section className="active-route-panel" aria-label="Active route" aria-live="polite">
@@ -815,6 +1009,14 @@ export default function MapEngine() {
       )}
 
       <CompassStrip bearing={viewBearing} />
+
+      {cameraAlert && (
+        <div className="camera-alert" role="alert" key={cameraAlert.id}>
+          <span className="camera-alert-icon" aria-hidden="true">◉</span>
+          <strong>{cameraAlert.averageSpeed ? "Average Speed Zone" : "Speed Camera Ahead"}</strong>
+          <span className="camera-alert-distance">{cameraDistanceLabel(cameraAlert.distanceM)}</span>
+        </div>
+      )}
 
       {mapMessage && <div className="map-alert" role="status">{mapMessage}</div>}
 
@@ -887,15 +1089,15 @@ export default function MapEngine() {
           onSetPackRadius={setPackRadius}
           onCancelDownload={() => abortPackRef.current?.abort()}
           onSaveOfflineArea={() => void saveOfflineArea()}
-          onToggle={(key, value) => setSettings((current) => ({ ...current, [key]: value }))}
-          onDefault3d={(value) => { setSettings((current) => ({ ...current, default3d: value })); is3dRef.current = value; setIs3d(value); }}
-          onAutoZoom={(value) => { if (value) manualZoomRef.current = null; setSettings((current) => ({ ...current, autoZoom: value })); }}
+          onToggle={(key, value) => updateSettings({ [key]: value })}
+          onDefault3d={(value) => { updateSettings({ default3d: value }); is3dRef.current = value; setIs3d(value); }}
+          onAutoZoom={(value) => { if (value) manualZoomRef.current = null; updateSettings({ autoZoom: value }); }}
           onLiveTraffic={(value) => {
             traffic.reset(value);
-            setSettings((current) => ({ ...current, liveTraffic: value }));
+            updateSettings({ liveTraffic: value });
           }}
-          onPitch={(pitch) => setSettings((current) => ({ ...current, pitch }))}
-          onReleaseMode={(mode) => { if (mode === "stable") { setSearchOpen(false); endRoute(); } setSettings((current) => ({ ...current, releaseMode: mode })); }}
+          onPitch={(pitch) => updateSettings({ pitch })}
+          onReleaseMode={(mode) => { if (mode === "stable") { setSearchOpen(false); endRoute(); } updateSettings({ releaseMode: mode }); }}
           onToggleSimulation={simulating ? stopSimulation : startSimulation}
           onInstall={() => { void (async () => { if (!installPrompt) return; await installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); })(); }}
         />

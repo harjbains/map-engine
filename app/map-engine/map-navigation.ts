@@ -12,6 +12,19 @@ export function distanceKm(a: Point, b: Point) {
   return Math.hypot(x, y);
 }
 
+export function bearingBetween(a: Point, b: Point) {
+  const latitudeDelta = (b.latitude - a.latitude) * Math.PI / 180;
+  const longitudeDelta = (b.longitude - a.longitude) * Math.PI / 180;
+  const y = Math.sin(longitudeDelta) * Math.cos(b.latitude * Math.PI / 180);
+  const x = Math.cos(a.latitude * Math.PI / 180) * Math.sin(b.latitude * Math.PI / 180)
+    - Math.sin(a.latitude * Math.PI / 180) * Math.cos(b.latitude * Math.PI / 180) * Math.cos(longitudeDelta);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+export function headingDifference(fromDegrees: number, toDegrees: number) {
+  return (fromDegrees - toDegrees + 540) % 360 - 180;
+}
+
 export function liveRouteProgress(route: ActiveRoute, position: Point, now: number) {
   const coordinates = route.geometry.coordinates;
   let totalGeometryKm = 0;
@@ -49,13 +62,13 @@ export function liveRouteProgress(route: ActiveRoute, position: Point, now: numb
 }
 
 export function vehicleScreenOffset(map: maplibregl.Map): [number, number] {
-  return [0, Math.round(map.getContainer().clientHeight * 0.25)];
+  return [0, Math.round(map.getContainer().clientHeight * 0.15)];
 }
 
 export function positionVehicleMarker(map: maplibregl.Map, vehicle: HTMLDivElement, fix: VehicleFix, anchored: boolean) {
   const container = map.getContainer();
   const point = anchored
-    ? { x: container.clientWidth / 2, y: container.clientHeight * 0.75 }
+    ? { x: container.clientWidth / 2, y: container.clientHeight * 0.65 }
     : map.project([fix.longitude, fix.latitude]);
   vehicle.style.left = `${point.x}px`;
   vehicle.style.top = `${point.y}px`;
@@ -123,4 +136,25 @@ export function nearestLocality(map: maplibregl.Map, point: Point) {
     if (!best || score < best.score) best = { name, score };
   }
   return best?.name ?? null;
+}
+
+export function distanceFromRouteMetres(route: Pick<CalculatedRoute, "geometry">, point: Point) {
+  let nearestMetres = Number.POSITIVE_INFINITY;
+  const latitudeScale = Math.cos(point.latitude * Math.PI / 180);
+  const fixed = { x: point.longitude * latitudeScale, y: point.latitude };
+  const coordinates = route.geometry.coordinates;
+  for (let index = 1; index < coordinates.length; index += 1) {
+    const start = coordinates[index - 1];
+    const end = coordinates[index];
+    const startX = start[0] * latitudeScale;
+    const endX = end[0] * latitudeScale;
+    const dx = endX - startX;
+    const dy = end[1] - start[1];
+    const denominator = dx * dx + dy * dy;
+    const fraction = denominator === 0 ? 0 : Math.max(0, Math.min(1, ((fixed.x - startX) * dx + (fixed.y - start[1]) * dy) / denominator));
+    const projected = { x: startX + fraction * dx, y: start[1] + fraction * dy };
+    const metres = Math.hypot((fixed.x - projected.x) * 111_320, (fixed.y - projected.y) * 110_574);
+    if (metres < nearestMetres) nearestMetres = metres;
+  }
+  return nearestMetres;
 }
