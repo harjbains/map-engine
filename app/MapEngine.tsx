@@ -900,7 +900,28 @@ export default function MapEngine() {
     setActiveRoute({ ...option.route, destination: activeRoute.destination });
     setRouteClock(Date.now());
     setMapMessage(null);
-  }, [activeRoute, updateSettings]);
+    const coordinates = option.route.geometry.coordinates;
+    if (coordinates.length > 1) {
+      let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+      for (const point of coordinates) {
+        const [lon, lat] = point;
+        if (lon < minLon) minLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lon > maxLon) maxLon = lon;
+        if (lat > maxLat) maxLat = lat;
+      }
+      manualZoomRef.current = null;
+      changeFollow(false);
+      map.stop();
+      map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {
+        padding: { top: 70, bottom: 140, left: 70, right: 70 },
+        bearing: 0,
+        pitch: is3dRef.current ? settingsRef.current.pitch : 0,
+        duration: 700,
+        essential: true,
+      });
+    }
+  }, [activeRoute, updateSettings, changeFollow]);
 
   useEffect(() => {
     if (!mapReady || !activeRoute || !fix || simulationActiveRef.current || fix.speedMph < 8) return;
