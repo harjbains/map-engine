@@ -106,7 +106,7 @@ export async function fetchRouteCorridor(a: RoutePoint, b: RoutePoint, signal?: 
   const key = corridorKey(a, b);
   const cached = readCorridorCache(key);
   if (cached) return cached;
-  const payload = await fetchOverpass(corridorQuery(corridorBounds(a, b)), 0, 500, signal, 18_000);
+  const payload = await fetchOverpass(corridorQuery(corridorBounds(a, b)), 0, 500, signal, 14_000);
   const corridor = extractCorridor(payload.elements ?? []);
   if (corridor.ways.length === 0 || corridor.nodes.length === 0) {
     throw new Error("The road network could not be loaded for this journey.");
