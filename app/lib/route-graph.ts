@@ -101,11 +101,11 @@ function extractCorridor(elements: OverpassElement[]): Corridor {
   return { ways, nodes };
 }
 
-export async function fetchRouteCorridor(a: RoutePoint, b: RoutePoint): Promise<Corridor> {
+export async function fetchRouteCorridor(a: RoutePoint, b: RoutePoint, signal?: AbortSignal): Promise<Corridor> {
   const key = corridorKey(a, b);
   const cached = readCorridorCache(key);
   if (cached) return cached;
-  const payload = await fetchOverpass(corridorQuery(corridorBounds(a, b)), 0, 500);
+  const payload = await fetchOverpass(corridorQuery(corridorBounds(a, b)), 0, 500, signal, 12_000);
   const corridor = extractCorridor(payload.elements ?? []);
   if (corridor.ways.length >= MAX_CORRIDOR_WAYS || corridor.nodes.length >= MAX_CORRIDOR_NODES) {
     throw new Error("This journey is too large for on-device routing. Showing the fastest route instead.");
@@ -121,7 +121,7 @@ export async function calculateWeightedRoute(
   profile: RouteProfile = "fast",
 ): Promise<CalculatedRoute> {
   const destinationPoint = { latitude: destination.latitude, longitude: destination.longitude };
-  const corridor = await fetchRouteCorridor(origin, destinationPoint);
+  const corridor = await fetchRouteCorridor(origin, destinationPoint, signal);
   const nodes = new Map(corridor.nodes.map((node) => [node.id, node]));
   const graph = buildRoadGraph(corridor.ways, nodes, profile);
   const startNode = snapNearestNode(graph, origin, CORRIDOR_SNAP_METRES);

@@ -249,9 +249,11 @@ function distanceToPathMetres(point: TrafficSignalPoint, path: TrafficSignalPoin
   return nearest;
 }
 
-async function requestOverpass(endpoint: string, query: string, delayMs: number, controllers: AbortController[]) {
+async function requestOverpass(endpoint: string, query: string, delayMs: number, controllers: AbortController[], parentSignal?: AbortSignal, hardTimeoutMs?: number) {
   const controller = new AbortController();
   controllers.push(controller);
+  if (parentSignal?.aborted) controller.abort();
+  else if (parentSignal) parentSignal.addEventListener("abort", () => controller.abort(), { once: true });
   if (delayMs) {
     await new Promise<void>((resolve, reject) => {
       const delay = window.setTimeout(resolve, delayMs);
@@ -263,7 +265,7 @@ async function requestOverpass(endpoint: string, query: string, delayMs: number,
   }
   const declaredTimeout = query ? (query.match(/\[timeout:(\d+)\]/)?.[1] ?? "") : "";
   const timeoutCap = declaredTimeout ? Number(declaredTimeout) * 1_000 + 3_000 : 20_000;
-  const timeout = window.setTimeout(() => controller.abort(), Math.min(30_000, timeoutCap));
+  const timeout = window.setTimeout(() => controller.abort(), Math.min(30_000, hardTimeoutMs ?? timeoutCap));
   try {
     const response = await fetch(endpoint, {
       method: "POST",
@@ -278,10 +280,15 @@ async function requestOverpass(endpoint: string, query: string, delayMs: number,
   }
 }
 
-export async function fetchOverpass(query: string, initialDelayMs = 0, fallbackDelayMs = 1_400) {
+export async function fetchOverpass(query: string, initialDelayMs = 0, fallbackDelayMs = 1_400, parentSignal?: AbortSignal, hardTimeoutMs?: number) {
   const controllers: AbortController[] = [];
   try {
-    return await Promise.any(OVERPASS_URLS.map((endpoint, index) => requestOverpass(endpoint, query, initialDelayMs + index * fallbackDelayMs, controllers)));
+    if (parentSignal?.aborted) throw new DOMException("Request cancelled", "AbortError");
+    return await Promise.any(OVERPASS_URLS.map((endpoint, index) => requestOverpass(endpoint, query, initialDelayMs + index * fallbackDelayMs, controllers, parentSignal, hardTimeoutMs)));
+  } catch (error) {
+    if (parentSignal?.aborted) throw new DOMException("Request cancelled", "AbortError");
+    if ((error as Error).name === "AbortError") throw new Error("Route data request timed out.");
+    throw error;
   } finally {
     controllers.forEach((controller) => controller.abort());
   }
