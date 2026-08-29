@@ -786,19 +786,19 @@ export default function MapEngine() {
       controller.abort();
     }, ROUTE_TIMEOUT_MS);
     try {
-      const { calculateRoute } = await import("./lib/routing");
-      const calculated = await calculateRoute(origin, destination, controller.signal);
+      const { calculatePreferredRoute } = await import("./lib/route-graph");
+      const { route, fallback } = await calculatePreferredRoute(origin, destination, controller.signal, settingsRef.current.avoidCountryLanes);
       if (routeAbortRef.current !== controller) return;
       const map = mapRef.current;
       if (!map) throw new Error("The map is not available.");
       await waitForMapStyle(map, controller.signal);
       ensureRouteLayers(map);
-      setRouteData(map, calculated);
+      setRouteData(map, route);
       destinationMarkerRef.current?.remove();
       destinationMarkerRef.current = new maplibregl.Marker({ color: "#d9413b" })
         .setLngLat([destination.longitude, destination.latitude])
         .addTo(map);
-      setActiveRoute({ ...calculated, destination });
+      setActiveRoute({ ...route, destination });
       setRouteClock(Date.now());
       setRouteDetailsOpen(false);
       rememberDestination(destination);
@@ -807,6 +807,10 @@ export default function MapEngine() {
       setDestinationSearchAttempted(false);
       setSearchOpen(false);
       setMapMessage(null);
+      if (fallback) {
+        setMapMessage("Main-road route unavailable — showing the fastest route.");
+        window.setTimeout(() => setMapMessage(null), 4_000);
+      }
       manualZoomRef.current = null;
       changeFollow(true);
       map.stop();
@@ -846,16 +850,16 @@ export default function MapEngine() {
       controller.abort();
     }, ROUTE_TIMEOUT_MS);
     try {
-      const { calculateRoute } = await import("./lib/routing");
-      const calculated = await calculateRoute(origin, destination, controller.signal);
+      const { calculatePreferredRoute } = await import("./lib/route-graph");
+      const { route, fallback } = await calculatePreferredRoute(origin, destination, controller.signal, settingsRef.current.avoidCountryLanes);
       if (routeAbortRef.current !== controller) return;
       const map = mapRef.current;
       if (!map) return;
       await waitForMapStyle(map, controller.signal);
-      setRouteData(map, calculated);
-      setActiveRoute({ ...calculated, destination });
+      setRouteData(map, route);
+      setActiveRoute({ ...route, destination });
       setRouteClock(Date.now());
-      setMapMessage("Route updated to your current road.");
+      setMapMessage(fallback ? "Route updated using the fastest available roads." : "Route updated to your current road.");
       window.setTimeout(() => setMapMessage(null), 3_000);
     } catch (error) {
       if (!routeTimedOut && (error as Error).name !== "AbortError") {
@@ -1063,6 +1067,12 @@ export default function MapEngine() {
             <div className="journey-destination" title={`${activeRoute.destination.name}${activeRoute.destination.context ? `, ${activeRoute.destination.context}` : ""}`}>
               <b>TO</b><span>{activeRoute.destination.name}{activeRoute.destination.context ? `, ${activeRoute.destination.context}` : ""}</span>
             </div>
+          )}
+          {activeRoute && (activeRoute.finalMinorRoadMiles ?? 0) > 0.05 && (
+            <p className="country-lane-note">Country lane required for final {formatMiles(activeRoute.finalMinorRoadMiles ?? 0)} mi</p>
+          )}
+          {activeRoute && (activeRoute.finalMinorRoadMiles ?? 0) <= 0.05 && (activeRoute.minorRoadMiles ?? 0) > 0.05 && (
+            <p className="country-lane-note">Includes {(activeRoute.minorRoadMiles ?? 0).toFixed(1)} mi of country lanes</p>
           )}
           {routeJourney && (
             <div className="journey-live-stats">

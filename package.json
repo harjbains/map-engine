@@ -1,6 +1,6 @@
 {
   "name": "map-engine",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -10,7 +10,7 @@
     "build": "vinext build",
     "build:static": "vite build --config vite.static.config.ts",
     "start": "vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/route-engine.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {

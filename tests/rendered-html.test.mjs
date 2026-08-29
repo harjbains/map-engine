@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2\.1\.1/);
+  assert.match(html, /v2\.2\.0/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -36,7 +36,7 @@ test("renders the Map Engine application shell", async () => {
 });
 
 test("ships PWA and custom UK map configuration", async () => {
-  const [manifest, style, serviceWorker, mapEngineEntry, mapEngineCss, globalsCss, safety, offline, postcodes, geocoding, routing, trafficRoute, trafficStatusRoute, trafficIncidentRoute, trafficClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, destinationSearch, settingsPanel, useTraffic, tomtomClient] = await Promise.all([
+  const [manifest, style, serviceWorker, mapEngineEntry, mapEngineCss, globalsCss, safety, offline, postcodes, geocoding, routing, trafficRoute, trafficStatusRoute, trafficIncidentRoute, trafficClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, destinationSearch, settingsPanel, useTraffic, tomtomClient, routeGraph, routeEngineCore] = await Promise.all([
     readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"),
     readFile(new URL("../public/map-style.json", import.meta.url), "utf8"),
     readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
@@ -64,6 +64,8 @@ test("ships PWA and custom UK map configuration", async () => {
     readFile(new URL("../app/map-engine/SettingsPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/useTraffic.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/tomtom-client.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/route-graph.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/route-engine-core.ts", import.meta.url), "utf8"),
   ]);
   const mapEngine = [mapEngineEntry, trafficClient, tomtomClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, destinationSearch, settingsPanel, useTraffic].join("\n");
   assert.equal(JSON.parse(manifest).display, "standalone");
@@ -105,12 +107,12 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.1\.1"/);
-  assert.match(serviceWorker, /map-engine-shell-v1166/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.2\.0"/);
+  assert.match(serviceWorker, /map-engine-shell-v1167/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
-  assert.match(mapEngineEntry, /import\("\.\/lib\/routing"\)/);
+  assert.match(mapEngineEntry, /import\("\.\/lib\/route-graph"\)/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/offline"\)/);
   assert.match(mapEngine, /ROAD_WIDTH_SCALE = 0\.75/);
   assert.match(mapEngine, /LOCAL_ROAD_WIDTH_SCALE = 0\.48/);
@@ -392,6 +394,31 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /map-engine-speed-bump/);
   assert.match(mapEngine, /"source-layer": "transportation"/);
   assert.match(mapEngine, /createOneWayArrowImage/);
+  assert.match(config, /avoidCountryLanes: boolean/);
+  assert.match(config, /avoidCountryLanes: true/);
+  assert.match(settingsPanel, /Avoid country lanes/);
+  assert.match(settingsPanel, /prefers motorways, trunk roads and A\/B roads/);
+  assert.match(mapEngine, /country-lane-note/);
+  assert.match(mapEngine, /finalMinorRoadMiles/);
+  assert.match(mapEngine, /calculatePreferredRoute\(origin, destination, controller\.signal, settingsRef\.current\.avoidCountryLanes\)/);
+  assert.match(mapEngine, /Main-road route unavailable/);
+  assert.match(routeGraph, /map-engine-route-corridor-v1/);
+  assert.match(routeGraph, /DRIVABLE_HIGHWAY/);
+  assert.match(routeGraph, /out body;/);
+  assert.match(routeGraph, /minorRoadMiles: plan\.minorMetres \/ 1609\.344/);
+  assert.match(routeGraph, /fallback: true/);
+  assert.match(routeEngineCore, /CLASS_PENALTY/);
+  assert.match(routeEngineCore, /motorway: 65/);
+  assert.match(routeEngineCore, /track: 5\.2/);
+  assert.match(routeEngineCore, /roadWeightPerMetre/);
+  assert.match(routeEngineCore, /roadModifiers/);
+  assert.match(routeEngineCore, /oneWayOf/);
+  assert.match(routeEngineCore, /junction === "roundabout"/);
+  assert.match(routeEngineCore, /buildRoadGraph/);
+  assert.match(routeEngineCore, /findShortestPath/);
+  assert.match(routeEngineCore, /finalMinorMetres/);
+  assert.match(routeEngineCore, /buildTurnInstruction/);
+  assert.match(mapEngineCss, /\.country-lane-note \{/);
   assert.match(mapEngine, /map-engine-one-way-arrow/);
   assert.match(mapEngine, /Show parking and EV chargers/);
   assert.doesNotMatch(mapEngine, /Developer diagnostics/);

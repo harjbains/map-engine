@@ -30,6 +30,8 @@ export type CalculatedRoute = {
   distanceMiles: number;
   durationMinutes: number;
   instruction: RouteInstruction | null;
+  minorRoadMiles?: number;
+  finalMinorRoadMiles?: number;
 };
 
 function instructionArrow(step: OsrmStep) {

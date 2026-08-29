@@ -326,6 +326,8 @@
 .drive-shell.dark .journey-destination { background:rgba(83,159,214,.13); }
 .drive-shell.dark .journey-destination b { color:#80bde8; }
 .drive-shell.dark .journey-destination span { color:#dce5e9; }
+.location-card .country-lane-note { margin:3px 0 0 8px; color:#a5531a; font-size:11px; font-weight:850; line-height:1.3; }
+.drive-shell.dark .country-lane-note { color:#e0a55c; }
 .drive-shell.dark .route-panel-close { background:var(--night-surface-raised); color:#d9e2e6; }
 .drive-shell.dark .settings-scrim { background:rgba(2,7,10,.42); }
 .drive-shell.dark .settings-panel { border-left-color:rgba(139,168,182,.18); background:#1a2329; color:#edf2f4; box-shadow:-18px 0 50px rgba(0,0,0,.42); }

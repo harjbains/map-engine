@@ -14,6 +14,7 @@ export type Settings = {
   showBuildings: boolean;
   showDriverAmenities: boolean;
   liveTraffic: boolean;
+  avoidCountryLanes: boolean;
   pitch: number;
 };
 
@@ -44,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showBuildings: true,
   showDriverAmenities: false,
   liveTraffic: true,
+  avoidCountryLanes: true,
   pitch: 55,
 };
 
@@ -54,7 +56,7 @@ export const STORAGE_KEYS = {
   destinationFavourites: "map-engine-destination-favourites-v1",
 } as const;
 
-export const APP_VERSION = "v2.1.1";
+export const APP_VERSION = "v2.2.0";
 export const ROUTE_TIMEOUT_MS = 18_000;
 export const DEFAULT_START = { longitude: -2.152557, latitude: 52.556476, zoom: 15.3 } as const;
 

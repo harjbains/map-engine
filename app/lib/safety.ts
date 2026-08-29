@@ -278,7 +278,7 @@ async function requestOverpass(endpoint: string, query: string, delayMs: number,
   }
 }
 
-async function fetchOverpass(query: string, initialDelayMs = 0, fallbackDelayMs = 1_400) {
+export async function fetchOverpass(query: string, initialDelayMs = 0, fallbackDelayMs = 1_400) {
   const controllers: AbortController[] = [];
   try {
     return await Promise.any(OVERPASS_URLS.map((endpoint, index) => requestOverpass(endpoint, query, initialDelayMs + index * fallbackDelayMs, controllers)));
