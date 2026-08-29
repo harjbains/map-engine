@@ -63,7 +63,11 @@ type SafetyCacheEntry = {
 const CACHE_KEY = "map-engine-safety-overlay-v14";
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const CACHE_MAX_AREAS = 10;
-const OVERPASS_MIRRORS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+const OVERPASS_MIRRORS = [
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
+];
 const OVERPASS_URLS = typeof __STATIC_BUILD__ !== "undefined" && __STATIC_BUILD__
   ? OVERPASS_MIRRORS
   : ["/api/overpass", ...OVERPASS_MIRRORS];

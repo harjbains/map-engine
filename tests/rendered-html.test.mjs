@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2\.4\.1/);
+  assert.match(html, /v2\.4\.2/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -107,8 +107,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.4\.1"/);
-  assert.match(serviceWorker, /map-engine-shell-v1172/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.4\.2"/);
+  assert.match(serviceWorker, /map-engine-shell-v1173/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -371,6 +371,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(safety, /lanes:bus/);
   assert.doesNotMatch(safety, /way\$\{around\}\["highway"\]\["access"~"\^\(no\|private\)\$"\];/);
   assert.match(safety, /maps\.mail\.ru\/osm\/tools\/overpass/);
+  assert.match(safety, /overpass\.kumi\.systems\/api\/interpreter/);
+  assert.match(safety, /overpass-api\.de\/api\/interpreter/);
   assert.match(safety, /BUS LANE/);
   assert.match(safety, /BUS GATE/);
   assert.match(safety, /roadRuleQuery/);
@@ -410,7 +412,7 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /country-lane-note/);
   assert.match(mapEngine, /finalMinorRoadMiles/);
   assert.match(mapEngine, /Main-road route unavailable/);
-  assert.match(routeGraph, /map-engine-route-corridor-v1/);
+  assert.match(routeGraph, /map-engine-route-corridor-v2/);
   assert.match(routeGraph, /DRIVABLE_HIGHWAY/);
   assert.match(routeGraph, /out body;/);
   assert.match(routeGraph, /minorRoadMiles: plan\.minorMetres \/ 1609\.344/);

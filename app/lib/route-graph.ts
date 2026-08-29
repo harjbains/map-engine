@@ -25,7 +25,7 @@ type OverpassElement = {
   nodes?: number[];
 };
 
-const CORRIDOR_CACHE_KEY = "map-engine-route-corridor-v1";
+const CORRIDOR_CACHE_KEY = "map-engine-route-corridor-v2";
 const CORRIDOR_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1_000;
 const MAX_CORRIDOR_WAYS = 8_000;
 const MAX_CORRIDOR_NODES = 60_000;
@@ -108,6 +108,9 @@ export async function fetchRouteCorridor(a: RoutePoint, b: RoutePoint, signal?: 
   if (cached) return cached;
   const payload = await fetchOverpass(corridorQuery(corridorBounds(a, b)), 0, 500, signal, 12_000);
   const corridor = extractCorridor(payload.elements ?? []);
+  if (corridor.ways.length === 0 || corridor.nodes.length === 0) {
+    throw new Error("The road network could not be loaded for this journey.");
+  }
   if (corridor.ways.length >= MAX_CORRIDOR_WAYS || corridor.nodes.length >= MAX_CORRIDOR_NODES) {
     throw new Error("This journey is too large for on-device routing. Showing the fastest route instead.");
   }
