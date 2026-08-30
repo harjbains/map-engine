@@ -5,6 +5,9 @@ const POSTCODE_SOURCE = "postcode-overlay";
 const POSTCODE_CONTEXT_DOTS = "postcode-context-dots";
 const POSTCODE_SELECTED_DOTS = "postcode-selected-dots";
 const POSTCODE_SELECTED_LABELS = "postcode-selected-labels";
+const POSTCODE_YOU_SOURCE = "postcode-you-source";
+const POSTCODE_YOU_DOT = "postcode-you-dot";
+const POSTCODE_YOU_LABEL = "postcode-you-label";
 
 export const POSTCODE_LAYERS = [POSTCODE_CONTEXT_DOTS, POSTCODE_SELECTED_DOTS, POSTCODE_SELECTED_LABELS];
 
@@ -54,6 +57,9 @@ export function ensurePostcodeLayers(map: maplibregl.Map) {
   if (!map.isStyleLoaded()) return;
   if (!map.getSource(POSTCODE_SOURCE)) {
     map.addSource(POSTCODE_SOURCE, { type: "geojson", data: EMPTY_COLLECTION as never });
+  }
+  if (!map.getSource(POSTCODE_YOU_SOURCE)) {
+    map.addSource(POSTCODE_YOU_SOURCE, { type: "geojson", data: EMPTY_COLLECTION as never });
   }
   const before =
     map.getLayer("active-route-casing")
@@ -112,6 +118,39 @@ export function ensurePostcodeLayers(map: maplibregl.Map) {
       paint: { "text-color": "#0c3d22", "text-halo-color": "#ffffff", "text-halo-width": 1.4 },
     }, before);
   }
+  if (!map.getLayer(POSTCODE_YOU_DOT)) {
+    map.addLayer({
+      id: POSTCODE_YOU_DOT,
+      type: "circle",
+      source: POSTCODE_YOU_SOURCE,
+      layout: { visibility: "none" },
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 7, 12, 10, 16, 14],
+        "circle-color": "#d43d36",
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 3,
+        "circle-opacity": 1,
+      },
+    }, before);
+  }
+  if (!map.getLayer(POSTCODE_YOU_LABEL)) {
+    map.addLayer({
+      id: POSTCODE_YOU_LABEL,
+      type: "symbol",
+      source: POSTCODE_YOU_SOURCE,
+      layout: {
+        visibility: "none",
+        "text-field": "You",
+        "text-size": ["interpolate", ["linear"], ["zoom"], 8, 12, 16, 16],
+        "text-font": ["Noto Sans Regular"],
+        "text-anchor": "top",
+        "text-offset": [0, 1.8],
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
+      },
+      paint: { "text-color": "#b3302a", "text-halo-color": "#ffffff", "text-halo-width": 1.6 },
+    }, before);
+  }
 }
 
 export function setPostcodeOverlay(map: maplibregl.Map, groupId: PostcodeGroupId | null) {
@@ -119,6 +158,17 @@ export function setPostcodeOverlay(map: maplibregl.Map, groupId: PostcodeGroupId
   source?.setData(groupId ? buildFeatures(groupId) : EMPTY_COLLECTION);
   for (const layer of POSTCODE_LAYERS) {
     if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", groupId ? "visible" : "none");
+  }
+  map.triggerRepaint();
+}
+
+export function setPostcodeYou(map: maplibregl.Map, position: { latitude: number; longitude: number } | null | undefined) {
+  const source = map.getSource(POSTCODE_YOU_SOURCE) as maplibregl.GeoJSONSource | undefined;
+  source?.setData(position
+    ? { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [position.longitude, position.latitude] } }] }
+    : EMPTY_COLLECTION);
+  for (const layer of [POSTCODE_YOU_DOT, POSTCODE_YOU_LABEL]) {
+    if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", position ? "visible" : "none");
   }
   map.triggerRepaint();
 }

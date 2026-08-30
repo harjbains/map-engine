@@ -15,7 +15,6 @@ import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type A
 import { bearingBetween, distanceFromRouteMetres, distanceKm, headingDifference, liveRouteProgress, nearestLocality, nearestNamedRoad, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
-import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
 import { ensureSafetyLayers, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
 import type { RouteOptionEntry } from "./lib/route-graph";
@@ -942,29 +941,6 @@ export default function MapEngine() {
     }
   }, [fix, activeRoute, mapReady, rerouteToDestination]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-    if (!openPostcodeGroup) {
-      setPostcodeOverlay(map, null);
-      return;
-    }
-    ensurePostcodeLayers(map);
-    setPostcodeOverlay(map, openPostcodeGroup);
-    if (map.isStyleLoaded()) {
-      manualZoomRef.current = null;
-      changeFollow(false);
-      map.stop();
-      map.fitBounds(postcodeGroupBounds(openPostcodeGroup, latestFixRef.current ?? undefined), {
-        padding: 34,
-        bearing: 0,
-        pitch: 0,
-        duration: 700,
-        essential: true,
-      });
-    }
-  }, [openPostcodeGroup, mapReady, changeFollow]);
-
   const chooseQuickDestination = (key: keyof DestinationFavourites) => {
     const destination = destinationFavourites[key];
     if (destination) {
@@ -1101,7 +1077,7 @@ export default function MapEngine() {
 
       {mapMessage && <div className="map-alert" role="status">{mapMessage}</div>}
 
-      {settings.releaseMode === "current" && <PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
+      {settings.releaseMode === "current" && <PostcodeLookup fix={fix} openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 
       <div className="zoom-controls" aria-label="Map zoom controls">
         <button onClick={() => adjustZoom(1)} aria-label="Zoom in">+</button>

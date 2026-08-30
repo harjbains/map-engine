@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2\.6\.0/);
+  assert.match(html, /v2\.7\.0/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -36,7 +36,7 @@ test("renders the Map Engine application shell", async () => {
 });
 
 test("ships PWA and custom UK map configuration", async () => {
-  const [manifest, style, serviceWorker, mapEngineEntry, mapEngineCss, globalsCss, safety, offline, postcodes, geocoding, routing, trafficRoute, trafficStatusRoute, trafficIncidentRoute, trafficClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, postcodeLayers, destinationSearch, settingsPanel, useTraffic, tomtomClient, routeGraph, routeEngineCore] = await Promise.all([
+  const [manifest, style, serviceWorker, mapEngineEntry, mapEngineCss, globalsCss, safety, offline, postcodes, geocoding, routing, trafficRoute, trafficStatusRoute, trafficIncidentRoute, trafficClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, postcodeLayers, postcodeMapWindow, destinationSearch, settingsPanel, useTraffic, tomtomClient, routeGraph, routeEngineCore] = await Promise.all([
     readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"),
     readFile(new URL("../public/map-style.json", import.meta.url), "utf8"),
     readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
@@ -61,6 +61,7 @@ test("ships PWA and custom UK map configuration", async () => {
     readFile(new URL("../app/map-engine/CompassStrip.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/PostcodeLookup.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/postcode-layers.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/map-engine/PostcodeMapWindow.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/DestinationSearch.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/SettingsPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/useTraffic.ts", import.meta.url), "utf8"),
@@ -68,7 +69,7 @@ test("ships PWA and custom UK map configuration", async () => {
     readFile(new URL("../app/lib/route-graph.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/route-engine-core.ts", import.meta.url), "utf8"),
   ]);
-  const mapEngine = [mapEngineEntry, trafficClient, tomtomClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, postcodeLayers, destinationSearch, settingsPanel, useTraffic].join("\n");
+  const mapEngine = [mapEngineEntry, trafficClient, tomtomClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, postcodeLayers, postcodeMapWindow, destinationSearch, settingsPanel, useTraffic].join("\n");
   assert.equal(JSON.parse(manifest).display, "standalone");
   const mapStyle = JSON.parse(style);
   assert.deepEqual(validateStyleMin(mapStyle).map((error) => error.message), []);
@@ -108,8 +109,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.6\.0"/);
-  assert.match(serviceWorker, /map-engine-shell-v1178/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.7\.0"/);
+  assert.match(serviceWorker, /map-engine-shell-v1179/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -291,15 +292,19 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /ROUTE_TIMEOUT_MS = 18_000/);
   assert.match(mapEngine, /<div className="header-actions">\s*<button className=\{`icon-button settings-button/);
   assert.match(mapEngine, /className="postcode-dock"/);
-  assert.match(mapEngine, /className="postcode-lookup-panel"/);
+  assert.match(mapEngine, /className="postcode-map-window"/);
   assert.match(mapEngine, /selected \? null : group\.id/);
-  assert.match(mapEngine, /postcodeGroupBounds\(openPostcodeGroup, latestFixRef\.current/);
-  assert.match(mapEngine, /changeFollow\(false\)/);
-  assert.match(mapEngine, /map\.fitBounds\(postcodeGroupBounds/);
+  assert.match(mapEngine, /aria-controls="postcode-map-window"/);
   assert.doesNotMatch(mapEngine, /relativePostcodeDirection\(fix/);
   assert.match(mapEngine, /POSTCODE MAP/);
   assert.match(mapEngine, /postcode-lookup-kicker/);
   assert.match(mapEngine, /green centres highlighted · the car marker shows your position/);
+  assert.match(mapEngine, /The map is fixed and won't follow the car/);
+  assert.match(postcodeMapWindow, /new maplibregl\.Map\(\{/);
+  assert.match(postcodeMapWindow, /map\.on\("load", populate\)/);
+  assert.match(postcodeMapWindow, /map\.remove\(\)/);
+  assert.match(postcodeMapWindow, /postcodeGroupBounds\(group\.id, fixRef\.current/);
+  assert.doesNotMatch(mapEngineEntry, /fitBounds\(postcodeGroupBounds/);
   assert.match(mapEngineCss, /\.postcode-dock \{[^}]+bottom:10px[^}]+backdrop-filter:blur\(18px\)/);
   assert.match(mapEngineCss, /\.postcode-dock \{[^}]+overflow-x:auto/);
   assert.match(mapEngineCss, /\.postcode-dock::-webkit-scrollbar \{[^}]+display:none/);
@@ -315,13 +320,17 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /> speedLimitMph \+ 4/);
   assert.match(globalsCss, /\.speed-card \{[^}]+width:86px[^}]+height:86px[^}]+border:3px solid #398957[^}]+border-radius:50%/);
   assert.match(mapEngineCss, /\.speed-card\.speed-warning[^}]+animation:speed-warning-flash/);
-  assert.match(mapEngineCss, /\.postcode-lookup-panel \{[^}]+position:absolute[^}]+bottom:92px[^}]+transform:translateX\(-50%\)/);
-  assert.match(mapEngineCss, /\.postcode-lookup-panel \{[^}]+display:flex[^}]+max-width:min\(92vw,680px\)/);
-  assert.match(mapEngineCss, /\.postcode-lookup-panel button \{[^}]+width:38px[^}]+height:38px[^}]+border-radius:50%/);
+  assert.match(mapEngineCss, /\.postcode-map-window \{[^}]+left:50%[^}]+top:50%[^}]+transform:translate\(-50%,-50%\)/);
+  assert.match(mapEngineCss, /\.postcode-map-window \{[^}]+width:min\(94vw,620px\)/);
+  assert.match(mapEngineCss, /\.postcode-map-window \{[^}]+display:flex[^}]+flex-direction:column/);
+  assert.match(mapEngineCss, /\.postcode-map-window-header button \{[^}]+width:40px[^}]+height:40px[^}]+border-radius:50%/);
+  assert.match(mapEngineCss, /\.postcode-map-window-map \{[^}]+min-height:0[^}]+flex:1/);
+  assert.match(mapEngineCss, /\.postcode-map-window-map \.maplibregl-ctrl-attrib \{[^}]+font-size:9px/);
   assert.match(mapEngineCss, /\.postcode-lookup-kicker \{[^}]+font-size:9px[^}]+letter-spacing:\.14em/);
   assert.doesNotMatch(mapEngineCss, /\.postcode-lookup-grid/);
   assert.doesNotMatch(mapEngineCss, /\.postcode-direction/);
-  assert.match(mapEngineCss, /\.drive-shell\.dark \.postcode-lookup-panel \{[^}]+background:rgba\(44,54,61,\.95\)/);
+  assert.doesNotMatch(mapEngineCss, /\.postcode-lookup-panel/);
+  assert.match(mapEngineCss, /\.drive-shell\.dark \.postcode-map-window \{[^}]+background:#2c363d/);
   assert.match(postcodeLayers, /const POSTCODE_SOURCE = "postcode-overlay"/);
   assert.match(postcodeLayers, /POSTCODE_CONTEXT_DOTS = "postcode-context-dots"/);
   assert.match(postcodeLayers, /POSTCODE_SELECTED_DOTS = "postcode-selected-dots"/);
@@ -333,6 +342,13 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(postcodeLayers, /includePosition\.longitude, includePosition\.latitude/);
   assert.match(postcodeLayers, /POSTCODE_SECTORS\[groupId\]/);
   assert.match(postcodeLayers, /setLayoutProperty\(layer, "visibility", groupId \? "visible" : "none"\)/);
+  assert.match(postcodeLayers, /POSTCODE_YOU_SOURCE = "postcode-you-source"/);
+  assert.match(postcodeLayers, /POSTCODE_YOU_DOT = "postcode-you-dot"/);
+  assert.match(postcodeLayers, /POSTCODE_YOU_LABEL = "postcode-you-label"/);
+  assert.match(postcodeLayers, /"circle-color": "#d43d36"/);
+  assert.match(postcodeLayers, /"text-field": "You"/);
+  assert.match(postcodeLayers, /export function setPostcodeYou/);
+  assert.match(postcodeLayers, /\[position\.longitude, position\.latitude\]/);
   assert.deepEqual(
     [...postcodes.matchAll(/buttonLabel: "(B\d+–\d+)"/g)].map((match) => match[1]),
     ["B1–9", "B10–19", "B20–29", "B30–39", "B40–49", "B50–59", "B60–69", "B70–79", "B80–89", "B90–98"],
