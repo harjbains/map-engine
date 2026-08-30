@@ -102,7 +102,7 @@
 .postcode-range-label { font-size:17px; font-weight:950; line-height:1; letter-spacing:-.03em; white-space:nowrap; }
 .postcode-dock button:hover, .postcode-dock button:focus-visible { outline:0; transform:translateY(-3px); background:#e4f1f9; }
 .postcode-dock button.selected { transform:translateY(-5px); border-color:#287848; background:#398957; color:#fff; box-shadow:0 8px 18px rgba(57,137,87,.32); }
-.postcode-map-window { position:absolute; left:50%; top:50%; z-index:10; width:min(94vw,620px); height:min(76dvh,560px); max-height:calc(100dvh - 180px); overflow:hidden; transform:translate(-50%,-50%); display:flex; flex-direction:column; border:1px solid rgba(48,64,72,.22); border-radius:18px; background:#fafaf6; color:#172026; box-shadow:0 26px 70px rgba(21,28,33,.4); backdrop-filter:blur(18px); }
+.postcode-map-window { position:fixed; inset:5%; z-index:8; overflow:hidden; display:flex; flex-direction:column; border:1px solid rgba(48,64,72,.22); border-radius:20px; background:#fafaf6; color:#172026; box-shadow:0 26px 70px rgba(21,28,33,.4); backdrop-filter:blur(18px); }
 .postcode-map-window-header { display:flex; align-items:center; gap:14px; min-height:64px; padding:10px 12px 10px 18px; border-bottom:1px solid rgba(48,64,72,.12); }
 .postcode-map-window-title { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .postcode-map-window .postcode-lookup-kicker { color:#3179b9; font-size:9px; font-weight:950; letter-spacing:.14em; }
@@ -228,7 +228,7 @@
   .postcode-dock button { width:auto; min-width:58px; flex-basis:auto; }
   .postcode-range-label { font-size:16px; }
 }
-@media (max-width:700px) and (orientation:portrait) { .status-icon { display:none; } .top-bar { inset:12px; } .brand-lockup { width:145px; gap:6px; padding:6px 14px 6px 8px; } .brand-lockup strong { font-size:13px; } .brand-version { font-size:9px; } .brand-lockup span:not(.brand-mark) { font-size:10px; } .header-actions { gap:6px; } .icon-button { width:46px; height:46px; } .zoom-controls { top:auto; right:12px; bottom:128px; } .postcode-dock { width:auto; display:flex; flex-wrap:nowrap; justify-content:flex-start; gap:6px; padding:6px 8px; overflow-x:auto; -webkit-overflow-scrolling:touch; } .postcode-dock button { width:auto; min-width:58px; height:44px; flex:0 0 auto; } .postcode-dock button .postcode-range-label { font-size:15px; } .postcode-map-window { width:calc(100vw - 20px); height:calc(100dvh - 190px); } .postcode-map-window-header p { display:none; } .map-alert { top:124px; width:calc(100% - 32px); } .camera-alert { top:176px; } .compass-strip { top:128px; left:50%; right:auto; width:calc(100vw - 110px); transform:translateX(-50%); } .destination-search-toggle { top:126px; left:12px; } .destination-search-panel { top:126px; left:12px; width:calc(100vw - 24px); } .location-card.with-route, .active-route-panel { left:12px; width:calc(100vw - 88px); } .active-route-panel { bottom:170px; } }
+@media (max-width:700px) and (orientation:portrait) { .status-icon { display:none; } .top-bar { inset:12px; } .brand-lockup { width:145px; gap:6px; padding:6px 14px 6px 8px; } .brand-lockup strong { font-size:13px; } .brand-version { font-size:9px; } .brand-lockup span:not(.brand-mark) { font-size:10px; } .header-actions { gap:6px; } .icon-button { width:46px; height:46px; } .zoom-controls { top:auto; right:12px; bottom:128px; } .postcode-dock { width:auto; display:flex; flex-wrap:nowrap; justify-content:flex-start; gap:6px; padding:6px 8px; overflow-x:auto; -webkit-overflow-scrolling:touch; } .postcode-dock button { width:auto; min-width:58px; height:44px; flex:0 0 auto; } .postcode-dock button .postcode-range-label { font-size:15px; } .postcode-map-window { inset:12px; border-radius:16px; } .postcode-map-window-header p { display:none; } .map-alert { top:124px; width:calc(100% - 32px); } .camera-alert { top:176px; } .compass-strip { top:128px; left:50%; right:auto; width:calc(100vw - 110px); transform:translateX(-50%); } .destination-search-toggle { top:126px; left:12px; } .destination-search-panel { top:126px; left:12px; width:calc(100vw - 24px); } .location-card.with-route, .active-route-panel { left:12px; width:calc(100vw - 88px); } .active-route-panel { bottom:170px; } }
 
 /* Light interface overrides follow the structural rules above. */
 .connection-pill { border-color:rgba(39,121,70,.2); background:rgba(240,249,241,.94); color:#277946; }
@@ -320,7 +320,7 @@
 .drive-shell.dark .postcode-dock { border-color:rgba(161,190,205,.18); background:rgba(49,59,66,.88); box-shadow:0 12px 38px rgba(0,0,0,.36); }
 .drive-shell.dark .postcode-dock button { border-color:#70b7ff; background:var(--night-surface-raised); color:#91cfff; }
 .drive-shell.dark .postcode-dock button.selected { border-color:#69c985; background:#276e42; color:#fff; }
-.drive-shell.dark .postcode-map-window { border-color:rgba(161,190,205,.22); background:#2c363d; color:#f4f7f8; }
+.drive-shell.dark .postcode-map-window { background:#2c363d; color:#f4f7f8; }
 .drive-shell.dark .postcode-map-window-header { border-color:rgba(161,190,205,.13); }
 .drive-shell.dark .postcode-map-window-header p { color:#aab6bc; }
 .drive-shell.dark .postcode-map-window-header button { background:var(--night-surface-raised); color:#eef3f5; }

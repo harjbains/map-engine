@@ -2,8 +2,7 @@ import maplibregl from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import { DEFAULT_START, type VehicleFix } from "./config";
 import { postcodesForGroup, type PostcodeGroup } from "../lib/birmingham-postcodes";
-import { styleJsonUrl } from "../lib/tomtom-client";
-import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay, setPostcodeYou } from "./postcode-layers";
+import { birminghamBounds, ensurePostcodeLayers, postcodeBirminghamStyle, setPostcodeOverlay, setPostcodeYou } from "./postcode-layers";
 
 type PostcodeMapWindowProps = {
   group: PostcodeGroup;
@@ -26,14 +25,14 @@ export function PostcodeMapWindow({ group, fix, onClose }: PostcodeMapWindowProp
     if (!node || mapRef.current) return;
     const map = new maplibregl.Map({
       container: node,
-      style: styleJsonUrl(),
+      style: postcodeBirminghamStyle(document.querySelector(".drive-shell")?.classList.contains("dark") === true),
       center: [DEFAULT_START.longitude, DEFAULT_START.latitude],
-      zoom: 9,
+      zoom: 10.2,
       pitch: 0,
       bearing: 0,
+      bearingSnap: 2,
       attributionControl: { compact: true },
-      maxPitch: 60,
-      touchPitch: true,
+      touchPitch: false,
       dragPan: true,
       scrollZoom: true,
       touchZoomRotate: true,
@@ -47,8 +46,8 @@ export function PostcodeMapWindow({ group, fix, onClose }: PostcodeMapWindowProp
       ensurePostcodeLayers(map);
       setPostcodeOverlay(map, current.id);
       setPostcodeYou(map, fixRef.current);
-      map.fitBounds(postcodeGroupBounds(current.id, fixRef.current ?? undefined), {
-        padding: 42,
+      map.fitBounds(birminghamBounds(fixRef.current ?? undefined), {
+        padding: 44,
         bearing: 0,
         pitch: 0,
         duration: 0,
@@ -70,13 +69,6 @@ export function PostcodeMapWindow({ group, fix, onClose }: PostcodeMapWindowProp
     ensurePostcodeLayers(map);
     setPostcodeOverlay(map, group.id);
     setPostcodeYou(map, fixRef.current);
-    map.fitBounds(postcodeGroupBounds(group.id, fixRef.current ?? undefined), {
-      padding: 42,
-      bearing: 0,
-      pitch: 0,
-      duration: 300,
-      essential: true,
-    });
   }, [group]);
 
   useEffect(() => {
@@ -92,11 +84,11 @@ export function PostcodeMapWindow({ group, fix, onClose }: PostcodeMapWindowProp
           <span className="postcode-lookup-kicker">POSTCODE MAP</span>
           <h2>{group.rangeLabel}</h2>
         </div>
-        <p>{count} postcode{count === 1 ? "" : "s"} · green centres highlighted · the car marker shows your position</p>
+        <p>{count} postcode{count === 1 ? "" : "s"} in {group.rangeLabel} · rest of Birmingham kept faint</p>
         <button type="button" onClick={onClose} aria-label="Close postcode map">×</button>
       </header>
-      <div className="postcode-map-window-map" ref={nodeRef} aria-label="Postcode area map" />
-      <footer className="postcode-map-window-foot">The map is fixed and won't follow the car — drag or pinch to explore</footer>
+      <div className="postcode-map-window-map" ref={nodeRef} aria-label="Birmingham postcode map" />
+      <footer className="postcode-map-window-foot">Birmingham postcode map — no street detail. Drag or pinch to explore</footer>
     </section>
   );
 }
