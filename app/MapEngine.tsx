@@ -128,6 +128,7 @@ export default function MapEngine() {
           } as Settings & { mapStyle?: unknown; atlasMode?: unknown };
           delete next.mapStyle;
           delete next.atlasMode;
+          next.releaseMode = "stable";
           setSettings(next);
           settingsRef.current = next;
           setIs3d(next.default3d);

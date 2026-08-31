@@ -38,7 +38,7 @@ export type InstallPromptEvent = Event & {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  releaseMode: "current",
+  releaseMode: "stable",
   darkMode: false,
   default3d: true,
   autoZoom: true,
@@ -57,7 +57,7 @@ export const STORAGE_KEYS = {
   destinationFavourites: "map-engine-destination-favourites-v1",
 } as const;
 
-export const APP_VERSION = "v2.10.0";
+export const APP_VERSION = "v2.10.1";
 export const ROUTE_TIMEOUT_MS = 18_000;
 export const DEFAULT_START = { longitude: -2.152557, latitude: 52.556476, zoom: 15.3 } as const;
 
