@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2\.10\.2/);
+  assert.match(html, /v2\.10\.3/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -108,8 +108,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.2"/);
-  assert.match(serviceWorker, /map-engine-shell-v1184/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.3"/);
+  assert.match(serviceWorker, /map-engine-shell-v1185/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -217,7 +217,7 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /journey-destination/);
   assert.match(mapEngine, /routeDetailsOpen/);
   assert.match(mapEngine, /route-details-toggle/);
-  assert.match(mapEngineCss, /\.active-route-panel \{[^}]+bottom:164px/);
+  assert.match(mapEngineCss, /\.active-route-panel \{[^}]+bottom:100px/);
   assert.match(mapEngineCss, /\.active-route-panel \{[^}]+width:min\(340px,calc\(100vw - 166px\)\)/);
   assert.match(mapEngineCss, /\.active-route-panel > button:not\(\.route-panel-close\)/);
   assert.match(mapEngine, /active-route-casing/);
