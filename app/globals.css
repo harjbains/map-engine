@@ -21,7 +21,7 @@ button { font:inherit; }
 .brand-mark::after { content:""; position:absolute; inset:5px 6px 5px; background:#fff; }
 .icon-button, .mode-button { pointer-events:auto; border:1px solid rgba(161,190,205,.18); color:#fff; background:var(--panel); backdrop-filter:blur(12px); box-shadow:0 8px 30px rgba(0,0,0,.2); }
 .icon-button { width:46px; height:46px; border-radius:50%; font-size:20px; cursor:pointer; }
-.drive-controls { position:absolute; right:20px; bottom:160px; display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+.drive-controls { position:absolute; right:20px; bottom:110px; display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
 .mode-button { width:46px; height:46px; border:2px solid #3179b9; border-radius:50%; font-weight:850; cursor:pointer; }
 .speed-card { display:grid; width:86px; height:86px; align-content:center; padding:7px; border:3px solid #398957; border-radius:50%; background:rgba(8,13,16,.93); text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.25); }
 .speed-card strong { display:block; font-size:34px; line-height:32px; letter-spacing:-.04em; }
@@ -55,7 +55,7 @@ button { font:inherit; }
 .maplibregl-ctrl-bottom-right { right:12px; bottom:238px; }
 .maplibregl-ctrl-attrib { background:rgba(8,13,16,.72)!important; color:#aab5ba; }
 .maplibregl-ctrl-attrib a { color:#d7e0e4; }
-@media (max-width:700px) and (orientation:portrait) { .permission-card { width:calc(100vw - 40px); bottom:122px; } .drive-controls { bottom:205px; } .vehicle-chevron { top:55%; } }
+@media (max-width:700px) and (orientation:portrait) { .permission-card { width:calc(100vw - 40px); bottom:122px; } .drive-controls { bottom:150px; } .vehicle-chevron { top:55%; } }
 @media (max-width:700px) and (orientation:portrait) { .location-card { left:12px; bottom:122px; width:calc(100vw - 88px); } }
 
 /* Light road-atlas testing theme */

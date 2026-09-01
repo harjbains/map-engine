@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2\.10\.1/);
+  assert.match(html, /v2\.10\.2/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -108,8 +108,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.1"/);
-  assert.match(serviceWorker, /map-engine-shell-v1183/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.2"/);
+  assert.match(serviceWorker, /map-engine-shell-v1184/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -175,7 +175,7 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /dark-mode-button[\s\S]+header-mode-button/);
   assert.match(mapEngineCss, /\.header-actions button\.active \{[^}]+border-color:#398957/);
   assert.match(mapEngineCss, /\.destination-search-toggle \{[^}]+width:56px[^}]+height:56px[^}]+border:2px solid #3179b9[^}]+border-radius:50%/);
-  assert.match(mapEngineCss, /\.zoom-controls \{[^}]+right:18px[^}]+bottom:90px[^}]+flex-direction:row/);
+  assert.match(mapEngineCss, /\.zoom-controls \{[^}]+right:18px[^}]+bottom:20px[^}]+flex-direction:row/);
   assert.match(mapEngineCss, /\.zoom-controls button \{[^}]+width:56px[^}]+height:56px[^}]+border:2px solid #3179b9[^}]+border-radius:50%/);
   assert.match(globalsCss, /\.location-card \{[^}]+width:min\(330px/);
   assert.doesNotMatch(globalsCss, /\.location-card span \{/);
