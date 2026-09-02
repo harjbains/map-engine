@@ -251,8 +251,9 @@ export default function MapEngine() {
       const centre = map.getCenter();
       const point = { latitude: centre.lat, longitude: centre.lng };
       const nearbyCached = readCachedSafetyFeatures(point);
-      if (nearbyCached) showSafety(nearbyCached);
-      if (lastSafetyCentre && distanceKm(point, lastSafetyCentre) < 1.8 && Date.now() - lastSafetyTime < 600_000) return;
+      const withinThrottle = lastSafetyCentre !== null && distanceKm(point, lastSafetyCentre) < 1.8 && Date.now() - lastSafetyTime < 600_000;
+      if (withinThrottle) return;
+      if (nearbyCached && !visibleSafety) showSafety(nearbyCached);
       safetyPending = true;
       lastSafetyCentre = point;
       lastSafetyTime = Date.now();
