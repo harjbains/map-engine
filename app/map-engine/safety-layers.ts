@@ -169,10 +169,6 @@ function createSpeedBumpImage() {
   const context = canvas.getContext("2d");
   if (!context) return null;
   context.scale(pixelRatio, pixelRatio);
-  context.fillStyle = "#f2f4f3";
-  context.fillRect(0, 8.5, width, 7.5);
-  context.fillStyle = "#c6ccca";
-  context.fillRect(0, 11.5, width, 4.5);
   context.beginPath();
   context.arc(width / 2, 10.5, 5.2, Math.PI, 0);
   context.closePath();
