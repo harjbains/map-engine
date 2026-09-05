@@ -12,7 +12,7 @@
 .drive-shell.dark .compass-scale span { color:#9eabb2; }
 .drive-shell.dark .compass-scale span.is-centre { color:#ffffff; }
 .drive-shell.dark .compass-strip > i { border-top-color:#69c985; }
-.destination-search-toggle { position:absolute; top:82px; left:16px; z-index:6; display:grid; place-items:center; width:56px; height:56px; border:2px solid #3179b9; border-radius:50%; background:rgba(250,250,246,.96); color:#1d2a31; box-shadow:0 8px 28px rgba(42,48,50,.17); cursor:pointer; backdrop-filter:blur(12px); }
+.destination-search-toggle { position:absolute; top:82px; left:16px; z-index:6; display:grid; place-items:center; width:56px; height:56px; border:2px solid #3179b9; border-radius:50%; background:rgba(250,250,246,.55); color:#1d2a31; box-shadow:0 8px 28px rgba(42,48,50,.17); cursor:pointer; backdrop-filter:blur(12px); }
 .search-glyph { position:relative; display:block; width:22px; height:22px; border:3px solid currentColor; border-radius:50%; }
 .search-glyph::after { content:""; position:absolute; width:10px; height:3px; right:-8px; bottom:-4px; border-radius:2px; background:currentColor; transform:rotate(45deg); transform-origin:left center; }
 .destination-search-panel { position:absolute; top:82px; left:16px; z-index:7; width:min(440px,calc(100% - 32px)); max-height:calc(100dvh - 98px); overflow:hidden; border:1px solid rgba(48,64,72,.19); border-radius:15px; background:rgba(250,250,246,.97); color:#172026; box-shadow:0 18px 46px rgba(42,48,50,.24); backdrop-filter:blur(16px); }
@@ -73,7 +73,7 @@
 .route-instruction span { overflow:hidden; font-size:14px; font-weight:850; text-overflow:ellipsis; white-space:nowrap; }
 .route-instruction small { color:#5e5a73; font-size:11px; font-weight:800; }
 .active-route-panel > button:not(.route-panel-close) { width:calc(100% - 20px); min-height:42px; margin:0 10px 8px; border:0; border-radius:11px; background:#b52f2c; color:#fff; font-size:14px; font-weight:950; letter-spacing:.06em; cursor:pointer; }
-.status-icon { display:grid; place-items:center; width:46px; height:46px; border:2px solid currentColor; border-radius:50%; background:rgba(250,250,246,.96); font-size:16px; font-weight:950; box-shadow:0 8px 24px rgba(42,48,50,.14); }
+.status-icon { display:grid; place-items:center; width:46px; height:46px; border:2px solid currentColor; border-radius:50%; background:rgba(250,250,246,.55); font-size:16px; font-weight:950; box-shadow:0 8px 24px rgba(42,48,50,.14); }
 .status-icon.available { color:#24834a; }
 .status-icon.unavailable { color:#bd3e38; }
 .traffic-status-icon.live { color:#24834a; }
@@ -92,7 +92,7 @@
 .settings-button span::before { left:3px; transform:translateY(-6px); }
 .settings-button span::after { right:2px; transform:translateY(6px); }
 .zoom-controls { position:absolute; right:18px; bottom:20px; z-index:6; display:flex; flex-direction:row; gap:10px; border:0; background:transparent; box-shadow:none; }
-.zoom-controls button { width:56px; height:56px; border:2px solid #3179b9; border-radius:50%; background:rgba(250,250,246,.96); color:#1d2a31; box-shadow:0 8px 28px rgba(42,48,50,.16); font-size:28px; font-weight:650; line-height:1; cursor:pointer; }
+.zoom-controls button { width:56px; height:56px; border:2px solid #3179b9; border-radius:50%; background:rgba(250,250,246,.55); color:#1d2a31; box-shadow:0 8px 28px rgba(42,48,50,.16); font-size:28px; font-weight:650; line-height:1; cursor:pointer; }
 .zoom-controls button + button { border-top-width:2px; }
 .zoom-controls button:hover { background:rgba(49,121,185,.1); }
 .zoom-controls button:focus-visible { position:relative; outline:2px solid #3179b9; outline-offset:-3px; }
@@ -111,7 +111,7 @@
 .vehicle-map-marker { position:absolute; left:0; top:0; z-index:1; width:38px; height:38px; border:3px solid #d43d36; border-radius:50%; background:#fffaf8; box-shadow:0 3px 8px rgba(0,0,0,.48),inset 0 0 0 2px rgba(255,255,255,.9); color:#d43d36; pointer-events:none; transform-origin:center; }
 .vehicle-map-marker[hidden] { display:none; }
 .drive-controls { z-index:4; }
-.header-actions button.active { border-color:#398957; color:#287848; background:rgba(239,249,241,.98); box-shadow:0 0 0 3px rgba(57,137,87,.14),0 8px 28px rgba(42,48,50,.18); }
+.header-actions button.active { border-color:#398957; color:#287848; background:rgba(239,249,241,.6); box-shadow:0 0 0 3px rgba(57,137,87,.14),0 8px 28px rgba(42,48,50,.18); }
 .header-mode-button { display:grid; place-items:center; }
 .vehicle-map-marker::before { content:""; position:absolute; left:6px; top:7px; width:20px; height:7px; border-top:4px solid currentColor; border-radius:50%; }
 .vehicle-map-marker::after { content:""; position:absolute; left:15px; top:12px; width:4px; height:17px; border-radius:1px 1px 3px 3px; background:currentColor; clip-path:polygon(0 0,100% 0,78% 100%,22% 100%); }
@@ -254,7 +254,7 @@
 .drive-shell.dark .brand-lockup,
 .drive-shell.dark .icon-button,
 .drive-shell.dark .mode-button,
-.drive-shell.dark .recenter-button { border-color:#70b7ff; background:var(--night-surface); color:#70b7ff; box-shadow:0 8px 30px rgba(0,0,0,.24); }
+.drive-shell.dark .recenter-button { border-color:#70b7ff; background:rgba(49,59,66,.6); color:#70b7ff; box-shadow:0 8px 30px rgba(0,0,0,.24); }
 .drive-shell.dark .brand-lockup strong { color:#f4f7f8; }
 .drive-shell.dark .brand-version { border-color:rgba(112,183,255,.35); background:rgba(112,183,255,.12); color:#8bc9ff; }
 .drive-shell.dark .brand-lockup span:not(.brand-mark) { color:#9eabb2; }
@@ -265,8 +265,8 @@
 .drive-shell.dark .settings-button span::before,
 .drive-shell.dark .settings-button span::after { background:#172126; }
 .drive-shell.dark .dark-mode-button { border-color:#69c985; color:#e3dff0; }
-.drive-shell.dark .header-actions button.active { border-color:#69c985; background:rgba(18,47,29,.96); color:#8ae0a2; box-shadow:0 0 0 3px rgba(105,201,133,.14),0 8px 28px rgba(0,0,0,.3); }
-.drive-shell.dark .status-icon { background:var(--night-surface); box-shadow:0 8px 26px rgba(0,0,0,.3); }
+.drive-shell.dark .header-actions button.active { border-color:#69c985; background:rgba(18,47,29,.6); color:#8ae0a2; box-shadow:0 0 0 3px rgba(105,201,133,.14),0 8px 28px rgba(0,0,0,.3); }
+.drive-shell.dark .status-icon { background:rgba(49,59,66,.6); box-shadow:0 8px 26px rgba(0,0,0,.3); }
 .drive-shell.dark .status-icon.available { color:#69c985; }
 .drive-shell.dark .status-icon.unavailable { color:#ef766e; }
 .drive-shell.dark .traffic-status-icon.live { color:#69c985; }
@@ -309,7 +309,7 @@
 .drive-shell.dark .route-instruction b { color:#a891ff; }
 .drive-shell.dark .route-instruction small { color:#b6afcf; }
 .drive-shell.dark .zoom-controls { border-color:transparent; background:transparent; box-shadow:none; }
-.drive-shell.dark .zoom-controls button { border-color:#70b7ff; background:var(--night-surface); color:#f1f5f6; }
+.drive-shell.dark .zoom-controls button { border-color:#70b7ff; background:rgba(49,59,66,.6); color:#f1f5f6; }
 .drive-shell.dark .zoom-controls button + button { border-color:#70b7ff; }
 .drive-shell.dark .zoom-controls button:hover { background:rgba(85,167,247,.14); }
 .drive-shell.dark .postcode-dock { border-color:rgba(161,190,205,.18); background:rgba(49,59,66,.88); box-shadow:0 12px 38px rgba(0,0,0,.36); }
@@ -327,7 +327,7 @@
 .drive-shell.dark .journey-live-stats { border-color:rgba(161,190,205,.14); }
 .drive-shell.dark .journey-live-stats b { color:#82929a; }
 .drive-shell.dark .journey-live-stats em { color:#f4f7f8; }
-.drive-shell.dark .route-details-toggle { border-color:#395e76; background:#1b3443; color:#a8d5f4; }
+.drive-shell.dark .route-details-toggle { border-color:#395e76; background:rgba(27,52,67,.6); color:#a8d5f4; }
 .drive-shell.dark .journey-destination { background:rgba(83,159,214,.13); }
 .drive-shell.dark .journey-destination b { color:#80bde8; }
 .drive-shell.dark .journey-destination span { color:#dce5e9; }
@@ -393,12 +393,12 @@
 .drive-shell.classic .brand-version { border-color:rgba(49,121,185,.28); background:rgba(49,121,185,.09); color:#276da4; }
 .drive-shell.classic .brand-lockup span:not(.brand-mark),
 .drive-shell.classic .speed-card span { color:#64645e; }
-.drive-shell.classic .status-icon { background:rgba(255,253,247,.97); }
+.drive-shell.classic .status-icon { background:rgba(255,253,247,.55); }
 .drive-shell.classic .settings-button { border-color:#3179b9; background:rgba(235,246,252,.98); }
 .drive-shell.classic .zoom-controls { border-color:transparent; background:transparent; }
-.drive-shell.classic .zoom-controls button { border-color:#3179b9; background:rgba(255,253,247,.96); color:#24231f; }
+.drive-shell.classic .zoom-controls button { border-color:#3179b9; background:rgba(255,253,247,.55); color:#24231f; }
 .drive-shell.classic .speed-card { border-color:#398957; }
-.drive-shell.classic .header-actions button.active { border-color:#398957; background:rgba(239,249,241,.98); color:#287848; }
+.drive-shell.classic .header-actions button.active { border-color:#398957; background:rgba(239,249,241,.6); color:#287848; }
 .speed-card.speed-warning { border-color:#c52f2c; background:#fff1ee; color:#a91f1d; animation:speed-warning-flash .72s ease-in-out infinite alternate; }
 .drive-shell.dark .speed-card.speed-warning { border-color:#ff6b61; background:#451d1b; color:#fff; }
 .speed-card.speed-warning span { color:currentColor; }
@@ -453,14 +453,14 @@
 .legend-label-only { flex-direction:row; align-items:center; gap:4px; }
 .legend-label-only b::before { content:"•"; margin-right:4px; }
 
-.drive-shell.classic .legend-toggle-button { border-color:#398957; background:rgba(255,253,247,.96); color:#24231f; box-shadow:0 8px 28px rgba(58,54,45,.16); }
+.drive-shell.classic .legend-toggle-button { border-color:#398957; background:rgba(255,253,247,.55); color:#24231f; box-shadow:0 8px 28px rgba(58,54,45,.16); }
 .drive-shell.classic .legend-panel { border-color:rgba(65,60,52,.22); background:rgba(255,253,247,.97); color:#24231f; }
 .drive-shell.classic .legend-section h3,
 .drive-shell.classic .legend-note,
 .drive-shell.classic .legend-label small { color:#64645e; }
 .drive-shell.classic .legend-close { background:#ecebe3; color:#4a4740; }
 
-.drive-shell.dark .legend-toggle-button { border-color:#69c985; background:var(--night-surface); color:#f1f5f6; }
+.drive-shell.dark .legend-toggle-button { border-color:#69c985; background:rgba(49,59,66,.6); color:#f1f5f6; }
 .drive-shell.dark .legend-panel { border-color:rgba(161,190,205,.18); background:var(--night-surface); color:#f4f7f8; box-shadow:0 14px 38px rgba(0,0,0,.36); }
 .drive-shell.dark .legend-header { border-bottom-color:rgba(161,190,205,.12); }
 .drive-shell.dark .legend-section + .legend-section { border-top-color:rgba(161,190,205,.1); }
