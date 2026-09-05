@@ -387,7 +387,7 @@
 .drive-shell.classic .brand-lockup,
 .drive-shell.classic .icon-button,
 .drive-shell.classic .mode-button,
-.drive-shell.classic .recenter-button,
+.drive-shell.classic .recenter-button { border-color:rgba(65,60,52,.22); background:rgba(255,253,247,.3); color:#24231f; box-shadow:0 8px 28px rgba(58,54,45,.16); }
 .drive-shell.classic .speed-card { border-color:rgba(65,60,52,.22); background:rgba(255,253,247,.95); color:#24231f; box-shadow:0 8px 28px rgba(58,54,45,.16); }
 .drive-shell.classic .brand-lockup strong { color:#24231f; }
 .drive-shell.classic .brand-version { border-color:rgba(49,121,185,.28); background:rgba(49,121,185,.09); color:#276da4; }
