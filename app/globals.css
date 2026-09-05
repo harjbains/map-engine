@@ -34,7 +34,7 @@ button { font:inherit; }
 .permission-card h1 { margin:7px 0 5px; font-size:25px; letter-spacing:-.025em; }
 .permission-card p { margin:0 0 15px; max-width:340px; color:#b4c0c6; font-size:14px; line-height:1.45; }
 .permission-card button { padding:10px 15px; border:0; border-radius:9px; background:#5caaf4; color:#07131b; font-weight:800; cursor:pointer; }
-  .location-card { position:absolute; left:20px; bottom:24px; z-index:4; width:min(330px,calc(100vw - 166px)); padding:10px 13px 11px; border:1px solid rgba(48,64,72,.2); border-radius:12px; background:rgba(250,250,246,.52); color:#172026; box-shadow:0 14px 36px rgba(42,48,50,.2); backdrop-filter:blur(14px); pointer-events:none; }
+  .location-card { position:absolute; left:20px; bottom:24px; z-index:4; width:min(330px,calc(100vw - 166px)); padding:10px 13px 11px; border:1px solid rgba(48,64,72,.2); border-radius:12px; background:rgba(250,250,246,.3); color:#172026; box-shadow:0 14px 36px rgba(42,48,50,.2); backdrop-filter:blur(14px); pointer-events:none; }
 .location-card strong { display:block; overflow:hidden; color:#172026; font-size:18px; line-height:1.16; text-overflow:ellipsis; white-space:nowrap; }
 .location-card small { display:block; margin-top:2px; overflow:hidden; color:#65737a; font-size:12px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
 .traffic-road-status { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:7px; margin-top:8px; padding-top:7px; border-top:1px solid rgba(48,64,72,.12); font-size:11px; line-height:1; }
@@ -43,7 +43,7 @@ button { font:inherit; }
 .traffic-road-status em { font-size:11px; font-style:normal; font-weight:850; white-space:nowrap; }
 .location-card.with-route { width:min(330px,calc(100vw - 166px)); pointer-events:auto; }
 .location-card.with-route > strong, .location-card.with-route > small { padding-right:62px; }
-.route-details-toggle { position:absolute; top:10px; right:10px; min-width:54px; height:31px; padding:0 8px; border:1px solid rgba(49,121,185,.25); border-radius:8px; background:rgba(228,238,245,.6); color:#286a9f; font-size:10px; font-weight:950; letter-spacing:.08em; backdrop-filter:blur(8px); cursor:pointer; }
+.route-details-toggle { position:absolute; top:10px; right:10px; min-width:54px; height:31px; padding:0 8px; border:1px solid rgba(49,121,185,.25); border-radius:8px; background:rgba(228,238,245,.4); color:#286a9f; font-size:10px; font-weight:950; letter-spacing:.08em; backdrop-filter:blur(8px); cursor:pointer; }
 .journey-destination { display:flex; align-items:center; gap:6px; min-width:0; margin-top:5px; padding:4px 8px; border-radius:7px; background:rgba(49,121,185,.08); }
 .journey-destination b { flex:0 0 auto; color:#3179b9; font-size:9px; font-weight:950; letter-spacing:.1em; }
 .journey-destination span { min-width:0; overflow:hidden; color:#34454e; font-size:11px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
@@ -62,7 +62,7 @@ button { font:inherit; }
 html, body { background:#e9e7df; color:#172026; }
 .drive-shell { background:#e8e6de; }
 .map-surface::after { background:linear-gradient(180deg,rgba(235,238,235,.2),transparent 26%,transparent 76%,rgba(231,228,216,.12)); }
-.brand-lockup, .icon-button, .mode-button, .recenter-button { border-color:rgba(48,64,72,.18); background:rgba(250,250,246,.55); color:#162129; box-shadow:0 8px 28px rgba(42,48,50,.13); }
+.brand-lockup, .icon-button, .mode-button, .recenter-button { border-color:rgba(48,64,72,.18); background:rgba(250,250,246,.3); color:#162129; box-shadow:0 8px 28px rgba(42,48,50,.13); }
 .brand-lockup strong { color:#111b21; }
 .brand-lockup span:not(.brand-mark) { color:#637179; }
 .settings-button span, .settings-button::before, .settings-button::after { background:#26343b; }
