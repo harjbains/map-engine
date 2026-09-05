@@ -29,12 +29,12 @@ button { font:inherit; }
 .speed-card small { font-size:9px; font-weight:850; white-space:nowrap; }
 .vehicle-chevron { position:absolute; left:50%; top:67%; width:36px; height:44px; transform:translate(-50%,-50%); clip-path:polygon(50% 0,100% 100%,50% 78%,0 100%); background:#fff; filter:drop-shadow(0 3px 5px #000); }
 .vehicle-chevron i { position:absolute; inset:7px 9px 8px; clip-path:inherit; background:var(--blue); }
-.permission-card { position:absolute; left:20px; bottom:24px; width:min(390px,calc(100vw - 166px)); padding:20px 21px; border:1px solid rgba(161,190,205,.17); border-radius:16px; background:rgba(11,17,21,.93); box-shadow:0 18px 46px rgba(0,0,0,.32); backdrop-filter:blur(14px); }
+  .permission-card { position:absolute; left:20px; bottom:24px; width:min(390px,calc(100vw - 166px)); padding:20px 21px; border:1px solid rgba(161,190,205,.17); border-radius:16px; background:rgba(11,17,21,.7); box-shadow:0 18px 46px rgba(0,0,0,.32); backdrop-filter:blur(14px); }
 .permission-card .eyebrow { color:#72b9fb; font-size:10px; font-weight:800; letter-spacing:.18em; }
 .permission-card h1 { margin:7px 0 5px; font-size:25px; letter-spacing:-.025em; }
 .permission-card p { margin:0 0 15px; max-width:340px; color:#b4c0c6; font-size:14px; line-height:1.45; }
 .permission-card button { padding:10px 15px; border:0; border-radius:9px; background:#5caaf4; color:#07131b; font-weight:800; cursor:pointer; }
-.location-card { position:absolute; left:20px; bottom:24px; z-index:4; width:min(330px,calc(100vw - 166px)); padding:10px 13px 11px; border:1px solid rgba(48,64,72,.2); border-radius:12px; background:rgba(250,250,246,.96); color:#172026; box-shadow:0 14px 36px rgba(42,48,50,.2); backdrop-filter:blur(14px); pointer-events:none; }
+  .location-card { position:absolute; left:20px; bottom:24px; z-index:4; width:min(330px,calc(100vw - 166px)); padding:10px 13px 11px; border:1px solid rgba(48,64,72,.2); border-radius:12px; background:rgba(250,250,246,.68); color:#172026; box-shadow:0 14px 36px rgba(42,48,50,.2); backdrop-filter:blur(14px); pointer-events:none; }
 .location-card strong { display:block; overflow:hidden; color:#172026; font-size:18px; line-height:1.16; text-overflow:ellipsis; white-space:nowrap; }
 .location-card small { display:block; margin-top:2px; overflow:hidden; color:#65737a; font-size:12px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
 .traffic-road-status { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:7px; margin-top:8px; padding-top:7px; border-top:1px solid rgba(48,64,72,.12); font-size:11px; line-height:1; }
