@@ -66,7 +66,7 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
           </section>
 
           <section className="settings-group">
-            <div className="group-title-row"><div><h3>Home destination</h3><p>Target for the home compass disc and the ⌂ direction beacon.</p></div><span className={`status-dot ${homeSaved ? "saved" : ""}`} /></div>
+            <div className="group-title-row"><div><h3>Home destination</h3><p>Used by the home compass disc, shown above the speed display.</p></div><span className={`status-dot ${homeSaved ? "saved" : ""}`} /></div>
             <button className="secondary-wide" onClick={onSetHome}>Set home to map centre</button>
             <p className={`settings-note ${homeSaved ? "home-saved-note" : ""}`}>{homeSaved ? "Home saved. Centre the map on your house again and tap 'Set home to map centre' to update it." : "Not set yet. Centre the map on your house first, then tap the button above. Once saved, the compass disc above the speed shows your home direction as you drive."}</p>
           </section>

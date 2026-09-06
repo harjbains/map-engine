@@ -18,32 +18,25 @@ export function HomeCompass({ home, mapRef, fixRef, hasFix }: {
 
   useEffect(() => {
     if (!home || !hasFix) return;
-    const update = () => {
+    let rafId = 0;
+    const renderTick = () => {
+      rafId = window.requestAnimationFrame(renderTick);
       const map = mapRef.current;
       const fix = fixRef.current;
       if (!map || !fix) return;
-      const deg = bearingBetween(fix, home) - map.getBearing();
-      const degNorm = ((deg % 360) + 360) % 360;
-      if (arrowRef.current) arrowRef.current.style.transform = `rotate(${deg}deg)`;
+      const deg = (bearingBetween(fix, home) - map.getBearing() + 360) % 360;
       const miles = distanceKm(fix, home) * 0.621371;
-      if (captionRef.current) captionRef.current.textContent = formatMiles(miles);
-      if (discRef.current) discRef.current.setAttribute("aria-label", `Pointing to home ${Math.round(degNorm)} degrees, ${formatMiles(miles)} miles away`);
+      const milesText = formatMiles(miles);
+      const arrow = arrowRef.current;
+      if (arrow && arrow.style.transform !== `rotate(${deg}deg)`) arrow.style.transform = `rotate(${deg}deg)`;
+      const caption = captionRef.current;
+      if (caption && caption.textContent !== milesText) caption.textContent = milesText;
+      const aria = `Pointing to home ${Math.round(deg)} degrees, ${milesText} miles away`;
+      const disc = discRef.current;
+      if (disc && disc.getAttribute("aria-label") !== aria) disc.setAttribute("aria-label", aria);
     };
-    update();
-    const map = mapRef.current;
-    if (map) {
-      map.on("rotate", update);
-      map.on("move", update);
-    }
-    const interval = window.setInterval(update, 250);
-    return () => {
-      window.clearInterval(interval);
-      const current = mapRef.current;
-      if (current) {
-        current.off("rotate", update);
-        current.off("move", update);
-      }
-    };
+    renderTick();
+    return () => window.cancelAnimationFrame(rafId);
   }, [home, hasFix, mapRef, fixRef]);
 
   if (!home || !hasFix) return null;

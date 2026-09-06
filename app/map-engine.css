@@ -96,15 +96,6 @@
 .zoom-controls button + button { border-top-width:2px; }
 .zoom-controls button:hover { background:rgba(49,121,185,.1); }
 .zoom-controls button:focus-visible { position:relative; outline:2px solid #3179b9; outline-offset:-3px; }
-.home-arrow-button { width:56px; height:56px; display:grid; place-items:center; border:2px solid #3179b9; border-radius:50%; background:rgba(250,250,246,.3); color:#1d2a31; box-shadow:0 8px 28px rgba(42,48,50,.16); cursor:pointer; }
-.home-arrow-button-icon { font-size:26px; line-height:1; }
-.home-arrow-button:hover { background:rgba(49,121,185,.1); }
-.home-arrow-button.active { border-color:#398957; color:#287848; background:rgba(239,249,241,.85); box-shadow:0 0 0 3px rgba(57,137,87,.14),0 8px 28px rgba(42,48,50,.18); }
-.home-arrow-button:focus-visible { position:relative; outline:2px solid #3179b9; outline-offset:-3px; }
-.home-arrow { position:absolute; z-index:5; display:grid; justify-items:center; gap:7px; transform:translate(-50%,-50%); pointer-events:none; }
-.home-arrow-glyph { display:grid; place-items:center; width:152px; height:118px; filter:drop-shadow(0 6px 16px rgba(0,0,0,.4)); }
-.home-arrow-glyph svg { width:100%; height:100%; display:block; fill:rgba(255,255,255,.25); stroke:#d84035; stroke-width:9; stroke-linejoin:round; stroke-linecap:round; }
-.home-arrow-label { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:4px 12px; border:1px solid rgba(255,255,255,.18); border-radius:999px; background:rgba(12,18,22,.6); color:#fff; font-size:14px; font-weight:800; letter-spacing:.05em; }
 .postcode-dock { position:absolute; left:8px; right:8px; bottom:10px; z-index:9; display:flex; flex-wrap:nowrap; align-items:center; justify-content:flex-start; gap:6px; padding:7px 9px; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity; scrollbar-width:none; border:1px solid rgba(48,64,72,.18); border-radius:19px; background:rgba(245,246,242,.82); box-shadow:0 10px 34px rgba(30,38,42,.24); backdrop-filter:blur(18px) saturate(1.25); }
 .postcode-dock::-webkit-scrollbar { display:none; }
 .postcode-dock button { position:relative; height:52px; flex:0 0 auto; min-width:62px; scroll-snap-align:center; display:flex; align-items:center; justify-content:center; padding:0 8px; overflow:hidden; border:2px solid #3179b9; border-radius:14px; background:rgba(255,255,252,.96); color:#255f8b; box-shadow:0 4px 12px rgba(42,48,50,.14); cursor:pointer; transition:transform .12s ease,background .12s ease,color .12s ease; }
@@ -322,9 +313,6 @@
 .drive-shell.dark .zoom-controls button { border-color:#70b7ff; background:rgba(49,59,66,.4); color:#f1f5f6; }
 .drive-shell.dark .zoom-controls button + button { border-color:#70b7ff; }
 .drive-shell.dark .zoom-controls button:hover { background:rgba(85,167,247,.14); }
-.drive-shell.dark .home-arrow-button { border-color:#70b7ff; background:rgba(49,59,66,.4); color:#f1f5f6; }
-.drive-shell.dark .home-arrow-button:hover { background:rgba(85,167,247,.14); }
-.drive-shell.dark .home-arrow-button.active { border-color:#69c985; color:#8fe0a8; background:rgba(39,77,57,.4); box-shadow:0 0 0 3px rgba(105,201,133,.18),0 8px 30px rgba(0,0,0,.24); }
 .drive-shell.dark .postcode-dock { border-color:rgba(161,190,205,.18); background:rgba(49,59,66,.88); box-shadow:0 12px 38px rgba(0,0,0,.36); }
 .drive-shell.dark .postcode-dock button { border-color:#70b7ff; background:var(--night-surface-raised); color:#91cfff; }
 .drive-shell.dark .postcode-dock button.selected { border-color:#69c985; background:#276e42; color:#fff; }
@@ -414,9 +402,6 @@
 .drive-shell.classic .settings-button { border-color:#3179b9; background:rgba(235,246,252,.3); }
 .drive-shell.classic .zoom-controls { border-color:transparent; background:transparent; }
 .drive-shell.classic .zoom-controls button { border-color:#3179b9; background:rgba(255,253,247,.3); color:#24231f; }
-.drive-shell.classic .home-arrow-button { border-color:#3179b9; background:rgba(255,253,247,.3); color:#24231f; }
-.drive-shell.classic .home-arrow-button:hover { background:rgba(49,121,185,.1); }
-.drive-shell.classic .home-arrow-button.active { border-color:#398957; color:#287848; background:rgba(239,249,241,.85); }
 .drive-shell.classic .speed-card { border-color:#398957; }
 .drive-shell.classic .header-actions button.active { border-color:#398957; background:rgba(239,249,241,.3); color:#287848; }
 .speed-card.speed-warning { border-color:#c52f2c; background:#fff1ee; color:#a91f1d; animation:speed-warning-flash .72s ease-in-out infinite alternate; }

@@ -7,7 +7,6 @@ import type { PostcodeGroupId } from "./lib/birmingham-postcodes";
 import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollection } from "./lib/safety";
 import { CompassStrip } from "./map-engine/CompassStrip";
 import { DestinationSearch } from "./map-engine/DestinationSearch";
-import { HomeArrow } from "./map-engine/HomeArrow";
 import { HomeCompass } from "./map-engine/HomeCompass";
 import { MapHeader } from "./map-engine/MapHeader";
 import { MapLegend } from "./map-engine/MapLegend";
@@ -94,7 +93,6 @@ export default function MapEngine() {
   const routeOptionsRef = useRef<RouteOptionEntry[] | null>(null);
   const [routeDetailsOpen, setRouteDetailsOpen] = useState(false);
   const [openPostcodeGroup, setOpenPostcodeGroup] = useState<PostcodeGroupId | null>(null);
-  const [showHomeArrow, setShowHomeArrow] = useState(false);
 
   const traffic = useTraffic({ mapRef, latestFixRef, mapReady, enabled: settings.liveTraffic, online });
 
@@ -996,20 +994,11 @@ export default function MapEngine() {
     }
   };
 
-  const toggleHomeArrow = () => {
-    if (!destinationFavourites.home) {
-      setMapMessage("No home saved yet. Centre the map on your house, open Settings and tap 'Set home to map centre'.");
-      return;
-    }
-    setShowHomeArrow((current) => !current);
-  };
-
   const setHomeHere = () => {
     const map = mapRef.current;
     if (!map) { setMapMessage("Wait for the map to finish loading, then mark home."); return; }
     const centre = map.getCenter();
     saveFavourite("home", { id: "set-home/map-centre", name: "Home", context: "Current map centre", latitude: centre.lat, longitude: centre.lng });
-    setShowHomeArrow(true);
   };
 
   const saveOfflineArea = async () => {
@@ -1133,8 +1122,6 @@ export default function MapEngine() {
 
       {mapMessage && <div className="map-alert" role="status">{mapMessage}</div>}
 
-      <HomeArrow home={destinationFavourites.home} visible={showHomeArrow} mapRef={mapRef} fixRef={latestFixRef} hasFix={fix !== null} />
-
       {settings.releaseMode === "current" && <PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 
       <div className="zoom-controls" aria-label="Map zoom controls">
@@ -1143,7 +1130,6 @@ export default function MapEngine() {
       </div>
 
       <section className="drive-controls" aria-label="Driving controls">
-        <button className={`home-arrow-button ${showHomeArrow ? "active" : ""}`} onClick={toggleHomeArrow} aria-pressed={showHomeArrow} aria-label={showHomeArrow ? "Hide direction to home" : "Show direction to home"} title="Arrow to home"><span className="home-arrow-button-icon">⌂</span></button>
         <HomeCompass home={destinationFavourites.home} mapRef={mapRef} fixRef={latestFixRef} hasFix={fix !== null} />
         {fix && !follow && <button className="recenter-button" onClick={recenter}><span className="target-icon" />Re-centre</button>}
         {settings.showSpeed && (
