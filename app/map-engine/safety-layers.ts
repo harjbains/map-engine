@@ -1,7 +1,7 @@
 import type maplibregl from "maplibre-gl";
 import type { Point } from "../lib/driving";
 import type { SafetyFeatureCollection } from "../lib/safety";
-import { distanceKm } from "./map-navigation";
+import { bearingBetween, distanceKm, headingDifference } from "./map-navigation.ts";
 
 const EMPTY_SAFETY_DATA: SafetyFeatureCollection = { type: "FeatureCollection", features: [] };
 const TRAFFIC_LIGHT_IMAGE = "map-engine-traffic-light";
@@ -249,6 +249,35 @@ export function mergeSafetyData(...collections: Array<SafetyFeatureCollection | 
       trafficSignals.push(point);
     }
     featureIds.add(feature.id);
+    features.push(feature);
+  }
+  return { type: "FeatureCollection", features };
+}
+
+interface SignalCorridorFilterOptions {
+  position: Point;
+  bearing: number;
+  currentRoad: string | null;
+  roadNameAt?: (point: Point) => string | null;
+  lookaheadKm?: number;
+  coneDegrees?: number;
+}
+
+export function filterSignalsToTravelCorridor(data: SafetyFeatureCollection, options: SignalCorridorFilterOptions): SafetyFeatureCollection {
+  const coneDegrees = options.coneDegrees ?? 45;
+  const lookaheadKm = options.lookaheadKm ?? 0.8;
+  const features: SafetyFeatureCollection["features"] = [];
+  for (const feature of data.features) {
+    if (feature.properties.kind === "traffic_signal" && feature.geometry.type === "Point") {
+      const point = { latitude: feature.geometry.coordinates[1], longitude: feature.geometry.coordinates[0] };
+      const distance = distanceKm(options.position, point);
+      if (distance > lookaheadKm) continue;
+      if (Math.abs(headingDifference(bearingBetween(options.position, point), options.bearing)) > coneDegrees) continue;
+      if (options.currentRoad && options.roadNameAt) {
+        const road = options.roadNameAt(point);
+        if (road && road !== options.currentRoad) continue;
+      }
+    }
     features.push(feature);
   }
   return { type: "FeatureCollection", features };

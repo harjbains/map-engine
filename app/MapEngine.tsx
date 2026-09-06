@@ -12,11 +12,11 @@ import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
-import { bearingBetween, distanceFromRouteMetres, distanceKm, headingDifference, liveRouteProgress, nearestLocality, nearestNamedRoad, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
+import { bearingBetween, distanceFromRouteMetres, distanceKm, headingDifference, liveRouteProgress, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
-import { ensureSafetyLayers, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
+import { ensureSafetyLayers, filterSignalsToTravelCorridor, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
 import type { RouteOptionEntry } from "./lib/route-graph";
 import type { RouteProfile } from "./lib/route-engine-core";
@@ -231,9 +231,18 @@ export default function MapEngine() {
     let visibleSafety: SafetyFeatureCollection | null = null;
     let safetyRetryTimer: number | null = null;
     const showSafety = (data: SafetyFeatureCollection) => {
-      visibleSafety = data;
-      safetyDataRef.current = data;
-      setSafetyData(map, data);
+      const latest = latestFixRef.current;
+      const visible = latest && latest.speedMph >= 5
+        ? filterSignalsToTravelCorridor(data, {
+            position: latest,
+            bearing: latest.bearing,
+            currentRoad: currentRoadRef.current,
+            roadNameAt: (point) => nearestRoadLabelNear(map, point),
+          })
+        : data;
+      visibleSafety = visible;
+      safetyDataRef.current = visible;
+      setSafetyData(map, visible);
     };
     const scheduleSafetyRefresh = (delayMs = 0) => {
       if (safetyRetryTimer !== null) window.clearTimeout(safetyRetryTimer);

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 const core = await import("../app/lib/route-engine-core.ts");
 const safety = await import("../app/lib/safety.ts");
+const layers = await import("../app/map-engine/safety-layers.ts");
 
 const node = (id, latitude, longitude) => ({ id, latitude, longitude });
 const way = (id, highway, nodes, tags = {}) => ({ id, highway, tags, nodes });
@@ -159,4 +160,49 @@ test("camera enforcement direction follows the from/to members of an enforcement
   };
   const direction = safety.cameraEnforcementDirection(relation);
   assert.ok(Math.abs((direction ?? -1) - 90) < 1, `expected eastwards (~90) but got ${direction}`);
+});
+
+test("traffic signals are filtered to the corridor of travel ahead", () => {
+  const position = { latitude: 52.0, longitude: -2.0, bearing: 90, speedMph: 30 };
+  const signal = (id, latitude, longitude) => ({
+    type: "Feature",
+    id,
+    geometry: { type: "Point", coordinates: [longitude, latitude] },
+    properties: { kind: "traffic_signal" },
+  });
+  const bump = {
+    type: "Feature",
+    id: "bump-t",
+    geometry: { type: "Point", coordinates: [-2.0, 52.01] },
+    properties: { kind: "speed_bump" },
+  };
+  const data = {
+    type: "FeatureCollection",
+    features: [
+      signal("signal-ahead", 52.0, -1.999),
+      signal("signal-toofar", 52.0, -1.98),
+      signal("signal-side", 52.006, -2.0),
+      signal("signal-behind", 52.0, -2.004),
+      signal("signal-mismatch", 52.0, -1.997),
+      signal("signal-main", 52.0, -1.996),
+      signal("signal-unnamed", 52.0, -1.995),
+      bump,
+    ],
+  };
+  const roads = {
+    "-1.997": "High Street",
+    "-1.996": "Main Street",
+  };
+  const filtered = layers.filterSignalsToTravelCorridor(data, {
+    position,
+    bearing: 90,
+    currentRoad: "Main Street",
+    roadNameAt: (point) => roads[String(point.longitude)] ?? null,
+  });
+  const kept = filtered.features.map((feature) => feature.id);
+  assert.deepEqual(kept, ["signal-ahead", "signal-main", "signal-unnamed", "bump-t"]);
+
+  const unfiltered = layers.filterSignalsToTravelCorridor(data, { position, bearing: 90, currentRoad: null });
+  const idsWithoutRoad = unfiltered.features.map((feature) => feature.id);
+  assert.deepEqual(idsWithoutRoad, ["signal-ahead", "signal-mismatch", "signal-main", "signal-unnamed", "bump-t"]);
 });

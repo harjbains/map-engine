@@ -91,6 +91,10 @@ export function roadFeatureLabel(feature: { properties: Record<string, unknown> 
 }
 
 export function nearestNamedRoad(map: maplibregl.Map, point: Point) {
+  return nearestRoadLabelNear(map, point, 16);
+}
+
+export function nearestRoadLabelNear(map: maplibregl.Map, point: Point, bufferPixels = 40) {
   const target = map.project([point.longitude, point.latitude]);
   const labelLayers = ROAD_LABEL_LAYERS.filter((id) => Boolean(map.getLayer(id)));
   if (labelLayers.length) {
@@ -98,7 +102,7 @@ export function nearestNamedRoad(map: maplibregl.Map, point: Point) {
     const directName = directlyUnderPointer.map(roadFeatureLabel).find(Boolean);
     if (directName) return directName;
     const labelsNearPointer = map.queryRenderedFeatures(
-      [[target.x - 16, target.y - 16], [target.x + 16, target.y + 16]],
+      [[target.x - bufferPixels, target.y - bufferPixels], [target.x + bufferPixels, target.y + bufferPixels]],
       { layers: labelLayers },
     );
     const nearbyName = labelsNearPointer.map(roadFeatureLabel).find(Boolean);
