@@ -765,7 +765,7 @@ export default function MapEngine() {
       localStorage.setItem(STORAGE_KEYS.destinationFavourites, JSON.stringify(next));
       return next;
     });
-    setMapMessage(`${destination.name} saved as ${key === "home" ? "Home" : "Hagley Road"}.`);
+    setMapMessage(key === "home" ? `Home saved (${destination.name}).` : `${destination.name} saved as Hagley Road.`);
   };
 
   const endRoute = () => {
@@ -997,11 +997,18 @@ export default function MapEngine() {
 
   const toggleHomeArrow = () => {
     if (!destinationFavourites.home) {
-      setSearchOpen(true);
-      setDestinationSearchError("Search for your home address, then use Save Home beside the result.");
+      setMapMessage("No home saved yet. Centre the map on your home, then press Set home.");
       return;
     }
     setShowHomeArrow((current) => !current);
+  };
+
+  const setHomeHere = () => {
+    const map = mapRef.current;
+    if (!map || !map.loaded()) { setMapMessage("Wait for the map to finish loading, then mark home."); return; }
+    const centre = map.getCenter();
+    saveFavourite("home", { id: "set-home/map-centre", name: "Home", context: "Current map centre", latitude: centre.lat, longitude: centre.lng });
+    setShowHomeArrow(true);
   };
 
   const saveOfflineArea = async () => {
@@ -1136,6 +1143,7 @@ export default function MapEngine() {
 
       <section className="drive-controls" aria-label="Driving controls">
         <button className={`home-arrow-button ${showHomeArrow ? "active" : ""}`} onClick={toggleHomeArrow} aria-pressed={showHomeArrow} aria-label={showHomeArrow ? "Hide direction to home" : "Show direction to home"} title="Arrow to home"><span className="home-arrow-button-icon">⌂</span></button>
+        <button className="set-home-button" onClick={setHomeHere} aria-label="Set home to the centre of the map" title="Set home to map centre">Set home</button>
         {fix && !follow && <button className="recenter-button" onClick={recenter}><span className="target-icon" />Re-centre</button>}
         {settings.showSpeed && (
           <div className={`speed-card ${speedWarning ? "speed-warning" : ""}`} aria-label={`${currentSpeedMph} miles per hour${speedLimitMph === null ? "" : `, speed limit ${speedLimitMph}`}`}>

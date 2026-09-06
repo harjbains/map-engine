@@ -1,6 +1,6 @@
 {
   "name": "map-engine",
-  "version": "2.10.21",
+  "version": "2.10.22",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
