@@ -28,6 +28,8 @@ button { font:inherit; }
 .home-compass-arrow { width:60px; height:60px; will-change:transform; transform-origin:center; }
 .home-compass-label { position:absolute; left:50%; bottom:5px; transform:translateX(-50%); display:inline-flex; align-items:center; gap:3px; font-size:9px; font-weight:850; white-space:nowrap; }
 .home-compass-label em { font-style:normal; color:#637179; }
+.home-map-marker { width:32px; height:32px; display:grid; place-items:center; border:2px solid #398957; border-radius:50% 50% 50% 0; transform:rotate(-45deg); background:rgba(13,22,28,.94); box-shadow:0 6px 16px rgba(0,0,0,.38); }
+.home-map-marker span { transform:rotate(45deg); color:#7fe0a0; font-size:15px; line-height:1; font-weight:900; }
 .speed-card strong { display:block; font-size:34px; line-height:32px; letter-spacing:-.04em; }
 .speed-card span { display:block; margin-top:2px; font-size:11px; line-height:1.15; color:var(--muted); }
 .speed-card small { font-size:9px; font-weight:850; white-space:nowrap; }

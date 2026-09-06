@@ -13,7 +13,7 @@ import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
-import { bearingBetween, distanceFromRouteMetres, distanceKm, headingDifference, liveRouteProgress, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
+import { bearingBetween, distanceFromRouteMetres, distanceKm, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
@@ -225,6 +225,7 @@ export default function MapEngine() {
       keyboard: true,
     });
     mapRef.current = map;
+    if (new URLSearchParams(window.location.search).has("map-engine-debug")) window.__mapEngine = map;
     collapseAttributionControl(map);
     let safetyPending = false;
     let lastSafetyCentre: Point | null = null;
@@ -932,7 +933,7 @@ export default function MapEngine() {
         padding: { top: 70, bottom: 140, left: 70, right: 70 },
         bearing: 0,
         pitch: is3dRef.current ? settingsRef.current.pitch : 0,
-        duration: 700,
+        duration: 0,
         essential: true,
       });
     }
@@ -973,7 +974,7 @@ export default function MapEngine() {
         padding: 34,
         bearing: 0,
         pitch: 0,
-        duration: 700,
+        duration: 0,
         essential: true,
       });
     }
@@ -996,9 +997,13 @@ export default function MapEngine() {
 
   const setHomeHere = () => {
     const map = mapRef.current;
-    if (!map) { setMapMessage("Wait for the map to finish loading, then mark home."); return; }
-    const centre = map.getCenter();
-    saveFavourite("home", { id: "set-home/map-centre", name: "Home", context: "Current map centre", latitude: centre.lat, longitude: centre.lng });
+    if (!map) { setMapMessage("Wait for the map to load, then open Settings to set home."); return; }
+    const saveCentre = () => {
+      const centre = mapCentre(map);
+      saveFavourite("home", { id: "set-home/map-centre", name: "Home", context: "Current map centre", latitude: centre.latitude, longitude: centre.longitude });
+    };
+    if (map.isMoving()) { setMapMessage("Saving the map centre once the map settles…"); map.once("moveend", saveCentre); }
+    else saveCentre();
   };
 
   const saveOfflineArea = async () => {
@@ -1016,10 +1021,10 @@ export default function MapEngine() {
     const controller = new AbortController();
     abortPackRef.current = controller;
     try {
-      const centre = map.getCenter();
+      const centre = mapCentre(map);
       const { downloadOfflinePack } = await import("./lib/offline");
       const pack = await downloadOfflinePack(
-        { latitude: centre.lat, longitude: centre.lng },
+        { latitude: centre.latitude, longitude: centre.longitude },
         packRadius,
         (done, total) => setPackProgress({ done, total }),
         controller.signal,

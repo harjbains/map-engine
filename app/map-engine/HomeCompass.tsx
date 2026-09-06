@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
-import type maplibregl from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import type { Destination, VehicleFix } from "./config";
 import { bearingBetween, distanceKm } from "./map-navigation";
 import { formatMiles } from "./map-routing-layers";
+
+const CARDINAL_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 
 export function HomeCompass({ home, mapRef, fixRef, hasFix }: {
   home: Destination | undefined;
@@ -15,6 +17,7 @@ export function HomeCompass({ home, mapRef, fixRef, hasFix }: {
   const arrowRef = useRef<SVGSVGElement | null>(null);
   const discRef = useRef<HTMLDivElement | null>(null);
   const captionRef = useRef<HTMLSpanElement | null>(null);
+  const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
 
   useEffect(() => {
     if (!home || !hasFix) return;
@@ -27,17 +30,39 @@ export function HomeCompass({ home, mapRef, fixRef, hasFix }: {
       const deg = (bearingBetween(fix, home) - map.getBearing() + 360) % 360;
       const miles = distanceKm(fix, home) * 0.621371;
       const milesText = formatMiles(miles);
+      const point = CARDINAL_16[Math.round(deg / 22.5) % 16];
       const arrow = arrowRef.current;
       if (arrow && arrow.style.transform !== `rotate(${deg}deg)`) arrow.style.transform = `rotate(${deg}deg)`;
       const caption = captionRef.current;
-      if (caption && caption.textContent !== milesText) caption.textContent = milesText;
-      const aria = `Pointing to home ${Math.round(deg)} degrees, ${milesText} miles away`;
+      const captionText = `${milesText} mi · ${point}`;
+      if (caption && caption.textContent !== captionText) caption.textContent = captionText;
+      const aria = `Pointing to home, ${Math.round(deg)} degrees (${point}), ${milesText} miles away`;
       const disc = discRef.current;
       if (disc && disc.getAttribute("aria-label") !== aria) disc.setAttribute("aria-label", aria);
     };
     renderTick();
     return () => window.cancelAnimationFrame(rafId);
   }, [home, hasFix, mapRef, fixRef]);
+
+  useEffect(() => {
+    if (!home) return;
+    const map = mapRef.current;
+    if (!map) return;
+    if (!homeMarkerRef.current) {
+      const element = document.createElement("div");
+      element.className = "home-map-marker";
+      element.title = "Home saved position";
+      const icon = document.createElement("span");
+      icon.textContent = "⌂";
+      element.appendChild(icon);
+      homeMarkerRef.current = new maplibregl.Marker({ element, anchor: "bottom" })
+        .setLngLat([home.longitude, home.latitude])
+        .addTo(map);
+    } else {
+      homeMarkerRef.current.setLngLat([home.longitude, home.latitude]);
+    }
+    return () => { homeMarkerRef.current?.remove(); homeMarkerRef.current = null; };
+  }, [home, mapRef]);
 
   if (!home || !hasFix) return null;
 

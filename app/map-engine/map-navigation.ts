@@ -12,6 +12,12 @@ export function distanceKm(a: Point, b: Point) {
   return Math.hypot(x, y);
 }
 
+export function mapCentre(map: maplibregl.Map): Point {
+  const canvas = map.getCanvas();
+  const centre = map.unproject([canvas.clientWidth / 2, canvas.clientHeight / 2]);
+  return { latitude: centre.lat, longitude: centre.lng };
+}
+
 export function bearingBetween(a: Point, b: Point) {
   const latitudeDelta = (b.latitude - a.latitude) * Math.PI / 180;
   const longitudeDelta = (b.longitude - a.longitude) * Math.PI / 180;
