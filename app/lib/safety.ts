@@ -28,7 +28,7 @@ export type SafetyFeatureCollection = {
   features: Array<{
     type: "Feature";
     id: string;
-    properties: { kind: SafetyKind; label: string };
+    properties: { kind: SafetyKind; label: string; direction?: number };
     geometry: SafetyGeometry;
   }>;
 };
@@ -187,6 +187,40 @@ function wayFeature(element: OverpassElement, kind: SafetyKind, label: string, r
     properties: { kind, label },
     geometry: { type: "LineString" as const, coordinates },
   };
+}
+
+function bearingBetweenDegrees(from: { lat: number; lon: number }, to: { lat: number; lon: number }) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const longitudeDelta = toRad(to.lon - from.lon);
+  const y = Math.sin(longitudeDelta) * Math.cos(toRad(to.lat));
+  const x = Math.cos(toRad(from.lat)) * Math.sin(toRad(to.lat))
+    - Math.sin(toRad(from.lat)) * Math.cos(toRad(to.lat)) * Math.cos(longitudeDelta);
+  return (((Math.atan2(y, x) * 180) / Math.PI) + 360) % 360;
+}
+
+export function cameraEnforcementDirection(element: OverpassElement): number | null {
+  if (element.type === "node") {
+    const rawDirection = element.tags?.direction ?? element.tags?.["camera:direction"];
+    if (!rawDirection) return null;
+    const degrees = Number(rawDirection);
+    if (!Number.isFinite(degrees)) return null;
+    return ((degrees % 360) + 360) % 360;
+  }
+  if (element.type === "way") {
+    const coords = element.geometry ?? [];
+    if (coords.length < 2) return null;
+    const from = coords[0];
+    const to = coords[coords.length - 1];
+    return bearingBetweenDegrees({ lat: from.lat, lon: from.lon }, { lat: to.lat, lon: to.lon });
+  }
+  if (element.type === "relation") {
+    const from = (element.members ?? []).find((member) => member.role === "from");
+    const to = (element.members ?? []).find((member) => member.role === "to");
+    if (from?.lat !== undefined && from.lon !== undefined && to?.lat !== undefined && to.lon !== undefined) {
+      return bearingBetweenDegrees({ lat: from.lat, lon: from.lon }, { lat: to.lat, lon: to.lon });
+    }
+  }
+  return null;
 }
 
 function normaliseSpeedLimit(value = "") {
@@ -515,7 +549,13 @@ function detailFeatures(elements: OverpassElement[]): SafetyFeatureCollection["f
       if (coordinates.length >= 2) features.push({ type: "Feature", id: key, properties: { kind, label }, geometry: { type: "LineString", coordinates } });
     } else {
       const feature = pointFeature(element, kind, label);
-      if (feature) features.push(feature);
+      if (feature) {
+        if (kind === "speed_camera") {
+          const direction = cameraEnforcementDirection(element);
+          if (direction !== null) feature.properties.direction = direction;
+        }
+        features.push(feature);
+      }
     }
   }
   return features;

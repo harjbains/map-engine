@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const core = await import("../app/lib/route-engine-core.ts");
+const safety = await import("../app/lib/safety.ts");
 
 const node = (id, latitude, longitude) => ({ id, latitude, longitude });
 const way = (id, highway, nodes, tags = {}) => ({ id, highway, tags, nodes });
@@ -128,4 +129,34 @@ test("first-turn instruction arrives at a three-way junction", () => {
   assert.equal(instruction.arrow, "↱");
   assert.equal(instruction.road, "Main Street");
   assert.ok(instruction.distanceMiles > 0);
+});
+
+test("camera enforcement direction is read from a fixed camera direction tag", () => {
+  const nodeCamera = { type: "node", id: 1, tags: { highway: "speed_camera", direction: "230" } };
+  assert.equal(safety.cameraEnforcementDirection(nodeCamera), 230);
+  assert.equal(safety.cameraEnforcementDirection({ type: "node", id: 2, tags: { highway: "speed_camera", direction: "475" } }), 115);
+  assert.equal(safety.cameraEnforcementDirection({ type: "node", id: 3, tags: { highway: "speed_camera" } }), null);
+  assert.equal(safety.cameraEnforcementDirection({ type: "node", id: 4, tags: { highway: "speed_camera", direction: "north" } }), null);
+});
+
+test("camera enforcement direction follows the segment geometry of an enforcement way", () => {
+  const westToEast = {
+    type: "way", id: 5, tags: { enforcement: "speed" },
+    geometry: [{ lat: 52.0, lon: -2.0 }, { lat: 52.0, lon: -1.9 }],
+  };
+  const direction = safety.cameraEnforcementDirection(westToEast);
+  assert.ok(Math.abs((direction ?? -1) - 90) < 1, `expected eastwards (~90) but got ${direction}`);
+});
+
+test("camera enforcement direction follows the from/to members of an enforcement relation", () => {
+  const relation = {
+    type: "relation", id: 6, tags: { type: "enforcement", enforcement: "average_speed" },
+    members: [
+      { type: "node", ref: 10, role: "from", lat: 52.0, lon: -1.0 },
+      { type: "node", ref: 11, role: "via", lat: 52.0, lon: -0.99 },
+      { type: "node", ref: 12, role: "to", lat: 52.0, lon: -0.95 },
+    ],
+  };
+  const direction = safety.cameraEnforcementDirection(relation);
+  assert.ok(Math.abs((direction ?? -1) - 90) < 1, `expected eastwards (~90) but got ${direction}`);
 });

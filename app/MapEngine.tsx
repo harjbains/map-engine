@@ -468,6 +468,8 @@ export default function MapEngine() {
       if (distanceKmToCamera < 0.022 || distanceKmToCamera > 0.5) continue;
       const bearingToCamera = bearingBetween(fix, cameraPoint);
       if (Math.abs(headingDifference(bearingToCamera, fix.bearing)) > 38) continue;
+      const enforcementDirection = feature.properties.direction;
+      if (enforcementDirection !== undefined && Math.abs(headingDifference(enforcementDirection, fix.bearing)) > 90) continue;
       if (currentRoadName) {
         const cameraRoad = nearestNamedRoad(map, cameraPoint);
         if (cameraRoad && cameraRoad !== currentRoadName) continue;
