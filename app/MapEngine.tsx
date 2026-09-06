@@ -7,6 +7,7 @@ import type { PostcodeGroupId } from "./lib/birmingham-postcodes";
 import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollection } from "./lib/safety";
 import { CompassStrip } from "./map-engine/CompassStrip";
 import { DestinationSearch } from "./map-engine/DestinationSearch";
+import { HomeArrow } from "./map-engine/HomeArrow";
 import { MapHeader } from "./map-engine/MapHeader";
 import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
@@ -92,6 +93,7 @@ export default function MapEngine() {
   const routeOptionsRef = useRef<RouteOptionEntry[] | null>(null);
   const [routeDetailsOpen, setRouteDetailsOpen] = useState(false);
   const [openPostcodeGroup, setOpenPostcodeGroup] = useState<PostcodeGroupId | null>(null);
+  const [showHomeArrow, setShowHomeArrow] = useState(false);
 
   const traffic = useTraffic({ mapRef, latestFixRef, mapReady, enabled: settings.liveTraffic, online });
 
@@ -993,6 +995,15 @@ export default function MapEngine() {
     }
   };
 
+  const toggleHomeArrow = () => {
+    if (!destinationFavourites.home) {
+      setSearchOpen(true);
+      setDestinationSearchError("Search for your home address, then use Save Home beside the result.");
+      return;
+    }
+    setShowHomeArrow((current) => !current);
+  };
+
   const saveOfflineArea = async () => {
     const map = mapRef.current;
     if (!map) {
@@ -1114,6 +1125,8 @@ export default function MapEngine() {
 
       {mapMessage && <div className="map-alert" role="status">{mapMessage}</div>}
 
+      <HomeArrow home={destinationFavourites.home} visible={showHomeArrow} mapRef={mapRef} fixRef={latestFixRef} hasFix={fix !== null} />
+
       {settings.releaseMode === "current" && <PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 
       <div className="zoom-controls" aria-label="Map zoom controls">
@@ -1122,6 +1135,7 @@ export default function MapEngine() {
       </div>
 
       <section className="drive-controls" aria-label="Driving controls">
+        <button className={`home-arrow-button ${showHomeArrow ? "active" : ""}`} onClick={toggleHomeArrow} aria-pressed={showHomeArrow} aria-label={showHomeArrow ? "Hide direction to home" : "Show direction to home"} title="Arrow to home"><span className="home-arrow-button-icon">⌂</span></button>
         {fix && !follow && <button className="recenter-button" onClick={recenter}><span className="target-icon" />Re-centre</button>}
         {settings.showSpeed && (
           <div className={`speed-card ${speedWarning ? "speed-warning" : ""}`} aria-label={`${currentSpeedMph} miles per hour${speedLimitMph === null ? "" : `, speed limit ${speedLimitMph}`}`}>
