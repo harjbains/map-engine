@@ -101,7 +101,7 @@
 .home-arrow-button:hover { background:rgba(49,121,185,.1); }
 .home-arrow-button.active { border-color:#398957; color:#287848; background:rgba(239,249,241,.85); box-shadow:0 0 0 3px rgba(57,137,87,.14),0 8px 28px rgba(42,48,50,.18); }
 .home-arrow-button:focus-visible { position:relative; outline:2px solid #3179b9; outline-offset:-3px; }
-.home-arrow { position:absolute; left:50%; bottom:210px; z-index:5; display:grid; justify-items:center; gap:7px; transform:translateX(-50%); pointer-events:none; }
+.home-arrow { position:absolute; z-index:5; display:grid; justify-items:center; gap:7px; transform:translate(-50%,-50%); pointer-events:none; }
 .home-arrow-glyph { display:grid; place-items:center; width:152px; height:118px; filter:drop-shadow(0 6px 16px rgba(0,0,0,.4)); }
 .home-arrow-glyph svg { width:100%; height:100%; display:block; fill:rgba(255,255,255,.25); stroke:#d84035; stroke-width:9; stroke-linejoin:round; stroke-linecap:round; }
 .home-arrow-label { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:4px 12px; border:1px solid rgba(255,255,255,.18); border-radius:999px; background:rgba(12,18,22,.6); color:#fff; font-size:14px; font-weight:800; letter-spacing:.05em; }
@@ -127,6 +127,7 @@
 .recenter-button { height:45px; display:flex; align-items:center; gap:9px; padding:0 14px; border:1px solid rgba(112,183,255,.34); border-radius:11px; background:rgba(13,22,28,.94); color:#fff; font-size:13px; font-weight:800; box-shadow:0 8px 30px rgba(0,0,0,.25); cursor:pointer; }
 .set-home-button { height:36px; display:flex; align-items:center; justify-content:center; padding:0 13px; border:1px solid rgba(49,121,185,.3); border-radius:999px; background:rgba(250,250,246,.85); color:#1d6aa8; font-size:12px; font-weight:900; box-shadow:0 8px 28px rgba(42,48,50,.16); cursor:pointer; }
 .set-home-button:hover { background:#e9f2f9; }
+.set-home-button.saved { border-color:#398957; color:#287848; background:rgba(239,249,241,.9); box-shadow:0 0 0 3px rgba(57,137,87,.15),0 8px 28px rgba(42,48,50,.18); }
 .target-icon { width:17px; height:17px; position:relative; border:2px solid #70b7ff; border-radius:50%; }
 .target-icon::before, .target-icon::after { content:""; position:absolute; background:#70b7ff; }
 .target-icon::before { width:3px; height:23px; left:5px; top:-5px; }
@@ -328,6 +329,7 @@
 .drive-shell.dark .home-arrow-button.active { border-color:#69c985; color:#8fe0a8; background:rgba(39,77,57,.4); box-shadow:0 0 0 3px rgba(105,201,133,.18),0 8px 30px rgba(0,0,0,.24); }
 .drive-shell.dark .set-home-button { border-color:rgba(112,183,255,.4); background:rgba(49,59,66,.5); color:#9ecdf7; }
 .drive-shell.dark .set-home-button:hover { background:rgba(85,167,247,.16); }
+.drive-shell.dark .set-home-button.saved { border-color:#69c985; color:#8fe0a8; background:rgba(39,77,57,.45); box-shadow:0 0 0 3px rgba(105,201,133,.18); }
 .drive-shell.dark .postcode-dock { border-color:rgba(161,190,205,.18); background:rgba(49,59,66,.88); box-shadow:0 12px 38px rgba(0,0,0,.36); }
 .drive-shell.dark .postcode-dock button { border-color:#70b7ff; background:var(--night-surface-raised); color:#91cfff; }
 .drive-shell.dark .postcode-dock button.selected { border-color:#69c985; background:#276e42; color:#fff; }
@@ -418,6 +420,7 @@
 .drive-shell.classic .home-arrow-button.active { border-color:#398957; color:#287848; background:rgba(239,249,241,.85); }
 .drive-shell.classic .set-home-button { border-color:#3179b9; background:rgba(255,253,247,.4); color:#1d6aa8; }
 .drive-shell.classic .set-home-button:hover { background:rgba(49,121,185,.12); }
+.drive-shell.classic .set-home-button.saved { border-color:#398957; color:#287848; background:rgba(239,249,241,.9); }
 .drive-shell.classic .speed-card { border-color:#398957; }
 .drive-shell.classic .header-actions button.active { border-color:#398957; background:rgba(239,249,241,.3); color:#287848; }
 .speed-card.speed-warning { border-color:#c52f2c; background:#fff1ee; color:#a91f1d; animation:speed-warning-flash .72s ease-in-out infinite alternate; }

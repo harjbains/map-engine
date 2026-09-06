@@ -1005,7 +1005,7 @@ export default function MapEngine() {
 
   const setHomeHere = () => {
     const map = mapRef.current;
-    if (!map || !map.loaded()) { setMapMessage("Wait for the map to finish loading, then mark home."); return; }
+    if (!map) { setMapMessage("Wait for the map to finish loading, then mark home."); return; }
     const centre = map.getCenter();
     saveFavourite("home", { id: "set-home/map-centre", name: "Home", context: "Current map centre", latitude: centre.lat, longitude: centre.lng });
     setShowHomeArrow(true);
@@ -1143,7 +1143,7 @@ export default function MapEngine() {
 
       <section className="drive-controls" aria-label="Driving controls">
         <button className={`home-arrow-button ${showHomeArrow ? "active" : ""}`} onClick={toggleHomeArrow} aria-pressed={showHomeArrow} aria-label={showHomeArrow ? "Hide direction to home" : "Show direction to home"} title="Arrow to home"><span className="home-arrow-button-icon">⌂</span></button>
-        <button className="set-home-button" onClick={setHomeHere} aria-label="Set home to the centre of the map" title="Set home to map centre">Set home</button>
+        <button className={`set-home-button ${destinationFavourites.home ? "saved" : ""}`} onClick={setHomeHere} aria-label="Set home to the centre of the map" aria-pressed={Boolean(destinationFavourites.home)} title="Set home to map centre">Set home</button>
         {fix && !follow && <button className="recenter-button" onClick={recenter}><span className="target-icon" />Re-centre</button>}
         {settings.showSpeed && (
           <div className={`speed-card ${speedWarning ? "speed-warning" : ""}`} aria-label={`${currentSpeedMph} miles per hour${speedLimitMph === null ? "" : `, speed limit ${speedLimitMph}`}`}>
