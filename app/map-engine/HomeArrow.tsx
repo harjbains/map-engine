@@ -18,19 +18,29 @@ export function HomeArrow({ home, visible, mapRef, fixRef, hasFix }: {
 
   useEffect(() => {
     if (!visible || !home || !hasFix) return;
-    let frame = 0;
-    const tick = () => {
+    const update = () => {
       const map = mapRef.current;
       const fix = fixRef.current;
-      if (map && fix) {
-        const bearing = bearingBetween(fix, home);
-        if (glyphRef.current) glyphRef.current.style.transform = `rotate(${bearing - map.getBearing()}deg)`;
-        if (labelRef.current) labelRef.current.textContent = `HOME · ${formatMiles(distanceKm(fix, home) * 0.621371)} mi`;
-      }
-      frame = window.requestAnimationFrame(tick);
+      if (!map || !fix) return;
+      const bearing = bearingBetween(fix, home);
+      if (glyphRef.current) glyphRef.current.style.transform = `rotate(${bearing - map.getBearing()}deg)`;
+      if (labelRef.current) labelRef.current.textContent = `HOME · ${formatMiles(distanceKm(fix, home) * 0.621371)} mi`;
     };
-    frame = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frame);
+    update();
+    const map = mapRef.current;
+    if (map) {
+      map.on("rotate", update);
+      map.on("move", update);
+    }
+    const interval = window.setInterval(update, 250);
+    return () => {
+      window.clearInterval(interval);
+      const current = mapRef.current;
+      if (current) {
+        current.off("rotate", update);
+        current.off("move", update);
+      }
+    };
   }, [visible, home, hasFix, mapRef, fixRef]);
 
   if (!visible || !home || !hasFix) return null;
