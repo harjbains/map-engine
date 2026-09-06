@@ -37,7 +37,9 @@ export function HomeArrow({ home, visible, mapRef, fixRef, hasFix }: {
 
   return (
     <div className="home-arrow" role="status" aria-live="polite">
-      <div className="home-arrow-glyph" ref={glyphRef}><span aria-hidden="true">↑</span></div>
+      <div className="home-arrow-glyph" ref={glyphRef} aria-hidden="true">
+        <svg viewBox="0 0 200 160" aria-hidden="true"><path d="M100 8 190 64 112 58 112 152 88 152 88 58 10 64Z" /></svg>
+      </div>
       <span className="home-arrow-label" ref={labelRef}>HOME</span>
     </div>
   );
