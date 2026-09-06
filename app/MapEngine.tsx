@@ -8,6 +8,7 @@ import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollec
 import { CompassStrip } from "./map-engine/CompassStrip";
 import { DestinationSearch } from "./map-engine/DestinationSearch";
 import { HomeArrow } from "./map-engine/HomeArrow";
+import { HomeCompass } from "./map-engine/HomeCompass";
 import { MapHeader } from "./map-engine/MapHeader";
 import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
@@ -997,7 +998,7 @@ export default function MapEngine() {
 
   const toggleHomeArrow = () => {
     if (!destinationFavourites.home) {
-      setMapMessage("No home saved yet. Centre the map on your home, then press Set home.");
+      setMapMessage("No home saved yet. Centre the map on your house, open Settings and tap 'Set home to map centre'.");
       return;
     }
     setShowHomeArrow((current) => !current);
@@ -1143,7 +1144,7 @@ export default function MapEngine() {
 
       <section className="drive-controls" aria-label="Driving controls">
         <button className={`home-arrow-button ${showHomeArrow ? "active" : ""}`} onClick={toggleHomeArrow} aria-pressed={showHomeArrow} aria-label={showHomeArrow ? "Hide direction to home" : "Show direction to home"} title="Arrow to home"><span className="home-arrow-button-icon">⌂</span></button>
-        <button className={`set-home-button ${destinationFavourites.home ? "saved" : ""}`} onClick={setHomeHere} aria-label="Set home to the centre of the map" aria-pressed={Boolean(destinationFavourites.home)} title="Set home to map centre">Set home</button>
+        <HomeCompass home={destinationFavourites.home} mapRef={mapRef} fixRef={latestFixRef} hasFix={fix !== null} />
         {fix && !follow && <button className="recenter-button" onClick={recenter}><span className="target-icon" />Re-centre</button>}
         {settings.showSpeed && (
           <div className={`speed-card ${speedWarning ? "speed-warning" : ""}`} aria-label={`${currentSpeedMph} miles per hour${speedLimitMph === null ? "" : `, speed limit ${speedLimitMph}`}`}>
@@ -1218,6 +1219,8 @@ export default function MapEngine() {
           packProgress={packProgress}
           packError={packError}
           trafficConfigured={traffic.configured === true}
+          homeSaved={Boolean(destinationFavourites.home)}
+          onSetHome={setHomeHere}
           simulating={simulating}
           installPrompt={installPrompt}
           onClose={() => setSettingsOpen(false)}

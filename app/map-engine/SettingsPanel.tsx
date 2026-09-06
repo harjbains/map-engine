@@ -7,6 +7,8 @@ type SettingsPanelProps = {
   packProgress: { done: number; total: number } | null;
   packError: string | null;
   trafficConfigured: boolean;
+  homeSaved: boolean;
+  onSetHome: () => void;
   simulating: boolean;
   installPrompt: InstallPromptEvent | null;
   onClose: () => void;
@@ -24,7 +26,7 @@ type SettingsPanelProps = {
   onInstall: () => void;
 };
 
-export function SettingsPanel({ settings, offlinePack, packRadius, packProgress, packError, trafficConfigured, simulating, installPrompt, onClose, onRemoveOfflineArea, onSetPackRadius, onCancelDownload, onSaveOfflineArea, onToggle, onDefault3d, onAutoZoom, onLiveTraffic, onPitch, onReleaseMode, onToggleSimulation, onInstall }: SettingsPanelProps) {
+export function SettingsPanel({ settings, offlinePack, packRadius, packProgress, packError, trafficConfigured, homeSaved, onSetHome, simulating, installPrompt, onClose, onRemoveOfflineArea, onSetPackRadius, onCancelDownload, onSaveOfflineArea, onToggle, onDefault3d, onAutoZoom, onLiveTraffic, onPitch, onReleaseMode, onToggleSimulation, onInstall }: SettingsPanelProps) {
   const progressPercent = packProgress?.total ? Math.round(packProgress.done / packProgress.total * 100) : 0;
 
   return (
@@ -61,6 +63,12 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
             <label className="range-setting"><span>3D pitch <b>{Math.round(settings.pitch)}°</b></span><input type="range" min="35" max="65" step="5" value={settings.pitch} onChange={(event) => onPitch(Number(event.target.value))} /></label>
             <p className="settings-note">The single UK map style uses cool road colours so warm orange and red remain reserved for traffic delays.</p>
             <p className="settings-note safety-note">Safety Pack adds verified one-way arrows, mapped road closures, road restrictions, speed limits, crossings, cameras and clean-air warnings progressively after the base map. Parking and EV chargers remain optional to protect the driving view from clutter. Coverage may be incomplete; physical road signs always take priority.</p>
+          </section>
+
+          <section className="settings-group">
+            <div className="group-title-row"><div><h3>Home destination</h3><p>Target for the home compass disc and the ⌂ direction beacon.</p></div><span className={`status-dot ${homeSaved ? "saved" : ""}`} /></div>
+            <button className="secondary-wide" onClick={onSetHome}>Set home to map centre</button>
+            <p className={`settings-note ${homeSaved ? "home-saved-note" : ""}`}>{homeSaved ? "Home saved. Centre the map on your house again and tap 'Set home to map centre' to update it." : "Not set yet. Centre the map on your house first, then tap the button above. Once saved, the compass disc above the speed shows your home direction as you drive."}</p>
           </section>
 
           <section className="settings-group">

@@ -24,6 +24,10 @@ button { font:inherit; }
 .drive-controls { position:absolute; right:20px; bottom:110px; display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
 .mode-button { width:46px; height:46px; border:2px solid #3179b9; border-radius:50%; font-weight:850; cursor:pointer; }
 .speed-card { display:grid; width:86px; height:86px; align-content:center; padding:7px; border:3px solid #398957; border-radius:50%; background:rgba(8,13,16,.93); text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+.home-compass { position:relative; display:grid; width:86px; height:86px; place-items:center; border:3px solid #3179b9; border-radius:50%; background:rgba(252,252,248,.95); color:#d84035; box-shadow:0 8px 30px rgba(42,48,50,.18); }
+.home-compass-arrow { width:60px; height:60px; }
+.home-compass-label { position:absolute; left:50%; bottom:5px; transform:translateX(-50%); display:inline-flex; align-items:center; gap:3px; font-size:9px; font-weight:850; white-space:nowrap; }
+.home-compass-label em { font-style:normal; color:#637179; }
 .speed-card strong { display:block; font-size:34px; line-height:32px; letter-spacing:-.04em; }
 .speed-card span { display:block; margin-top:2px; font-size:11px; line-height:1.15; color:var(--muted); }
 .speed-card small { font-size:9px; font-weight:850; white-space:nowrap; }
