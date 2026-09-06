@@ -22,8 +22,8 @@ export function HomeArrow({ home, visible, mapRef, fixRef, hasFix }: {
       const map = mapRef.current;
       const fix = fixRef.current;
       if (!map || !fix) return;
-      const bearing = bearingBetween(fix, home);
-      if (glyphRef.current) glyphRef.current.style.transform = `rotate(${bearing - map.getBearing()}deg)`;
+      const deg = bearingBetween(fix, home) - map.getBearing();
+      if (glyphRef.current) glyphRef.current.style.transform = `rotate(${deg}deg)`;
       if (labelRef.current) labelRef.current.textContent = `HOME · ${formatMiles(distanceKm(fix, home) * 0.621371)} mi`;
     };
     update();
