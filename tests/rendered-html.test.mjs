@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.36/);
+  assert.match(html, /v2.10.37/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -111,8 +111,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.36"/);
-  assert.match(serviceWorker, /map-engine-shell-v1218/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.37"/);
+  assert.match(serviceWorker, /map-engine-shell-v1219/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -179,6 +179,17 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /\["road-local", "line-opacity", LOCAL_ROAD_OPACITY\]/);
   assert.match(mapEngine, /map\.setLayerZoomRange\(layer, minZoom, 24\)/);
   assert.match(mapEngine, /for \(const \[layer, minZoom\] of ROUTE_SHIELD_MIN_ZOOM\)/);
+  assert.match(mapEngine, /PLACE_LAYERS = \["place-city", "place-town", "place-village"\] as const/);
+  assert.match(mapEngine, /PLACE_LAYOUTS/);
+  assert.match(mapEngine, /\[\"place-village\", \["interpolate", \["linear"\], \["zoom"\], 10, 9, 12, 10\.5, 14, 12\.5\]\]/);
+  assert.match(mapEngine, /for \(const \[layer, size\] of PLACE_LAYOUTS\)/);
+  assert.equal(mapStyle.layers.find((layer) => layer.id === "place-city").minzoom, 4);
+  assert.equal(mapStyle.layers.find((layer) => layer.id === "place-town").minzoom, 7);
+  assert.equal(mapStyle.layers.find((layer) => layer.id === "place-village").minzoom, 10);
+  assert.deepEqual(mapStyle.layers.find((layer) => layer.id === "place-city").filter, ["==", ["get", "class"], "city"]);
+  assert.deepEqual(mapStyle.layers.find((layer) => layer.id === "place-town").filter, ["==", ["get", "class"], "town"]);
+  assert.deepEqual(mapStyle.layers.find((layer) => layer.id === "place-village").filter, ["==", ["get", "class"], "village"]);
+  assert.ok(!mapStyle.layers.some((layer) => layer.id === "place"));
   assert.match(mapEngine, /map\.setLayoutProperty\(layer, "text-allow-overlap", false\)/);
   assert.match(mapEngine, /safety-restricted-label/);
   assert.match(mapEngine, /safety-signal-icon/);
@@ -222,7 +233,7 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /delete next\.atlasMode/);
   assert.match(mapEngine, /manualZoomRef\.current = nextZoom/);
   assert.doesNotMatch(mapEngine, /const adjustZoom[\s\S]{0,240}changeFollow\(false\)/);
-  assert.match(mapEngine, /\["place", "text-color", "#b9c8ce"\]/);
+  assert.match(mapEngine, /\["place-city", "text-color", "#b9c8ce"\]/);
   assert.match(mapEngine, /requestAnimationFrame\(animate\)/);
   assert.doesNotMatch(mapEngine, /setInterval\(.*850/);
   assert.match(mapEngine, /Current road and locality/);

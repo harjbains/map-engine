@@ -19,6 +19,13 @@ export const LOCAL_ROAD_MIN_ZOOM = 12;
 const LOCAL_ROAD_OPACITY = ["interpolate", ["linear"], ["zoom"], 12, 0.52, 14, 0.9, 16, 0.98];
 const LOCAL_ROAD_CASING_OPACITY = ["interpolate", ["linear"], ["zoom"], 12, 0.4, 14, 0.85, 16, 0.98];
 
+export const PLACE_LAYERS = ["place-city", "place-town", "place-village"] as const;
+export const PLACE_LAYOUTS = [
+  ["place-city", ["interpolate", ["linear"], ["zoom"], 4, 12, 8, 15, 12, 18, 15, 21]],
+  ["place-town", ["interpolate", ["linear"], ["zoom"], 7, 10, 10, 12, 13, 14, 16, 16.5]],
+  ["place-village", ["interpolate", ["linear"], ["zoom"], 10, 9, 12, 10.5, 14, 12.5]],
+] as const;
+
 const scaleRoadWidthOutput = (value: unknown, scale: number): unknown => {
   if (typeof value === "number") return value * scale;
   if (Array.isArray(value) && value[0] === "case") {
@@ -96,8 +103,12 @@ const MAP_THEME_PAINTS = {
     ["route-b", "text-color", "#182126"],
     ["route-b", "text-halo-color", "#9fb3be"],
     ["route-b", "text-halo-width", 7],
-    ["place", "text-color", "#2c302e"],
-    ["place", "text-halo-color", "#f1efe8"],
+    ["place-city", "text-color", "#2c302e"],
+    ["place-city", "text-halo-color", "#f1efe8"],
+    ["place-town", "text-color", "#2c302e"],
+    ["place-town", "text-halo-color", "#f1efe8"],
+    ["place-village", "text-color", "#2c302e"],
+    ["place-village", "text-halo-color", "#f1efe8"],
   ],
   night: [
     ["background", "background-color", "#0b0f11"],
@@ -141,8 +152,12 @@ const MAP_THEME_PAINTS = {
     ["route-b", "text-color", "#ffffff"],
     ["route-b", "text-halo-color", "#526873"],
     ["route-b", "text-halo-width", 7],
-    ["place", "text-color", "#b9c8ce"],
-    ["place", "text-halo-color", "#0b0f11"],
+    ["place-city", "text-color", "#b9c8ce"],
+    ["place-city", "text-halo-color", "#0b0f11"],
+    ["place-town", "text-color", "#b9c8ce"],
+    ["place-town", "text-halo-color", "#0b0f11"],
+    ["place-village", "text-color", "#b9c8ce"],
+    ["place-village", "text-halo-color", "#0b0f11"],
   ],
 };
 
@@ -165,9 +180,11 @@ export function applyMapTheme(map: maplibregl.Map, darkMode: boolean) {
     map.setLayoutProperty("road-name", "text-letter-spacing", 0.012);
     map.setLayoutProperty("road-name", "text-size", ["interpolate", ["linear"], ["zoom"], 13, 10.5, 15, 12.5, 17, 15.5, 19, 18]);
   }
-  if (map.getLayer("place")) {
-    map.setLayoutProperty("place", "text-letter-spacing", 0.025);
-    map.setLayoutProperty("place", "text-size", ["interpolate", ["linear"], ["zoom"], 7, 12, 13, 17]);
+  for (const [layer, size] of PLACE_LAYOUTS) {
+    if (map.getLayer(layer)) {
+      map.setLayoutProperty(layer, "text-letter-spacing", layer === "place-city" ? 0.04 : layer === "place-town" ? 0.03 : 0.025);
+      map.setLayoutProperty(layer, "text-size", size);
+    }
   }
   const routeLayouts = [
     ["route-motorway", 260, ["interpolate", ["linear"], ["zoom"], 6, 12, 12, 15, 17, 18]],
