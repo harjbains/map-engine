@@ -12,13 +12,14 @@ import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
-import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
+import { bearingBetween, distanceFromRouteMetres, distanceKm, fitUrbanArea, followZoomTarget, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
 import { ensureSafetyLayers, filterSignalsToTravelCorridor, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
 import { useLandmarks } from "./map-engine/useLandmarks";
+import { useViewDebugHud } from "./map-engine/useViewDebugHud";
 import { clearLandmarkChips, setLandmarkChips } from "./map-engine/landmark-layers";
 import type { RouteOptionEntry } from "./lib/route-graph";
 import type { RouteProfile } from "./lib/route-engine-core";
@@ -99,6 +100,7 @@ export default function MapEngine() {
 
   const traffic = useTraffic({ mapRef, latestFixRef, mapReady, enabled: settings.liveTraffic, online });
   const landmarks = useLandmarks({ fix, mapReady, enabled: settings.showLandmarks, online });
+  useViewDebugHud(mapRef, mapReady);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -106,9 +108,7 @@ export default function MapEngine() {
     setLandmarkChips(map, settings.showLandmarks ? landmarks.visible : []);
   }, [mapReady, landmarks.visible, settings.showLandmarks]);
 
-  useEffect(() => () => {
-    clearLandmarkChips();
-  }, []);
+  useEffect(() => clearLandmarkChips, []);
 
   const changeFollow = useCallback((next: boolean) => {
     followRef.current = next;
@@ -239,7 +239,6 @@ export default function MapEngine() {
       keyboard: true,
     });
     mapRef.current = map;
-    if (new URLSearchParams(window.location.search).has("map-engine-debug")) window.__mapEngine = map;
     collapseAttributionControl(map);
     let safetyPending = false;
     let lastSafetyCentre: Point | null = null;
@@ -1144,6 +1143,7 @@ export default function MapEngine() {
       <div className="zoom-controls" aria-label="Map zoom controls">
         <button onClick={() => adjustZoom(1)} aria-label="Zoom in">+</button>
         <button onClick={() => adjustZoom(-1)} aria-label="Zoom out">−</button>
+        <button className="area-button" onClick={() => { const m = mapRef.current; if (!m) return; manualZoomRef.current = fitUrbanArea(m, latestFixRef.current ?? mapCentre(m), 30); }} aria-label="Show towns and cities within 30 miles">30MI</button>
       </div>
 
       <section className="drive-controls" aria-label="Driving controls">
