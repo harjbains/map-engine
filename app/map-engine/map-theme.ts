@@ -20,10 +20,15 @@ const LOCAL_ROAD_OPACITY = ["interpolate", ["linear"], ["zoom"], 12, 0.52, 14, 0
 const LOCAL_ROAD_CASING_OPACITY = ["interpolate", ["linear"], ["zoom"], 12, 0.4, 14, 0.85, 16, 0.98];
 
 export const PLACE_LAYERS = ["place-city", "place-town", "place-village"] as const;
+export const PLACE_MIN_ZOOM = [
+  ["place-city", 4],
+  ["place-town", 8],
+  ["place-village", 12],
+] as const;
 export const PLACE_LAYOUTS = [
   ["place-city", ["interpolate", ["linear"], ["zoom"], 4, 12, 8, 15, 12, 18, 15, 21]],
-  ["place-town", ["interpolate", ["linear"], ["zoom"], 7, 10, 10, 12, 13, 14, 16, 16.5]],
-  ["place-village", ["interpolate", ["linear"], ["zoom"], 10, 9, 12, 10.5, 14, 12.5]],
+  ["place-town", ["interpolate", ["linear"], ["zoom"], 8, 10, 11, 12, 14, 14.5, 16, 16.5]],
+  ["place-village", ["interpolate", ["linear"], ["zoom"], 12, 9, 14, 11, 16, 12.5]],
 ] as const;
 
 const scaleRoadWidthOutput = (value: unknown, scale: number): unknown => {
@@ -109,6 +114,11 @@ const MAP_THEME_PAINTS = {
     ["place-town", "text-halo-color", "#f1efe8"],
     ["place-village", "text-color", "#2c302e"],
     ["place-village", "text-halo-color", "#f1efe8"],
+    ["place-centre", "text-color", "#772f2f"],
+    ["place-centre", "text-halo-color", "#f1efe8"],
+    ["place-centre", "text-halo-width", 2.6],
+    ["place-centre-sub", "text-color", "#772f2f"],
+    ["place-centre-sub", "text-halo-color", "#f1efe8"],
   ],
   night: [
     ["background", "background-color", "#0b0f11"],
@@ -158,6 +168,11 @@ const MAP_THEME_PAINTS = {
     ["place-town", "text-halo-color", "#0b0f11"],
     ["place-village", "text-color", "#b9c8ce"],
     ["place-village", "text-halo-color", "#0b0f11"],
+    ["place-centre", "text-color", "#e6b0a8"],
+    ["place-centre", "text-halo-color", "#0b0f11"],
+    ["place-centre", "text-halo-width", 2.6],
+    ["place-centre-sub", "text-color", "#e6b0a8"],
+    ["place-centre-sub", "text-halo-color", "#0b0f11"],
   ],
 };
 
@@ -185,6 +200,9 @@ export function applyMapTheme(map: maplibregl.Map, darkMode: boolean) {
       map.setLayoutProperty(layer, "text-letter-spacing", layer === "place-city" ? 0.04 : layer === "place-town" ? 0.03 : 0.025);
       map.setLayoutProperty(layer, "text-size", size);
     }
+  }
+  for (const [layer, minZoom] of PLACE_MIN_ZOOM) {
+    if (map.getLayer(layer)) map.setLayerZoomRange(layer, minZoom, 24);
   }
   const routeLayouts = [
     ["route-motorway", 260, ["interpolate", ["linear"], ["zoom"], 6, 12, 12, 15, 17, 18]],

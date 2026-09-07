@@ -91,6 +91,46 @@ export function landmarksAhead(
   return selected;
 }
 
+const KEEP_CONE_DEGREES = 135;
+const MAX_MILES = 5;
+
+export function stickyLandmarksAhead(
+  fix: VehicleFix,
+  landmarks: Array<{ id: string; name: string; category: string; priority: number; latitude: number; longitude: number }>,
+  previous: VisibleLandmark[],
+  limit = 9,
+) {
+  const ranked = landmarksAhead(fix, landmarks, Infinity);
+  const rankedById = new Map(ranked.map((landmark) => [landmark.id, landmark]));
+  const knownById = new Map(landmarks.map((landmark) => [landmark.id, landmark]));
+  const kept: VisibleLandmark[] = [];
+  const keptIds = new Set<string>();
+  for (const prev of previous) {
+    if (kept.length >= limit) break;
+    const landmark = knownById.get(prev.id);
+    if (!landmark) continue;
+    const miles = distanceKm(fix, landmark) * 0.621371;
+    const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
+    if (Math.abs(relativeDegrees) > KEEP_CONE_DEGREES) continue;
+    const current = rankedById.get(prev.id) ?? {
+      ...landmark,
+      miles,
+      relativeDegrees,
+      score: (4 - landmark.priority) * PRIORITY_WEIGHT + (1 - miles / MAX_MILES) * DISTANCE_WEIGHT + (1 - Math.abs(relativeDegrees) / 45) * ALIGNMENT_WEIGHT,
+    };
+    kept.push(current);
+    keptIds.add(current.id);
+  }
+  for (const candidate of ranked) {
+    if (kept.length >= limit) break;
+    if (!keptIds.has(candidate.id)) {
+      kept.push(candidate);
+      keptIds.add(candidate.id);
+    }
+  }
+  return kept;
+}
+
 export function liveRouteProgress(route: ActiveRoute, position: Point, now: number) {
   const coordinates = route.geometry.coordinates;
   let totalGeometryKm = 0;
