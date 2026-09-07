@@ -274,3 +274,13 @@ test("landmarksAhead prefers higher-priority landmarks over nearer lower-priorit
   assert.ok(visible[0].score > visible[1].score);
   assert.ok(visible[1].score > visible[2].score);
 });
+
+test("landmarksAhead shows landmarks all around when at rest instead of a narrow forward cone", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 0, accuracy: 10, speedMph: 0 };
+  const visible = navigation.landmarksAhead(fix, [
+    landmark("north", "NORTH TESCO", 52.01, -2.0),
+    landmark("south", "SOUTH PUB", 51.99, -2.0),
+    landmark("east", "EAST PHARMACY", 52.0, -1.99),
+  ]);
+  assert.deepEqual(visible.map((entry) => entry.id), ["north", "east", "south"]);
+});

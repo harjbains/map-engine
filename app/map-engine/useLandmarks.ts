@@ -33,7 +33,7 @@ export function useLandmarks({ fix, mapReady, enabled, online }: UseLandmarksOpt
     fetchedAtRef.current = now;
     fetchedLocationRef.current = fix;
     runningRef.current = true;
-    const centre = pointAhead(fix, fix.bearing, FETCH_AHEAD_METRES);
+    const centre = fix.speedMph < 8 ? fix : pointAhead(fix, fix.bearing, FETCH_AHEAD_METRES);
     void fetchLandmarks(centre, FETCH_RADIUS_METRES)
       .then((next) => setLandmarks(next))
       .catch(() => {})

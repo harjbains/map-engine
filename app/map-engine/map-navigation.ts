@@ -77,14 +77,15 @@ export function landmarksAhead(
   maxMiles = 5,
   minimumSpacingMetres = 500,
 ) {
+  const effectiveConeDegrees = fix.speedMph < 8 ? 180 : coneDegrees;
   const visible: VisibleLandmark[] = [];
   for (const landmark of landmarks) {
     const miles = distanceKm(fix, landmark) * 0.621371;
     if (miles > maxMiles) continue;
     const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
-    if (Math.abs(relativeDegrees) > coneDegrees) continue;
+    if (Math.abs(relativeDegrees) > effectiveConeDegrees) continue;
     const distanceScore = (1 - miles / maxMiles) * DISTANCE_WEIGHT;
-    const alignmentScore = (1 - Math.abs(relativeDegrees) / coneDegrees) * ALIGNMENT_WEIGHT;
+    const alignmentScore = (1 - Math.abs(relativeDegrees) / effectiveConeDegrees) * ALIGNMENT_WEIGHT;
     const score = (4 - landmark.priority) * PRIORITY_WEIGHT + distanceScore + alignmentScore;
     visible.push({ ...landmark, miles, relativeDegrees, score });
   }
@@ -118,6 +119,7 @@ export function stickyLandmarksAhead(
   const ranked = landmarksAhead(fix, landmarks, Infinity);
   const rankedById = new Map(ranked.map((landmark) => [landmark.id, landmark]));
   const knownById = new Map(landmarks.map((landmark) => [landmark.id, landmark]));
+  const keepConeDegrees = fix.speedMph < 8 ? 180 : KEEP_CONE_DEGREES;
   const kept: VisibleLandmark[] = [];
   const keptIds = new Set<string>();
   for (const prev of previous) {
@@ -126,7 +128,7 @@ export function stickyLandmarksAhead(
     if (!landmark) continue;
     const miles = distanceKm(fix, landmark) * 0.621371;
     const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
-    if (Math.abs(relativeDegrees) > KEEP_CONE_DEGREES) continue;
+    if (Math.abs(relativeDegrees) > keepConeDegrees) continue;
     const current = rankedById.get(prev.id) ?? {
       ...landmark,
       miles,
