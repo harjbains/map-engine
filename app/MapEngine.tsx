@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import maplibregl from "maplibre-gl";
-import { dynamicZoom, smooth, smoothBearing, toMph, type Point } from "./lib/driving";
+import { dynamicZoom, isFreshFix, plausibleGpsStep, smooth, smoothBearing, toMph, type Point } from "./lib/driving";
 import type { PostcodeGroupId } from "./lib/birmingham-postcodes";
 import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollection } from "./lib/safety";
 import { CompassStrip } from "./map-engine/CompassStrip";
@@ -12,7 +12,7 @@ import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
-import { bearingBetween, distanceFromRouteMetres, distanceKm, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
+import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
@@ -26,11 +26,13 @@ import type { RouteProfile } from "./lib/route-engine-core";
 const ROUTE_PROFILE_LABELS: Record<RouteProfile, string> = { fast: "Fast", short: "Short", "avoid-lanes": "Avoid lanes" };
 import { styleJsonUrl } from "./lib/tomtom-client";
 const ROAD_LAYERS = ["road-motorway", "road-a", "road-b", "road-local"];
+const MAX_ACCEPTED_ACCURACY_METRES = 160;
 export default function MapEngine() {
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const vehicleElementRef = useRef<HTMLDivElement>(null);
   const latestFixRef = useRef<VehicleFix | null>(null);
+  const lastGoodFixAtRef = useRef<number>(0);
   const watchRef = useRef<number | null>(null);
   const orientationBoundRef = useRef(false);
   const locationActiveRef = useRef(false);
@@ -402,7 +404,7 @@ export default function MapEngine() {
         offset: vehicleScreenOffset(map),
         bearing: nextFix.bearing,
         pitch: is3dRef.current ? settingsRef.current.pitch : 0,
-        zoom: manualZoomRef.current ?? (settingsRef.current.autoZoom ? dynamicZoom(nextFix.speedMph) : map.getZoom()),
+        zoom: followZoomTarget(settingsRef.current, nextFix.speedMph, manualZoomRef.current, map.getZoom()),
         duration: 360,
         essential: true,
       });
@@ -435,6 +437,15 @@ export default function MapEngine() {
 
   const applyPosition = useCallback((position: GeolocationPosition) => {
     const coords = position.coords;
+    if (!isFreshFix(position.timestamp)) return;
+    if (coords.accuracy > MAX_ACCEPTED_ACCURACY_METRES) return;
+    const lastSmoothing = smoothedRef.current;
+    if (lastSmoothing.lat !== null && lastSmoothing.lon !== null && !plausibleGpsStep(
+      { latitude: lastSmoothing.lat, longitude: lastSmoothing.lon },
+      { latitude: coords.latitude, longitude: coords.longitude },
+      performance.now() - lastGoodFixAtRef.current,
+    )) return;
+    lastGoodFixAtRef.current = performance.now();
     const speedMps = Math.max(0, coords.speed ?? 0);
     const smoothing = smoothedRef.current;
     smoothing.lat = smooth(smoothing.lat, coords.latitude, 0.38);
@@ -558,7 +569,7 @@ export default function MapEngine() {
     };
     navigator.geolocation.getCurrentPosition(applyPosition, locationError, {
       enableHighAccuracy: false,
-      maximumAge: 60_000,
+      maximumAge: 5_000,
       timeout: 15_000,
     });
     watchRef.current = navigator.geolocation.watchPosition(
@@ -651,7 +662,7 @@ export default function MapEngine() {
             offset: vehicleScreenOffset(map),
             bearing,
             pitch: is3dRef.current ? settingsRef.current.pitch : 0,
-            zoom: manualZoomRef.current ?? (settingsRef.current.autoZoom ? dynamicZoom(nextFix.speedMph) : map.getZoom()),
+            zoom: followZoomTarget(settingsRef.current, nextFix.speedMph, manualZoomRef.current, map.getZoom()),
             duration: 0,
           });
         } else {

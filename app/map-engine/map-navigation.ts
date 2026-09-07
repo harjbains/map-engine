@@ -1,6 +1,13 @@
 import type maplibregl from "maplibre-gl";
-import type { Point } from "../lib/driving";
+import { dynamicZoom, type Point } from "../lib/driving.ts";
 import type { ActiveRoute, VehicleFix } from "./config";
+
+export function followZoomTarget(settings: { autoZoom: boolean }, speedMph: number, manualZoom: number | null, currentZoom: number): number {
+  if (manualZoom !== null) return manualZoom;
+  if (!settings.autoZoom) return currentZoom;
+  const suggested = dynamicZoom(speedMph);
+  return Math.abs(suggested - currentZoom) < 0.15 ? currentZoom : suggested;
+}
 
 const ROAD_LABEL_LAYERS = ["road-name", "route-motorway", "route-a", "route-b"];
 const ARRIVAL_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });

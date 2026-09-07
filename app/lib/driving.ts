@@ -41,3 +41,23 @@ export function pointAhead(point: Point, bearingDegrees: number, distanceMetres:
   );
   return { latitude: lat2 * 180 / Math.PI, longitude: lon2 * 180 / Math.PI };
 }
+
+export function distanceMetres(a: Point, b: Point): number {
+  const earthRadius = 6_371_000;
+  const toRadians = (degrees: number) => degrees * Math.PI / 180;
+  const lat1 = toRadians(a.latitude);
+  const lat2 = toRadians(b.latitude);
+  const deltaLat = lat2 - lat1;
+  const deltaLon = toRadians(b.longitude) - toRadians(a.longitude);
+  const haversine = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  return earthRadius * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+export function plausibleGpsStep(from: Point, to: Point, elapsedMs: number, maxMetresPerSecond = 50): boolean {
+  if (elapsedMs <= 150) return true;
+  return distanceMetres(from, to) / (elapsedMs / 1000) <= maxMetresPerSecond;
+}
+
+export function isFreshFix(timestamp: number, now = Date.now(), maxAgeMs = 10_000): boolean {
+  return now - timestamp <= maxAgeMs;
+}
