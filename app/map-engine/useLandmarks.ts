@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { fetchLandmarks, type Landmark } from "../lib/landmarks";
 import { pointAhead } from "../lib/driving.ts";
 import type { ActiveRoute, VehicleFix } from "./config";
-import { distanceKm, stickyLandmarksAhead, type VisibleLandmark } from "./map-navigation";
+import { distanceKm, LANDMARK_CHIP_LIMIT, stickyLandmarksAhead, type VisibleLandmark } from "./map-navigation";
 
 type UseLandmarksOptions = {
   fix: VehicleFix | null;
@@ -42,7 +42,7 @@ export function useLandmarks({ fix, mapReady, enabled, online, route }: UseLandm
   }, [fix, mapReady, enabled, online]);
 
   useEffect(() => {
-    const next = enabled && fix ? stickyLandmarksAhead(fix, landmarks, previousVisibleRef.current, 9, route) : [];
+    const next = enabled && fix ? stickyLandmarksAhead(fix, landmarks, previousVisibleRef.current, LANDMARK_CHIP_LIMIT, route) : [];
     previousVisibleRef.current = next;
     setVisible(next);
   }, [fix, landmarks, enabled, route]);

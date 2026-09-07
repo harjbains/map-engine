@@ -308,3 +308,34 @@ test("stickyLandmarksAhead respects the route corridor", () => {
   ], previous, 9, route);
   assert.deepEqual(visible.map((entry) => entry.id), ["ontrack"]);
 });
+
+test("landmarksAhead can show more than nine chips when candidates are well spaced", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 0, accuracy: 10, speedMph: 0 };
+  const landmarks = Array.from({ length: 12 }, (_, index) => landmark(`p${index}`, `POI ${index}`, 52.0, -2.0 + index * 0.005));
+  const visible = navigation.landmarksAhead(fix, landmarks);
+  assert.equal(visible.length, 12);
+});
+
+test("landmarksAhead default spacing keeps chips at least 300 metres apart", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 0, accuracy: 10, speedMph: 0 };
+  const visible = navigation.landmarksAhead(fix, [
+    landmark("a", "A", 52.0, -2.0),
+    landmark("b", "B", 52.0, -2.0008),
+    landmark("c", "C", 52.0, -2.005),
+  ]);
+  assert.deepEqual(visible.map((entry) => entry.id), ["a", "c"]);
+});
+
+test("stickyLandmarksAhead never adds a fresh chip within 300 metres of a kept one", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 0, accuracy: 10, speedMph: 0 };
+  const previous = [{
+    ...landmark("a", "A", 52.0, -2.001),
+    miles: 0.04, relativeDegrees: 0, score: 5,
+  }];
+  const visible = navigation.stickyLandmarksAhead(fix, [
+    landmark("a", "A", 52.0, -2.001),
+    landmark("b", "B", 52.0, -2.0002),
+    landmark("c", "C", 52.0, -2.006),
+  ], previous);
+  assert.deepEqual(visible.map((entry) => entry.id), ["a", "c"]);
+});

@@ -111,10 +111,10 @@ const ALIGNMENT_WEIGHT = 0.25;
 export function landmarksAhead(
   fix: VehicleFix,
   landmarks: Array<{ id: string; name: string; category: string; priority: number; latitude: number; longitude: number }>,
-  limit = 9,
+  limit = LANDMARK_CHIP_LIMIT,
   coneDegrees = 45,
   maxMiles = 5,
-  minimumSpacingMetres = 500,
+  minimumSpacingMetres = LANDMARK_MIN_SPACING_METRES,
   route: Pick<CalculatedRoute, "geometry"> | null = null,
 ) {
   const effectiveConeDegrees = fix.speedMph < 8 ? 180 : coneDegrees;
@@ -152,14 +152,17 @@ const KEEP_CONE_DEGREES = 135;
 const ROUTE_CORRIDOR_METRES = 400;
 const MAX_MILES = 5;
 
+export const LANDMARK_CHIP_LIMIT = 14;
+const LANDMARK_MIN_SPACING_METRES = 300;
+
 export function stickyLandmarksAhead(
   fix: VehicleFix,
   landmarks: Array<{ id: string; name: string; category: string; priority: number; latitude: number; longitude: number }>,
   previous: VisibleLandmark[],
-  limit = 9,
+  limit = LANDMARK_CHIP_LIMIT,
   route: Pick<CalculatedRoute, "geometry"> | null = null,
 ) {
-  const ranked = landmarksAhead(fix, landmarks, Infinity, 45, 5, 500, route);
+  const ranked = landmarksAhead(fix, landmarks, Infinity, 45, 5, LANDMARK_MIN_SPACING_METRES, route);
   const rankedById = new Map(ranked.map((landmark) => [landmark.id, landmark]));
   const knownById = new Map(landmarks.map((landmark) => [landmark.id, landmark]));
   const keepConeDegrees = fix.speedMph < 8 ? 180 : KEEP_CONE_DEGREES;
@@ -184,10 +187,10 @@ export function stickyLandmarksAhead(
   }
   for (const candidate of ranked) {
     if (kept.length >= limit) break;
-    if (!keptIds.has(candidate.id)) {
-      kept.push(candidate);
-      keptIds.add(candidate.id);
-    }
+    if (keptIds.has(candidate.id)) continue;
+    if (kept.some((keptLandmark) => distanceKm(candidate, keptLandmark) < LANDMARK_MIN_SPACING_METRES / 1000)) continue;
+    kept.push(candidate);
+    keptIds.add(candidate.id);
   }
   return kept;
 }

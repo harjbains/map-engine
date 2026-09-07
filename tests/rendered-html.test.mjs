@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.44/);
+  assert.match(html, /v2.10.45/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -112,8 +112,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.44"/);
-  assert.match(serviceWorker, /map-engine-shell-v1226/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.45"/);
+  assert.match(serviceWorker, /map-engine-shell-v1227/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -125,12 +125,12 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /clearLandmarkChips/);
   assert.match(mapEngine, /landmark-chip/);
   assert.match(mapEngine, /PRIORITY_WEIGHT = 1\.4/);
-  assert.match(mapEngine, /limit = 9/);
+  assert.match(mapEngine, /limit = LANDMARK_CHIP_LIMIT/);
   assert.match(globalsCss, /\.landmark-chip \{/);
   assert.match(mapEngineCss, /\.drive-shell\.dark \.landmark-chip/);
   assert.match(mapEngine, /landmarksAhead/);
   assert.match(mapEngine, /fetchLandmarks/);
-  assert.match(mapEngine, /minimumSpacingMetres = 500/);
+  assert.match(mapEngine, /minimumSpacingMetres = LANDMARK_MIN_SPACING_METRES/);
   assert.match(landmarks, /LANDMARK_PRIORITIES/);
   assert.match(landmarks, /nwr\$\{around\}/);
   assert.match(landmarks, /out center tags qt;/);
