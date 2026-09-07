@@ -118,8 +118,6 @@
 .vehicle-map-marker[hidden] { display:none; }
 .drive-controls { z-index:4; }
 .header-actions button.active { border-color:#398957; color:#287848; background:rgba(239,249,241,.3); box-shadow:0 0 0 3px rgba(57,137,87,.14),0 8px 28px rgba(42,48,50,.18); }
-
-.header-actions button.poi-toggle-button .poi-toggle-icon { width:24px; height:24px; }
 .header-mode-button { display:grid; place-items:center; }
 .vehicle-map-marker::before { content:""; position:absolute; left:6px; top:7px; width:20px; height:7px; border-top:4px solid currentColor; border-radius:50%; }
 .vehicle-map-marker::after { content:""; position:absolute; left:15px; top:12px; width:4px; height:17px; border-radius:1px 1px 3px 3px; background:currentColor; clip-path:polygon(0 0,100% 0,78% 100%,22% 100%); }

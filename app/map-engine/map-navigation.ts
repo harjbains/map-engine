@@ -139,11 +139,22 @@ export function landmarksAhead(
   });
   const minimumSpacingKm = minimumSpacingMetres / 1000;
   const selected: VisibleLandmark[] = [];
+  const chosenCategories = new Set<string>();
+  const place = (candidate: VisibleLandmark): void => {
+    const overlaps = selected.some((kept) => distanceKm(candidate, kept) < minimumSpacingKm);
+    if (overlaps) return;
+    selected.push(candidate);
+    chosenCategories.add(candidate.category);
+  };
   for (const candidate of visible) {
-    if (selected.every((kept) => distanceKm(candidate, kept) >= minimumSpacingKm)) {
-      selected.push(candidate);
-      if (selected.length >= limit) break;
-    }
+    if (candidate.priority !== 1) continue;
+    if (chosenCategories.has(candidate.category)) continue;
+    place(candidate);
+    if (selected.length >= limit) break;
+  }
+  for (const candidate of visible) {
+    if (selected.length >= limit) break;
+    place(candidate);
   }
   return selected;
 }
@@ -153,7 +164,7 @@ const ROUTE_CORRIDOR_METRES = 400;
 const MAX_MILES = 5;
 
 export const LANDMARK_CHIP_LIMIT = 14;
-const LANDMARK_MIN_SPACING_METRES = 300;
+const LANDMARK_MIN_SPACING_METRES = 100;
 
 export function stickyLandmarksAhead(
   fix: VehicleFix,

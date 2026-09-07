@@ -30,8 +30,8 @@ export type Landmark = Point & {
   mainroadMetres: number;
 };
 
-const MAIN_ROAD_HIGHWAYS = new Set(["motorway", "trunk", "primary", "secondary", "tertiary", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link"]);
-const MAIN_ROAD_MAX_METRES = 150;
+const DRIVABLE_HIGHWAYS = new Set(["motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "living_street", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link"]);
+const ROAD_MAX_METRES = 250;
 
 export const LANDMARK_LABELS: Record<LandmarkCategory, string> = {
   petrol: "Petrol station",
@@ -59,8 +59,8 @@ export const LANDMARK_PRIORITIES: Record<LandmarkCategory, LandmarkPriority> = {
   car_dealer: 1,
   retail_park: 1,
   large_shop: 1,
-  pub: 2,
-  restaurant: 2,
+  pub: 1,
+  restaurant: 1,
   hotel: 2,
   pharmacy: 2,
   leisure: 2,
@@ -143,25 +143,30 @@ export function classifyLandmark(tags: Record<string, string>): LandmarkCategory
 }
 
 export async function fetchLandmarks(centre: Point, radiusMetres = 3_000, signal?: AbortSignal): Promise<Landmark[]> {
-  const around = `(around:${Math.round(radiusMetres)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})`;
-  const roadsRadius = Math.min(radiusMetres, 2_000);
-  const roadsAround = `(around:${Math.round(roadsRadius)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})`;
-  const poiQuery = `[out:json][timeout:20];(
-nwr${around}["amenity"]["name"];
-nwr${around}["shop"]["name"];
-nwr${around}["tourism"]["name"];
-nwr${around}["leisure"]["name"];
-way${around}["landuse"~"^(retail|commercial)$"]["name"];
+  const roadRadius = Math.min(radiusMetres, 2_500);
+  let poiPayload: { elements?: OverpassElement[] } | null = null;
+  for (const radius of [radiusMetres, Math.min(radiusMetres, 1_600)]) {
+    const poiQuery = `[out:json][timeout:20];(
+nwr(around:${Math.round(radius)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})["amenity"]["name"];
+nwr(around:${Math.round(radius)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})["shop"]["name"];
+nwr(around:${Math.round(radius)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})["tourism"]["name"];
+nwr(around:${Math.round(radius)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})["leisure"]["name"];
+way(around:${Math.round(radius)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})["landuse"~"^(retail|commercial)$"]["name"];
 );out center tags qt;`;
-  const roadQuery = `[out:json][timeout:20];way${roadsAround}["highway"~"^(motorway|trunk|primary|secondary|tertiary)(_link)?$"];out tags geom qt;`;
-  const [poiPayload, roadPayload] = await Promise.all([
-    fetchOverpass(poiQuery, 0, 1_200, signal, 30_000),
-    fetchOverpass(roadQuery, 0, 1_200, signal, 30_000),
-  ]);
+    try {
+      poiPayload = await fetchOverpass(poiQuery, 0, 1_200, signal, 30_000);
+      break;
+    } catch {
+      poiPayload = null;
+    }
+  }
+  if (!poiPayload) return [];
+  const roadQuery = `[out:json][timeout:20];way(around:${Math.round(roadRadius)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street)(_link)?$"];out tags geom qt;`;
+  const roadPayload = await fetchOverpass(roadQuery, 0, 1_200, signal, 20_000).catch(() => null);
   const roadLines: Array<Array<{ lat: number; lon: number }>> = [];
   for (const element of roadPayload?.elements ?? []) {
     const tags = element.tags ?? {};
-    if (typeof tags.highway === "string" && MAIN_ROAD_HIGHWAYS.has(tags.highway) && Array.isArray(element.geometry)) {
+    if (typeof tags.highway === "string" && DRIVABLE_HIGHWAYS.has(tags.highway) && Array.isArray(element.geometry)) {
       roadLines.push(element.geometry as Array<{ lat: number; lon: number }>);
     }
   }
@@ -175,7 +180,7 @@ way${around}["landuse"~"^(retail|commercial)$"]["name"];
       : element.center ? { latitude: element.center.lat, longitude: element.center.lon } : null;
     if (!point) continue;
     const mainroadMetres = roadLines.length ? nearestMainRoadMetres(point, roadLines) : 0;
-    if (mainroadMetres > MAIN_ROAD_MAX_METRES) continue;
+    if (mainroadMetres > ROAD_MAX_METRES) continue;
     landmarks.push({
       id: `${element.type}/${element.id}`,
       name: tags.name ?? tags.brand ?? LANDMARK_LABELS[category],

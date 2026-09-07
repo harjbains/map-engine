@@ -66,6 +66,8 @@ const CACHE_MAX_AREAS = 10;
 const OVERPASS_MIRRORS = [
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.uninett.no/api/interpreter",
+  "https://overpass-osm.mowna.systems/api/interpreter",
   "https://overpass-api.de/api/interpreter",
 ];
 const OVERPASS_URLS = typeof __STATIC_BUILD__ !== "undefined" && __STATIC_BUILD__

@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.46/);
+  assert.match(html, /v2.10.49/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -113,8 +113,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.46"/);
-  assert.match(serviceWorker, /map-engine-shell-v1228/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.49"/);
+  assert.match(serviceWorker, /map-engine-shell-v1231/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -133,7 +133,7 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /fetchLandmarks/);
   assert.match(mapEngine, /minimumSpacingMetres = LANDMARK_MIN_SPACING_METRES/);
   assert.match(landmarks, /LANDMARK_PRIORITIES/);
-  assert.match(landmarks, /nwr\$\{around\}/);
+  assert.match(landmarks, /nwr\(around:\$\{Math\.round\(radius\)\}/);
   assert.match(landmarks, /out center tags qt;/);
   assert.match(landmarks, /out tags geom qt;/);
   assert.match(landmarks, /fuel: "petrol"/);
@@ -563,7 +563,7 @@ test("toggleAreaView zooms out on the first press and restores the previous view
   assert.equal(jumps[1].pitch, 55);
 });
 
-test("nearestMainRoadMetres measures the distance to the nearest main road", async () => {
+test("nearestMainRoadMetres measures the distance to the nearest drivable road", async () => {
   const { nearestMainRoadMetres } = await import("../app/lib/driving.ts");
   const road = [{ lat: 52.0, lon: -2.0 }, { lat: 52.0, lon: -1.98 }];
   const onRoad = nearestMainRoadMetres({ latitude: 52.0, longitude: -1.99 }, [road]);
