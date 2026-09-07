@@ -1072,10 +1072,8 @@ export default function MapEngine() {
       <div ref={mapNode} className="map-surface" aria-label="Live Map Engine road map" />
       <div ref={vehicleElementRef} className="vehicle-map-marker" aria-label="Vehicle position" hidden={!fix} />
       <MapHeader
-        darkMode={settings.darkMode}
-        is3d={is3d}
-        offlineSaved={Boolean(offlinePack)}
-        online={online}
+        darkMode={settings.darkMode} is3d={is3d}
+        offlineSaved={Boolean(offlinePack)} online={online}
         settingsOpen={settingsOpen}
         trafficState={traffic.state}
         trafficTitle={traffic.title}
@@ -1084,6 +1082,8 @@ export default function MapEngine() {
         onToggle3d={toggle3d}
         legendOpen={legendOpen}
         onToggleLegend={() => setLegendOpen((current) => !current)}
+        showLandmarks={settings.showLandmarks}
+        onToggleLandmarks={() => updateSettings({ showLandmarks: !settings.showLandmarks })}
       />
 
       <MapLegend open={legendOpen} onClose={() => setLegendOpen(false)} darkMode={settings.darkMode} />

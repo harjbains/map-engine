@@ -10,13 +10,15 @@ type MapHeaderProps = {
   trafficState: TrafficHealthState;
   trafficTitle: string;
   legendOpen: boolean;
+  showLandmarks: boolean;
   onOpenSettings: () => void;
   onToggleDarkMode: () => void;
   onToggle3d: () => void;
   onToggleLegend: () => void;
+  onToggleLandmarks: () => void;
 };
 
-export function MapHeader({ darkMode, is3d, offlineSaved, online, settingsOpen, trafficState, trafficTitle, legendOpen, onOpenSettings, onToggleDarkMode, onToggle3d, onToggleLegend }: MapHeaderProps) {
+export function MapHeader({ darkMode, is3d, offlineSaved, online, settingsOpen, trafficState, trafficTitle, legendOpen, showLandmarks, onOpenSettings, onToggleDarkMode, onToggle3d, onToggleLegend, onToggleLandmarks }: MapHeaderProps) {
   const trafficLabel = trafficState === "live" ? "TomTom traffic live" : trafficState === "stale" ? "TomTom traffic stale" : trafficState === "checking" ? "Checking TomTom traffic" : trafficState === "off" ? "Traffic switched off" : "TomTom traffic unavailable";
 
   return (
@@ -45,6 +47,12 @@ export function MapHeader({ darkMode, is3d, offlineSaved, online, settingsOpen, 
         </button>
         <button className={`icon-button mode-button header-mode-button ${is3d ? "active" : ""}`} onClick={onToggle3d} aria-label={`Switch to ${is3d ? "2D" : "3D"} view`} aria-pressed={is3d}>{is3d ? "3D" : "2D"}</button>
         <button className={`icon-button legend-toggle-button ${legendOpen ? "active" : ""}`} onClick={onToggleLegend} aria-label="Show map legend" aria-pressed={legendOpen} title="Map legend"><span aria-hidden="true">?</span></button>
+        <button className={`icon-button poi-toggle-button ${showLandmarks ? "active" : ""}`} onClick={onToggleLandmarks} aria-label="Show landmarks" aria-pressed={showLandmarks} title="Landmarks">
+          <svg className="poi-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z" />
+            <circle cx="12" cy="10" r="2.5" />
+          </svg>
+        </button>
       </div>
     </header>
   );
