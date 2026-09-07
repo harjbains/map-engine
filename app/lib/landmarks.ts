@@ -4,32 +4,66 @@ import { fetchOverpass } from "./safety";
 export type LandmarkCategory =
   | "petrol"
   | "supermarket"
-  | "pub"
-  | "car_dealer"
   | "fast_food"
+  | "car_dealer"
+  | "retail_park"
+  | "large_shop"
+  | "pub"
   | "restaurant"
   | "hotel"
+  | "pharmacy"
+  | "leisure"
+  | "garden_centre"
   | "church"
-  | "retail_park"
-  | "large_shop";
+  | "school"
+  | "community"
+  | "small";
+
+export type LandmarkPriority = 1 | 2 | 3;
 
 export type Landmark = Point & {
   id: string;
   name: string;
   category: LandmarkCategory;
+  priority: LandmarkPriority;
 };
 
 export const LANDMARK_LABELS: Record<LandmarkCategory, string> = {
   petrol: "Petrol station",
   supermarket: "Supermarket",
-  pub: "Pub",
-  car_dealer: "Car dealer",
   fast_food: "Fast food",
-  restaurant: "Restaurant",
-  hotel: "Hotel",
-  church: "Place of worship",
+  car_dealer: "Car dealer",
   retail_park: "Retail park",
   large_shop: "Large store",
+  pub: "Pub",
+  restaurant: "Restaurant",
+  hotel: "Hotel",
+  pharmacy: "Pharmacy",
+  leisure: "Leisure centre",
+  garden_centre: "Garden centre",
+  church: "Place of worship",
+  school: "School",
+  community: "Community building",
+  small: "Local business",
+};
+
+export const LANDMARK_PRIORITIES: Record<LandmarkCategory, LandmarkPriority> = {
+  petrol: 1,
+  supermarket: 1,
+  fast_food: 1,
+  car_dealer: 1,
+  retail_park: 1,
+  large_shop: 1,
+  pub: 2,
+  restaurant: 2,
+  hotel: 2,
+  pharmacy: 2,
+  leisure: 2,
+  garden_centre: 2,
+  church: 3,
+  school: 3,
+  community: 3,
+  small: 3,
 };
 
 const AMENITY_RANK: Partial<Record<string, LandmarkCategory>> = {
@@ -40,6 +74,9 @@ const AMENITY_RANK: Partial<Record<string, LandmarkCategory>> = {
   fast_food: "fast_food",
   restaurant: "restaurant",
   place_of_worship: "church",
+  pharmacy: "pharmacy",
+  school: "school",
+  community_centre: "community",
 };
 
 const SHOP_RANK: Partial<Record<string, LandmarkCategory>> = {
@@ -52,10 +89,24 @@ const SHOP_RANK: Partial<Record<string, LandmarkCategory>> = {
   furniture: "large_shop",
   electronics: "large_shop",
   doityourself: "large_shop",
-  garden_centre: "large_shop",
   homeware: "large_shop",
   car: "car_dealer",
   motorcycle: "car_dealer",
+  garden_centre: "garden_centre",
+  convenience: "small",
+  newsagent: "small",
+  bakery: "small",
+  butcher: "small",
+  chemist: "small",
+  other: "small",
+};
+
+const LEISURE_RANK: Partial<Record<string, LandmarkCategory>> = {
+  sports_centre: "leisure",
+  leisure_centre: "leisure",
+  swimming_pool: "leisure",
+  water_park: "leisure",
+  fitness_centre: "leisure",
 };
 
 type OverpassElement = {
@@ -76,6 +127,10 @@ export function classifyLandmark(tags: Record<string, string>): LandmarkCategory
     const kind = SHOP_RANK[tags.shop];
     if (kind) return kind;
   }
+  if (tags.leisure) {
+    const kind = LEISURE_RANK[tags.leisure];
+    if (kind) return kind;
+  }
   if (tags.tourism === "hotel" || tags.tourism === "motel") return "hotel";
   if (tags.landuse === "retail" || tags.landuse === "commercial") return "retail_park";
   return null;
@@ -87,6 +142,7 @@ export async function fetchLandmarks(centre: Point, radiusMetres = 3_000, signal
 nwr${around}["amenity"]["name"];
 nwr${around}["shop"]["name"];
 nwr${around}["tourism"]["name"];
+nwr${around}["leisure"]["name"];
 way${around}["landuse"~"^(retail|commercial)$"]["name"];
 );out center tags qt;`;
   const payload = await fetchOverpass(query, 0, 1_200, signal, 30_000);
@@ -104,6 +160,7 @@ way${around}["landuse"~"^(retail|commercial)$"]["name"];
       id: `${element.type}/${element.id}`,
       name: tags.name ?? tags.brand ?? LANDMARK_LABELS[category],
       category,
+      priority: LANDMARK_PRIORITIES[category],
       latitude: point.latitude,
       longitude: point.longitude,
     });

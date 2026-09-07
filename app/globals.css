@@ -22,6 +22,9 @@ button { font:inherit; }
 .icon-button, .mode-button { pointer-events:auto; border:1px solid rgba(161,190,205,.18); color:#fff; background:var(--panel); backdrop-filter:blur(12px); box-shadow:0 8px 30px rgba(0,0,0,.2); }
 .icon-button { width:46px; height:46px; border-radius:50%; font-size:20px; cursor:pointer; }
 .drive-controls { position:absolute; right:20px; bottom:110px; display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+.landmark-chip { display:flex; flex-direction:column; align-items:center; gap:1px; padding:4px 10px 5px; border:2px solid #111820; border-radius:6px; background:#ffffff; color:#111820; box-shadow:0 3px 10px rgba(0,0,0,.28); line-height:1.15; pointer-events:none; transform:translateY(-4px); }
+.landmark-chip strong { font-size:12px; font-weight:850; letter-spacing:.01em; white-space:nowrap; }
+.landmark-chip span { font-size:10px; font-weight:800; color:#1a5c33; white-space:nowrap; }
 .mode-button { width:46px; height:46px; border:2px solid #3179b9; border-radius:50%; font-weight:850; cursor:pointer; }
 .speed-card { display:grid; width:86px; height:86px; align-content:center; padding:7px; border:3px solid #398957; border-radius:50%; background:rgba(8,13,16,.93); text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.25); }
 .speed-card strong { display:block; font-size:34px; line-height:32px; letter-spacing:-.04em; }

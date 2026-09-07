@@ -209,8 +209,8 @@ test("traffic signals are filtered to the corridor of travel ahead", () => {
 
 const navigation = await import("../app/map-engine/map-navigation.ts");
 
-function landmark(id, name, latitude, longitude) {
-  return { id, name, category: "supermarket", latitude, longitude };
+function landmark(id, name, latitude, longitude, priority = 2) {
+  return { id, name, category: "supermarket", priority, latitude, longitude };
 }
 
 test("landmarksAhead ranks landmarks inside the forward cone by distance", () => {
@@ -247,7 +247,7 @@ test("landmarksAhead drops passed and out-of-cone landmarks, and honours the lim
     landmark("b", "B", 52.0, -1.977),
     landmark("c", "C", 52.0, -1.987),
     landmark("d", "D", 52.0, -1.997),
-  ]);
+  ], 3);
   assert.equal(limited.length, 3);
   assert.equal(limited[2].id, "b");
 });
@@ -260,4 +260,17 @@ test("landmarksAhead keeps only the nearest label inside a 500 metre cluster", (
     landmark("further", "MCDONALDS", 52.007, -2.0),
   ], 3, 45, 5, 500);
   assert.deepEqual(visible.map((entry) => entry.id), ["near-1", "further"]);
+});
+
+test("landmarksAhead prefers higher-priority landmarks over nearer lower-priority ones", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 0, accuracy: 10, speedMph: 30 };
+  const visible = navigation.landmarksAhead(fix, [
+    landmark("church", "ST MARYS", 52.001, -2.0, 3),
+    landmark("petrol", "BP", 52.006, -2.0, 1),
+    landmark("pub", "THE CROWN", 52.011, -2.0, 2),
+  ], 9, 45, 5, 500);
+  const ids = visible.map((entry) => entry.id);
+  assert.deepEqual(ids, ["petrol", "pub", "church"]);
+  assert.ok(visible[0].score > visible[1].score);
+  assert.ok(visible[1].score > visible[2].score);
 });

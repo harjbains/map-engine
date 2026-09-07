@@ -1,49 +1,49 @@
-import type maplibregl from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import type { VisibleLandmark } from "./map-navigation";
 
-const LANDMARK_SOURCE = "landmarks-ahead";
-const LANDMARK_LABEL_LAYER = "landmarks-ahead-label";
+const chipsById = new Map<string, { marker: maplibregl.Marker; name: HTMLElement; miles: HTMLElement }>();
 
 function milesText(miles: number) {
   return `${miles < 0.1 ? "<0.1" : miles.toFixed(1)} mi`;
 }
 
-export function ensureLandmarkLayers(map: maplibregl.Map) {
-  if (map.getSource(LANDMARK_SOURCE)) return;
-  map.addSource(LANDMARK_SOURCE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  map.addLayer({
-    id: LANDMARK_LABEL_LAYER,
-    type: "symbol",
-    source: LANDMARK_SOURCE,
-    layout: {
-      "text-field": ["get", "label"],
-      "text-size": 12,
-      "text-anchor": "center",
-      "text-allow-overlap": true,
-      "text-padding": 2,
-    },
-    paint: {
-      "text-color": "#ffffff",
-      "text-halo-color": "rgba(0,0,0,0.85)",
-      "text-halo-width": 2,
-    },
-  });
+function buildChip() {
+  const element = document.createElement("div");
+  element.className = "landmark-chip";
+  const name = document.createElement("strong");
+  const miles = document.createElement("span");
+  element.append(name, miles);
+  return { element, name, miles };
 }
 
-export function setLandmarks(map: maplibregl.Map, landmarks: VisibleLandmark[]) {
-  const source = map.getSource(LANDMARK_SOURCE);
-  if (!source) return;
-  const features = landmarks.map((landmark) => ({
-    type: "Feature" as const,
-    geometry: { type: "Point" as const, coordinates: [landmark.longitude, landmark.latitude] },
-    properties: {
-      name: landmark.name,
-      miles: milesText(landmark.miles),
-      label: `${landmark.name}\n${milesText(landmark.miles)}`,
-    },
-  }));
-  (source as maplibregl.GeoJSONSource).setData({
-    type: "FeatureCollection",
-    features,
-  });
+export function setLandmarkChips(map: maplibregl.Map, landmarks: VisibleLandmark[]) {
+  const wanted = new Map(landmarks.map((landmark) => [landmark.id, landmark]));
+  for (const [id, chip] of chipsById) {
+    if (!wanted.has(id)) {
+      chip.marker.remove();
+      chipsById.delete(id);
+    }
+  }
+  for (const landmark of landmarks) {
+    let chip = chipsById.get(landmark.id);
+    if (!chip) {
+      const built = buildChip();
+      chip = {
+        marker: new maplibregl.Marker({ element: built.element, anchor: "bottom" }),
+        name: built.name,
+        miles: built.miles,
+      };
+      chip.marker.setLngLat([landmark.longitude, landmark.latitude]).addTo(map);
+      chipsById.set(landmark.id, chip);
+    }
+    chip.name.textContent = landmark.name;
+    chip.miles.textContent = milesText(landmark.miles);
+  }
+}
+
+export function clearLandmarkChips() {
+  for (const [id, chip] of chipsById) {
+    chip.marker.remove();
+    chipsById.delete(id);
+  }
 }

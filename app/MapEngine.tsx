@@ -19,7 +19,7 @@ import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from ".
 import { ensureSafetyLayers, filterSignalsToTravelCorridor, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
 import { useLandmarks } from "./map-engine/useLandmarks";
-import { ensureLandmarkLayers, setLandmarks } from "./map-engine/landmark-layers";
+import { clearLandmarkChips, setLandmarkChips } from "./map-engine/landmark-layers";
 import type { RouteOptionEntry } from "./lib/route-graph";
 import type { RouteProfile } from "./lib/route-engine-core";
 
@@ -101,8 +101,12 @@ export default function MapEngine() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
-    setLandmarks(map, settings.showLandmarks ? landmarks.visible : []);
+    setLandmarkChips(map, settings.showLandmarks ? landmarks.visible : []);
   }, [mapReady, landmarks.visible, settings.showLandmarks]);
+
+  useEffect(() => () => {
+    clearLandmarkChips();
+  }, []);
 
   const changeFollow = useCallback((next: boolean) => {
     followRef.current = next;
@@ -304,7 +308,6 @@ export default function MapEngine() {
       setTrafficVisibility(map, false);
       ensureSafetyLayers(map);
       setDriverAmenitiesVisibility(map, settingsRef.current.showDriverAmenities);
-      ensureLandmarkLayers(map);
       const initialCentre = map.getCenter();
       const cachedSafety = readCachedSafetyFeatures({ latitude: initialCentre.lat, longitude: initialCentre.lng });
       if (cachedSafety) showSafety(cachedSafety);

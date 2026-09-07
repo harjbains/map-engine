@@ -35,16 +35,22 @@ export type VisibleLandmark = {
   id: string;
   name: string;
   category: string;
+  priority: number;
   latitude: number;
   longitude: number;
   miles: number;
   relativeDegrees: number;
+  score: number;
 };
+
+const PRIORITY_WEIGHT = 1.4;
+const DISTANCE_WEIGHT = 0.35;
+const ALIGNMENT_WEIGHT = 0.25;
 
 export function landmarksAhead(
   fix: VehicleFix,
-  landmarks: Array<{ id: string; name: string; category: string; latitude: number; longitude: number }>,
-  limit = 3,
+  landmarks: Array<{ id: string; name: string; category: string; priority: number; latitude: number; longitude: number }>,
+  limit = 9,
   coneDegrees = 45,
   maxMiles = 5,
   minimumSpacingMetres = 500,
@@ -55,9 +61,14 @@ export function landmarksAhead(
     if (miles > maxMiles) continue;
     const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
     if (Math.abs(relativeDegrees) > coneDegrees) continue;
-    visible.push({ ...landmark, miles, relativeDegrees });
+    const distanceScore = (1 - miles / maxMiles) * DISTANCE_WEIGHT;
+    const alignmentScore = (1 - Math.abs(relativeDegrees) / coneDegrees) * ALIGNMENT_WEIGHT;
+    const score = (4 - landmark.priority) * PRIORITY_WEIGHT + distanceScore + alignmentScore;
+    visible.push({ ...landmark, miles, relativeDegrees, score });
   }
   visible.sort((left, right) => {
+    const scoreOrder = right.score - left.score;
+    if (scoreOrder !== 0) return scoreOrder;
     const distanceOrder = left.miles - right.miles;
     if (distanceOrder !== 0) return distanceOrder;
     return left.id.localeCompare(right.id);
