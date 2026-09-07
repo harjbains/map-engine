@@ -59,5 +59,6 @@ export function plausibleGpsStep(from: Point, to: Point, elapsedMs: number, maxM
 }
 
 export function isFreshFix(timestamp: number, now = Date.now(), maxAgeMs = 10_000): boolean {
+  if (timestamp <= 0) return true;
   return now - timestamp <= maxAgeMs;
 }

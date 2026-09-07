@@ -9,17 +9,19 @@ export function followZoomTarget(settings: { autoZoom: boolean }, speedMph: numb
   return Math.abs(suggested - currentZoom) < 0.15 ? currentZoom : suggested;
 }
 
-export function fitUrbanArea(map: maplibregl.Map, centre: Point, radiusMiles = 30): number {
-  const metresPerDegree = 111_320;
-  const radiusKm = radiusMiles * 1.609344;
-  const latitudeDelta = (radiusKm * 1000) / metresPerDegree;
-  const longitudeDelta = (radiusKm * 1000) / (metresPerDegree * Math.max(0.1, Math.cos(centre.latitude * Math.PI / 180)));
-  map.stop();
-  map.fitBounds(
-    [[centre.longitude - longitudeDelta, centre.latitude - latitudeDelta], [centre.longitude + longitudeDelta, centre.latitude + latitudeDelta]],
-    { padding: { top: 70, bottom: 140, left: 70, right: 70 }, bearing: map.getBearing(), pitch: map.getPitch(), duration: 0, essential: true },
-  );
-  return map.getZoom();
+export function fitUrbanArea(map: maplibregl.Map, centre: Point, radiusMiles = 10): number {
+  const canvas = map.getCanvas();
+  const pad = 70;
+  const innerWidth = Math.max(10, canvas.clientWidth - pad * 2);
+  const innerHeight = Math.max(10, canvas.clientHeight - pad * 2);
+  const diameterMetres = radiusMiles * 1_609.344 * 2;
+  const metresPerPixelAtEquatorZoom0 = 40_075_016.686 / 256;
+  const metresPerPixelZoom0 = metresPerPixelAtEquatorZoom0 * Math.cos(centre.latitude * Math.PI / 180);
+  const widthLimitedZoom = Math.log2(metresPerPixelZoom0 * innerWidth / diameterMetres);
+  const heightLimitedZoom = Math.log2(metresPerPixelZoom0 * innerHeight / diameterMetres);
+  const zoom = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), Math.min(widthLimitedZoom, heightLimitedZoom)));
+  map.jumpTo({ center: [centre.longitude, centre.latitude], zoom, bearing: map.getBearing(), pitch: map.getPitch() });
+  return zoom;
 }
 
 const ROAD_LABEL_LAYERS = ["road-name", "route-motorway", "route-a", "route-b"];

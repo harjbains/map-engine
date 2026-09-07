@@ -104,8 +104,7 @@ export default function MapEngine() {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady) return;
-    setLandmarkChips(map, settings.showLandmarks ? landmarks.visible : []);
+    if (map && mapReady) setLandmarkChips(map, settings.showLandmarks ? landmarks.visible : []);
   }, [mapReady, landmarks.visible, settings.showLandmarks]);
 
   useEffect(() => clearLandmarkChips, []);
@@ -437,7 +436,10 @@ export default function MapEngine() {
   const applyPosition = useCallback((position: GeolocationPosition) => {
     const coords = position.coords;
     if (!isFreshFix(position.timestamp)) return;
-    if (coords.accuracy > MAX_ACCEPTED_ACCURACY_METRES) return;
+    if (coords.accuracy > (latestFixRef.current === null ? 1000 : MAX_ACCEPTED_ACCURACY_METRES)) {
+      if (latestFixRef.current === null) setMapMessage("Weak GPS signal — the map needs a fix within 1000 m to start. Try a window or outside.");
+      return;
+    }
     const lastSmoothing = smoothedRef.current;
     if (lastSmoothing.lat !== null && lastSmoothing.lon !== null && !plausibleGpsStep(
       { latitude: lastSmoothing.lat, longitude: lastSmoothing.lon },
@@ -1143,7 +1145,7 @@ export default function MapEngine() {
       <div className="zoom-controls" aria-label="Map zoom controls">
         <button onClick={() => adjustZoom(1)} aria-label="Zoom in">+</button>
         <button onClick={() => adjustZoom(-1)} aria-label="Zoom out">−</button>
-        <button className="area-button" onClick={() => { const m = mapRef.current; if (!m) return; manualZoomRef.current = fitUrbanArea(m, latestFixRef.current ?? mapCentre(m), 30); }} aria-label="Show towns and cities within 30 miles">30MI</button>
+        <button className="area-button" onClick={() => { const m = mapRef.current; if (!m) return; manualZoomRef.current = fitUrbanArea(m, latestFixRef.current ?? mapCentre(m), 10); }} aria-label="Show towns and cities within 10 miles">10MI</button>
       </div>
 
       <section className="drive-controls" aria-label="Driving controls">

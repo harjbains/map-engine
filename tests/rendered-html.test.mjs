@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.40/);
+  assert.match(html, /v2.10.41/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -27,6 +27,7 @@ test("renders the Map Engine application shell", async () => {
   assert.match(html, /Start live position/);
   assert.match(html, /aria-label="Zoom in"/);
   assert.match(html, /aria-label="Zoom out"/);
+  assert.match(html, /aria-label="Show towns and cities within 10 miles"/);
   assert.doesNotMatch(html, /aria-label="Enter full screen"/);
   assert.match(html, /aria-label="Show map legend"/);
   assert.doesNotMatch(html, /aria-label="Open destination search"/);
@@ -111,8 +112,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.40"/);
-  assert.match(serviceWorker, /map-engine-shell-v1222/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.41"/);
+  assert.match(serviceWorker, /map-engine-shell-v1223/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -506,4 +507,29 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /Show parking and EV chargers/);
   assert.doesNotMatch(mapEngine, /Developer diagnostics/);
   assert.doesNotMatch(mapEngine, /LAT&nbsp;/);
+});
+
+test("isFreshFix accepts a live fix and zero/unknown timestamps, rejects stale fixes", async () => {
+  const { isFreshFix } = await import("../app/lib/driving.ts");
+  const now = Date.now();
+  assert.ok(isFreshFix(now));
+  assert.ok(isFreshFix(0), "unknown/zero timestamp must not be treated as stale");
+  assert.ok(!isFreshFix(now - 11_000));
+});
+
+test("fitUrbanArea frames the radius deterministically and does not drift", async () => {
+  const { fitUrbanArea } = await import("../app/map-engine/map-navigation.ts");
+  const makeMap = () => ({
+    getCanvas: () => ({ clientWidth: 1280, clientHeight: 768 }),
+    getMinZoom: () => 0,
+    getMaxZoom: () => 22,
+    getBearing: () => -12,
+    getPitch: () => 55,
+    jumpTo: () => { },
+  });
+  const centre = { latitude: 52.4834, longitude: -1.8991 };
+  const first = fitUrbanArea(makeMap(), centre, 10);
+  const second = fitUrbanArea(makeMap(), centre, 10);
+  assert.ok(Math.abs(first - 10.8) < 0.2, `expected ~10.8 zoom for a 10-mile radius, got ${first}`);
+  assert.equal(second, first, "repeated fits must be identical (no re-read of the displaced camera)");
 });
