@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.42/);
+  assert.match(html, /v2.10.43/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -27,7 +27,7 @@ test("renders the Map Engine application shell", async () => {
   assert.match(html, /Start live position/);
   assert.match(html, /aria-label="Zoom in"/);
   assert.match(html, /aria-label="Zoom out"/);
-  assert.match(html, /aria-label="Show towns and cities within 10 miles"/);
+  assert.match(html, /aria-label="Show towns and cities within 10 miles\. Press again to return to the previous view"/);
   assert.doesNotMatch(html, /aria-label="Enter full screen"/);
   assert.match(html, /aria-label="Show map legend"/);
   assert.doesNotMatch(html, /aria-label="Open destination search"/);
@@ -112,8 +112,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.42"/);
-  assert.match(serviceWorker, /map-engine-shell-v1224/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.43"/);
+  assert.match(serviceWorker, /map-engine-shell-v1225/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -532,4 +532,31 @@ test("fitUrbanArea frames the radius deterministically and does not drift", asyn
   const second = fitUrbanArea(makeMap(), centre, 10);
   assert.ok(Math.abs(first - 10.8) < 0.2, `expected ~10.8 zoom for a 10-mile radius, got ${first}`);
   assert.equal(second, first, "repeated fits must be identical (no re-read of the displaced camera)");
+});
+
+test("toggleAreaView zooms out on the first press and restores the previous view on the second", async () => {
+  const { toggleAreaView } = await import("../app/map-engine/map-navigation.ts");
+  let zoom = 16.5;
+  let centre = { lng: -1.8991, lat: 52.4834 };
+  const jumps = [];
+  const map = {
+    getCanvas: () => ({ clientWidth: 1280, clientHeight: 768 }),
+    getMinZoom: () => 0,
+    getMaxZoom: () => 22,
+    getZoom: () => zoom,
+    getBearing: () => -12,
+    getPitch: () => 55,
+    getCenter: () => centre,
+    jumpTo: (o) => { jumps.push(o); if (o.zoom !== undefined) zoom = o.zoom; if (o.center) centre = { lng: o.center[0], lat: o.center[1] }; },
+  };
+  const arg = { latitude: 52.4834, longitude: -1.8991 };
+  const first = toggleAreaView(map, arg, 10);
+  assert.ok(typeof first === "number" && Math.abs(first - 10.8) < 0.2, `first press should zoom out, got ${first}`);
+  const second = toggleAreaView(map, arg, 10);
+  assert.equal(second, null, "second press should clear the manual zoom so auto zoom resumes");
+  assert.equal(jumps.length, 2);
+  assert.ok(Math.abs(jumps[1].zoom - 16.5) < 0.001, `second press should restore the previous zoom, got ${jumps[1].zoom}`);
+  assert.equal(jumps[1].center[0], -1.8991);
+  assert.equal(jumps[1].bearing, -12);
+  assert.equal(jumps[1].pitch, 55);
 });

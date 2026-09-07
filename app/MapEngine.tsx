@@ -12,7 +12,7 @@ import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
-import { bearingBetween, distanceFromRouteMetres, distanceKm, fitUrbanArea, followZoomTarget, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, vehicleScreenOffset } from "./map-engine/map-navigation";
+import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, toggleAreaView, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
@@ -1145,7 +1145,7 @@ export default function MapEngine() {
       <div className="zoom-controls" aria-label="Map zoom controls">
         <button onClick={() => adjustZoom(1)} aria-label="Zoom in">+</button>
         <button onClick={() => adjustZoom(-1)} aria-label="Zoom out">−</button>
-        <button className="area-button" onClick={() => { const m = mapRef.current; if (!m) return; manualZoomRef.current = fitUrbanArea(m, latestFixRef.current ?? mapCentre(m), 10); }} aria-label="Show towns and cities within 10 miles">10MI</button>
+        <button className="area-button" onClick={() => { const m = mapRef.current; if (!m) return; manualZoomRef.current = toggleAreaView(m, latestFixRef.current ?? mapCentre(m), 10); }} aria-label="Show towns and cities within 10 miles. Press again to return to the previous view">10MI</button>
       </div>
 
       <section className="drive-controls" aria-label="Driving controls">

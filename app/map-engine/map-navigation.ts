@@ -24,6 +24,24 @@ export function fitUrbanArea(map: maplibregl.Map, centre: Point, radiusMiles = 1
   return zoom;
 }
 
+let areaView: { center: [number, number]; zoom: number; bearing: number; pitch: number; fitted: number } | null = null;
+
+export function toggleAreaView(map: maplibregl.Map, centre: Point, radiusMiles = 10): number | null {
+  if (areaView !== null && Math.abs(map.getZoom() - areaView.fitted) < 0.6) {
+    const v = areaView;
+    areaView = null;
+    map.jumpTo({ center: v.center, zoom: v.zoom, bearing: v.bearing, pitch: v.pitch });
+    return null;
+  }
+  const c = map.getCenter();
+  const zoom = map.getZoom();
+  const bearing = map.getBearing();
+  const pitch = map.getPitch();
+  const fitted = fitUrbanArea(map, centre, radiusMiles);
+  areaView = { center: [c.lng, c.lat], zoom, bearing, pitch, fitted };
+  return fitted;
+}
+
 const ROAD_LABEL_LAYERS = ["road-name", "route-motorway", "route-a", "route-b"];
 const ARRIVAL_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
 
