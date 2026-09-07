@@ -206,3 +206,58 @@ test("traffic signals are filtered to the corridor of travel ahead", () => {
   const idsWithoutRoad = unfiltered.features.map((feature) => feature.id);
   assert.deepEqual(idsWithoutRoad, ["signal-ahead", "signal-mismatch", "signal-main", "signal-unnamed", "bump-t"]);
 });
+
+const navigation = await import("../app/map-engine/map-navigation.ts");
+
+function landmark(id, name, latitude, longitude) {
+  return { id, name, category: "supermarket", latitude, longitude };
+}
+
+test("landmarksAhead ranks landmarks inside the forward cone by distance", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 0, accuracy: 10, speedMph: 30 };
+  const visible = navigation.landmarksAhead(fix, [
+    landmark("l1", "TESCO EXTRA", 52.001, -2.0),
+    landmark("l2", "BMW", 52.006, -2.0),
+    landmark("l3", "THE CROWN", 52.011, -2.0),
+    landmark("l4", "east-petrol", 52.0, -1.99),
+    landmark("l5", "behind-pub", 51.99, -2.0),
+    landmark("l6", "far-and-missing", 52.08, -2.0),
+  ]);
+  const ids = visible.map((entry) => entry.id);
+  assert.deepEqual(ids, ["l1", "l2", "l3"]);
+  assert.ok(visible[0].miles < visible[1].miles);
+  assert.ok(visible[1].miles < visible[2].miles);
+  assert.ok(visible[0].name === "TESCO EXTRA");
+});
+
+test("landmarksAhead drops passed and out-of-cone landmarks, and honours the limit", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 90, accuracy: 10, speedMph: 30 };
+  const ahead = navigation.landmarksAhead(fix, [
+    landmark("north", "NORTH", 52.006, -2.0),
+    landmark("south", "SOUTH", 51.994, -2.0),
+    landmark("west", "WEST", 52.0, -2.004),
+    landmark("east", "EAST", 52.0, -1.99),
+  ]);
+  const ids = ahead.map((entry) => entry.id);
+  assert.deepEqual(ids, ["east"]);
+  assert.equal(ahead[0].relativeDegrees <= 45, true);
+
+  const limited = navigation.landmarksAhead(fix, [
+    landmark("a", "A", 52.0, -1.967),
+    landmark("b", "B", 52.0, -1.977),
+    landmark("c", "C", 52.0, -1.987),
+    landmark("d", "D", 52.0, -1.997),
+  ]);
+  assert.equal(limited.length, 3);
+  assert.equal(limited[2].id, "b");
+});
+
+test("landmarksAhead keeps only the nearest label inside a 500 metre cluster", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 0, accuracy: 10, speedMph: 30 };
+  const visible = navigation.landmarksAhead(fix, [
+    landmark("near-1", "TESCO", 52.001, -2.0),
+    landmark("near-2", "ASDA", 52.0018, -2.0),
+    landmark("further", "MCDONALDS", 52.007, -2.0),
+  ], 3, 45, 5, 500);
+  assert.deepEqual(visible.map((entry) => entry.id), ["near-1", "further"]);
+});

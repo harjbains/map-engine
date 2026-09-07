@@ -31,6 +31,48 @@ export function headingDifference(fromDegrees: number, toDegrees: number) {
   return (fromDegrees - toDegrees + 540) % 360 - 180;
 }
 
+export type VisibleLandmark = {
+  id: string;
+  name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  miles: number;
+  relativeDegrees: number;
+};
+
+export function landmarksAhead(
+  fix: VehicleFix,
+  landmarks: Array<{ id: string; name: string; category: string; latitude: number; longitude: number }>,
+  limit = 3,
+  coneDegrees = 45,
+  maxMiles = 5,
+  minimumSpacingMetres = 500,
+) {
+  const visible: VisibleLandmark[] = [];
+  for (const landmark of landmarks) {
+    const miles = distanceKm(fix, landmark) * 0.621371;
+    if (miles > maxMiles) continue;
+    const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
+    if (Math.abs(relativeDegrees) > coneDegrees) continue;
+    visible.push({ ...landmark, miles, relativeDegrees });
+  }
+  visible.sort((left, right) => {
+    const distanceOrder = left.miles - right.miles;
+    if (distanceOrder !== 0) return distanceOrder;
+    return left.id.localeCompare(right.id);
+  });
+  const minimumSpacingKm = minimumSpacingMetres / 1000;
+  const selected: VisibleLandmark[] = [];
+  for (const candidate of visible) {
+    if (selected.every((kept) => distanceKm(candidate, kept) >= minimumSpacingKm)) {
+      selected.push(candidate);
+      if (selected.length >= limit) break;
+    }
+  }
+  return selected;
+}
+
 export function liveRouteProgress(route: ActiveRoute, position: Point, now: number) {
   const coordinates = route.geometry.coordinates;
   let totalGeometryKm = 0;

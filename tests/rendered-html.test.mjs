@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.33/);
+  assert.match(html, /v2.10.34/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -36,7 +36,7 @@ test("renders the Map Engine application shell", async () => {
 });
 
 test("ships PWA and custom UK map configuration", async () => {
-  const [manifest, style, serviceWorker, mapEngineEntry, mapEngineCss, globalsCss, safety, offline, postcodes, geocoding, routing, trafficRoute, trafficStatusRoute, trafficIncidentRoute, trafficClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, postcodeLayers, destinationSearch, settingsPanel, useTraffic, tomtomClient, routeGraph, routeEngineCore] = await Promise.all([
+  const [manifest, style, serviceWorker, mapEngineEntry, mapEngineCss, globalsCss, safety, landmarks, offline, postcodes, geocoding, routing, trafficRoute, trafficStatusRoute, trafficIncidentRoute, trafficClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, postcodeLayers, destinationSearch, settingsPanel, useTraffic, useLandmarks, landmarkLayers, tomtomClient, routeGraph, routeEngineCore] = await Promise.all([
     readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"),
     readFile(new URL("../public/map-style.json", import.meta.url), "utf8"),
     readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
@@ -44,6 +44,7 @@ test("ships PWA and custom UK map configuration", async () => {
     readFile(new URL("../app/map-engine.css", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/safety.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/landmarks.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/offline.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/birmingham-postcodes.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/geocoding.ts", import.meta.url), "utf8"),
@@ -64,11 +65,13 @@ test("ships PWA and custom UK map configuration", async () => {
     readFile(new URL("../app/map-engine/DestinationSearch.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/SettingsPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/useTraffic.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/map-engine/useLandmarks.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/map-engine/landmark-layers.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/tomtom-client.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/route-graph.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/route-engine-core.ts", import.meta.url), "utf8"),
   ]);
-  const mapEngine = [mapEngineEntry, trafficClient, tomtomClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, postcodeLayers, destinationSearch, settingsPanel, useTraffic].join("\n");
+  const mapEngine = [mapEngineEntry, trafficClient, tomtomClient, config, mapTheme, mapNavigation, mapRoutingLayers, safetyLayers, mapHeader, compass, postcodeLookup, postcodeLayers, destinationSearch, settingsPanel, useTraffic, useLandmarks, landmarkLayers].join("\n");
   assert.equal(JSON.parse(manifest).display, "standalone");
   const mapStyle = JSON.parse(style);
   assert.deepEqual(validateStyleMin(mapStyle).map((error) => error.message), []);
@@ -108,14 +111,24 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.33"/);
-  assert.match(serviceWorker, /map-engine-shell-v1215/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.34"/);
+  assert.match(serviceWorker, /map-engine-shell-v1216/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/route-graph"\)/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/offline"\)/);
   assert.match(mapEngine, /ROAD_WIDTH_SCALE = 0\.75/);
+  assert.match(mapEngine, /Show landmarks ahead/);
+  assert.match(mapEngine, /ensureLandmarkLayers/);
+  assert.match(mapEngine, /landmarks-ahead-label/);
+  assert.match(mapEngine, /"text-field": \["get", "label"\]/);
+  assert.match(mapEngine, /landmarksAhead/);
+  assert.match(mapEngine, /fetchLandmarks/);
+  assert.match(mapEngine, /minimumSpacingMetres = 500/);
+  assert.match(landmarks, /nwr\$\{around\}/);
+  assert.match(landmarks, /out center tags qt;/);
+  assert.match(landmarks, /fuel: "petrol"/);
   assert.match(mapEngine, /LOCAL_ROAD_WIDTH_SCALE = 0\.48/);
   assert.doesNotMatch(serviceWorker, /skipWaiting/);
   assert.doesNotMatch(serviceWorker, /clients\.claim/);

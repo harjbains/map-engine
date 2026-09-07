@@ -7,7 +7,6 @@ import type { PostcodeGroupId } from "./lib/birmingham-postcodes";
 import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollection } from "./lib/safety";
 import { CompassStrip } from "./map-engine/CompassStrip";
 import { DestinationSearch } from "./map-engine/DestinationSearch";
-import { HomeCompass } from "./map-engine/HomeCompass";
 import { MapHeader } from "./map-engine/MapHeader";
 import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
@@ -19,6 +18,8 @@ import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
 import { ensureSafetyLayers, filterSignalsToTravelCorridor, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
+import { useLandmarks } from "./map-engine/useLandmarks";
+import { ensureLandmarkLayers, setLandmarks } from "./map-engine/landmark-layers";
 import type { RouteOptionEntry } from "./lib/route-graph";
 import type { RouteProfile } from "./lib/route-engine-core";
 
@@ -95,6 +96,13 @@ export default function MapEngine() {
   const [openPostcodeGroup, setOpenPostcodeGroup] = useState<PostcodeGroupId | null>(null);
 
   const traffic = useTraffic({ mapRef, latestFixRef, mapReady, enabled: settings.liveTraffic, online });
+  const landmarks = useLandmarks({ fix, mapReady, enabled: settings.showLandmarks, online });
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    setLandmarks(map, settings.showLandmarks ? landmarks.visible : []);
+  }, [mapReady, landmarks.visible, settings.showLandmarks]);
 
   const changeFollow = useCallback((next: boolean) => {
     followRef.current = next;
@@ -296,6 +304,7 @@ export default function MapEngine() {
       setTrafficVisibility(map, false);
       ensureSafetyLayers(map);
       setDriverAmenitiesVisibility(map, settingsRef.current.showDriverAmenities);
+      ensureLandmarkLayers(map);
       const initialCentre = map.getCenter();
       const cachedSafety = readCachedSafetyFeatures({ latitude: initialCentre.lat, longitude: initialCentre.lng });
       if (cachedSafety) showSafety(cachedSafety);
@@ -995,17 +1004,6 @@ export default function MapEngine() {
     }
   };
 
-  const setHomeHere = () => {
-    const map = mapRef.current;
-    if (!map) { setMapMessage("Wait for the map to load, then open Settings to set home."); return; }
-    const saveCentre = () => {
-      const centre = mapCentre(map);
-      saveFavourite("home", { id: "set-home/map-centre", name: "Home", context: "Current map centre", latitude: centre.latitude, longitude: centre.longitude });
-    };
-    if (map.isMoving()) { setMapMessage("Saving the map centre once the map settles…"); map.once("moveend", saveCentre); }
-    else saveCentre();
-  };
-
   const saveOfflineArea = async () => {
     const map = mapRef.current;
     if (!map) {
@@ -1135,7 +1133,6 @@ export default function MapEngine() {
       </div>
 
       <section className="drive-controls" aria-label="Driving controls">
-        <HomeCompass home={destinationFavourites.home} mapRef={mapRef} fixRef={latestFixRef} hasFix={fix !== null} />
         {fix && !follow && <button className="recenter-button" onClick={recenter}><span className="target-icon" />Re-centre</button>}
         {settings.showSpeed && (
           <div className={`speed-card ${speedWarning ? "speed-warning" : ""}`} aria-label={`${currentSpeedMph} miles per hour${speedLimitMph === null ? "" : `, speed limit ${speedLimitMph}`}`}>
@@ -1210,8 +1207,6 @@ export default function MapEngine() {
           packProgress={packProgress}
           packError={packError}
           trafficConfigured={traffic.configured === true}
-          homeSaved={Boolean(destinationFavourites.home)}
-          onSetHome={setHomeHere}
           simulating={simulating}
           installPrompt={installPrompt}
           onClose={() => setSettingsOpen(false)}
