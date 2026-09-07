@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.35/);
+  assert.match(html, /v2.10.36/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -111,8 +111,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.35"/);
-  assert.match(serviceWorker, /map-engine-shell-v1217/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.36"/);
+  assert.match(serviceWorker, /map-engine-shell-v1218/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -170,6 +170,15 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /\["route-a", "text-halo-color", "#28573a"\]/);
   assert.match(mapEngine, /text-allow-overlap/);
   assert.match(mapEngine, /map\.setLayoutProperty\("road-name", "text-ignore-placement", false\)/);
+  assert.match(mapEngine, /ROAD_HIERARCHY_MIN_ZOOM/);
+  assert.match(mapEngine, /\[\"road-motorway\", 4\]/);
+  assert.match(mapEngine, /\[\"road-b\", 8\]/);
+  assert.match(mapEngine, /ROUTE_SHIELD_MIN_ZOOM/);
+  assert.match(mapEngine, /\[\"route-a\", 6\]/);
+  assert.match(mapEngine, /LOCAL_ROAD_MIN_ZOOM = 12/);
+  assert.match(mapEngine, /\["road-local", "line-opacity", LOCAL_ROAD_OPACITY\]/);
+  assert.match(mapEngine, /map\.setLayerZoomRange\(layer, minZoom, 24\)/);
+  assert.match(mapEngine, /for \(const \[layer, minZoom\] of ROUTE_SHIELD_MIN_ZOOM\)/);
   assert.match(mapEngine, /map\.setLayoutProperty\(layer, "text-allow-overlap", false\)/);
   assert.match(mapEngine, /safety-restricted-label/);
   assert.match(mapEngine, /safety-signal-icon/);

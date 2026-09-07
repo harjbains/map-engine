@@ -5,6 +5,20 @@ export const B_ROAD_WIDTH_SCALE = 0.56;
 export const MOTORWAY_WIDTH_SCALE = 0.45;
 export const LOCAL_ROAD_WIDTH_SCALE = 0.48;
 
+export const ROAD_HIERARCHY_MIN_ZOOM = [
+  ["road-motorway", 4],
+  ["road-a", 4],
+  ["road-b", 8],
+] as const;
+export const ROUTE_SHIELD_MIN_ZOOM = [
+  ["route-motorway", 4],
+  ["route-a", 6],
+  ["route-b", 10],
+] as const;
+export const LOCAL_ROAD_MIN_ZOOM = 12;
+const LOCAL_ROAD_OPACITY = ["interpolate", ["linear"], ["zoom"], 12, 0.52, 14, 0.9, 16, 0.98];
+const LOCAL_ROAD_CASING_OPACITY = ["interpolate", ["linear"], ["zoom"], 12, 0.4, 14, 0.85, 16, 0.98];
+
 const scaleRoadWidthOutput = (value: unknown, scale: number): unknown => {
   if (typeof value === "number") return value * scale;
   if (Array.isArray(value) && value[0] === "case") {
@@ -69,6 +83,8 @@ const MAP_THEME_PAINTS = {
     ["road-local-casing", "line-width", LOCAL_ROAD_CASING_WIDTH],
     ["road-local", "line-color", ["case", SERVICE_ROAD, "#deded7", "#fffdf7"]],
     ["road-local", "line-width", LOCAL_ROAD_WIDTH],
+    ["road-local", "line-opacity", LOCAL_ROAD_OPACITY],
+    ["road-local-casing", "line-opacity", LOCAL_ROAD_CASING_OPACITY],
     ["road-name", "text-color", "#282622"],
     ["road-name", "text-halo-color", "#fffdf7"],
     ["road-name", "text-halo-width", 2.2],
@@ -112,6 +128,8 @@ const MAP_THEME_PAINTS = {
     ["road-local-casing", "line-width", LOCAL_ROAD_CASING_WIDTH],
     ["road-local", "line-color", NIGHT_LOCAL_FILL],
     ["road-local", "line-width", LOCAL_ROAD_WIDTH],
+    ["road-local", "line-opacity", LOCAL_ROAD_OPACITY],
+    ["road-local-casing", "line-opacity", LOCAL_ROAD_CASING_OPACITY],
     ["road-name", "text-color", "#e2e7e9"],
     ["road-name", "text-halo-color", "#171d20"],
     ["road-name", "text-halo-width", 2.4],
@@ -133,6 +151,11 @@ export function applyMapTheme(map: maplibregl.Map, darkMode: boolean) {
   for (const [layer, property, value] of MAP_THEME_PAINTS[theme] as Array<[string, string, unknown]>) {
     if (map.getLayer(layer)) map.setPaintProperty(layer, property, value as never);
   }
+  for (const [layer, minZoom] of ROAD_HIERARCHY_MIN_ZOOM) {
+    if (map.getLayer(layer)) map.setLayerZoomRange(layer, minZoom, 24);
+  }
+  if (map.getLayer("road-local")) map.setLayerZoomRange("road-local", LOCAL_ROAD_MIN_ZOOM, 24);
+  if (map.getLayer("road-local-casing")) map.setLayerZoomRange("road-local-casing", LOCAL_ROAD_MIN_ZOOM, 24);
   if (map.getLayer("road-name")) {
     map.setLayoutProperty("road-name", "symbol-spacing", 275);
     map.setLayoutProperty("road-name", "text-padding", 0.5);
@@ -162,5 +185,8 @@ export function applyMapTheme(map: maplibregl.Map, darkMode: boolean) {
       map.setLayoutProperty(layer, "text-allow-overlap", false);
       map.setLayoutProperty(layer, "text-ignore-placement", false);
     }
+  }
+  for (const [layer, minZoom] of ROUTE_SHIELD_MIN_ZOOM) {
+    if (map.getLayer(layer)) map.setLayerZoomRange(layer, minZoom, 24);
   }
 }
