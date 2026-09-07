@@ -284,3 +284,27 @@ test("landmarksAhead shows landmarks all around when at rest instead of a narrow
   ]);
   assert.deepEqual(visible.map((entry) => entry.id), ["north", "east", "south"]);
 });
+
+test("landmarksAhead keeps landmarks inside the route corridor and drops those off it", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 90, accuracy: 10, speedMph: 30 };
+  const route = { geometry: { coordinates: [[-2.0, 52.0], [-2.01, 52.0], [-2.02, 52.0]] } };
+  const visible = navigation.landmarksAhead(fix, [
+    landmark("ontrack", "ON TESCO", 52.0, -2.005),
+    landmark("farstub", "OFF ASDA", 52.013, -2.005),
+  ], 9, 180, 5, 500, route);
+  assert.deepEqual(visible.map((entry) => entry.id), ["ontrack"]);
+});
+
+test("stickyLandmarksAhead respects the route corridor", () => {
+  const fix = { latitude: 52.0, longitude: -2.0, bearing: 90, accuracy: 10, speedMph: 30 };
+  const route = { geometry: { coordinates: [[-2.0, 52.0], [-1.99, 52.0], [-1.98, 52.0]] } };
+  const previous = [{
+    ...landmark("offroute", "OFF SIDEROAD", 52.02, -1.99),
+    miles: 1.4, relativeDegrees: 12, score: 3,
+  }];
+  const visible = navigation.stickyLandmarksAhead(fix, [
+    landmark("offroute", "OFF SIDEROAD", 52.02, -1.99),
+    landmark("ontrack", "ON TESCO", 52.0, -1.995),
+  ], previous, 9, route);
+  assert.deepEqual(visible.map((entry) => entry.id), ["ontrack"]);
+});

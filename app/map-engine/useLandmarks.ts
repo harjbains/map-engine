@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchLandmarks, type Landmark } from "../lib/landmarks";
 import { pointAhead } from "../lib/driving.ts";
-import type { VehicleFix } from "./config";
+import type { ActiveRoute, VehicleFix } from "./config";
 import { distanceKm, stickyLandmarksAhead, type VisibleLandmark } from "./map-navigation";
 
 type UseLandmarksOptions = {
@@ -9,6 +9,7 @@ type UseLandmarksOptions = {
   mapReady: boolean;
   enabled: boolean;
   online: boolean;
+  route: ActiveRoute | null;
 };
 
 const REFETCH_INTERVAL_MS = 45_000;
@@ -16,7 +17,7 @@ const REFETCH_MOVEMENT_KM = 0.9;
 const FETCH_RADIUS_METRES = 4_000;
 const FETCH_AHEAD_METRES = 800;
 
-export function useLandmarks({ fix, mapReady, enabled, online }: UseLandmarksOptions) {
+export function useLandmarks({ fix, mapReady, enabled, online, route }: UseLandmarksOptions) {
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
   const fetchedAtRef = useRef(0);
   const fetchedLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
@@ -41,10 +42,10 @@ export function useLandmarks({ fix, mapReady, enabled, online }: UseLandmarksOpt
   }, [fix, mapReady, enabled, online]);
 
   useEffect(() => {
-    const next = enabled && fix ? stickyLandmarksAhead(fix, landmarks, previousVisibleRef.current) : [];
+    const next = enabled && fix ? stickyLandmarksAhead(fix, landmarks, previousVisibleRef.current, 9, route) : [];
     previousVisibleRef.current = next;
     setVisible(next);
-  }, [fix, landmarks, enabled]);
+  }, [fix, landmarks, enabled, route]);
 
   return { visible };
 }

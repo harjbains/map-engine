@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import maplibregl from "maplibre-gl";
 import { dynamicZoom, isFreshFix, plausibleGpsStep, smooth, smoothBearing, toMph, type Point } from "./lib/driving";
 import type { PostcodeGroupId } from "./lib/birmingham-postcodes";
@@ -12,7 +12,7 @@ import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
-import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, toggleAreaView, vehicleScreenOffset } from "./map-engine/map-navigation";
+import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, getAreaViewActive, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, subscribeAreaView, toggleAreaView, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
@@ -60,7 +60,7 @@ export default function MapEngine() {
   const deviatedSinceRef = useRef(0);
   const reroutingRef = useRef(false);
   const rerouteCooldownUntilRef = useRef(0);
-
+  const areaActive = useSyncExternalStore(subscribeAreaView, getAreaViewActive, getAreaViewActive);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [is3d, setIs3d] = useState(true);
   const [follow, setFollow] = useState(false);
@@ -99,7 +99,7 @@ export default function MapEngine() {
   const [openPostcodeGroup, setOpenPostcodeGroup] = useState<PostcodeGroupId | null>(null);
 
   const traffic = useTraffic({ mapRef, latestFixRef, mapReady, enabled: settings.liveTraffic, online });
-  const landmarks = useLandmarks({ fix, mapReady, enabled: settings.showLandmarks, online });
+  const landmarks = useLandmarks({ fix, mapReady, enabled: settings.showLandmarks, online, route: activeRoute });
   useViewDebugHud(mapRef, mapReady);
 
   useEffect(() => {
@@ -1145,7 +1145,7 @@ export default function MapEngine() {
       <div className="zoom-controls" aria-label="Map zoom controls">
         <button onClick={() => adjustZoom(1)} aria-label="Zoom in">+</button>
         <button onClick={() => adjustZoom(-1)} aria-label="Zoom out">−</button>
-        <button className="area-button" onClick={() => { const m = mapRef.current; if (!m) return; manualZoomRef.current = toggleAreaView(m, latestFixRef.current ?? mapCentre(m), 10); }} aria-label="Show towns and cities within 10 miles. Press again to return to the previous view">10MI</button>
+        <button className="area-button" aria-pressed={areaActive} onClick={() => { const m = mapRef.current; if (!m) return; manualZoomRef.current = toggleAreaView(m, latestFixRef.current ?? mapCentre(m), 10); }} aria-label="Show towns and cities within 10 miles"><svg className="icon-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></svg><svg className="icon-collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
       </div>
 
       <section className="drive-controls" aria-label="Driving controls">

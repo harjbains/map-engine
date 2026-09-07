@@ -25,11 +25,30 @@ export function fitUrbanArea(map: maplibregl.Map, centre: Point, radiusMiles = 1
 }
 
 let areaView: { center: [number, number]; zoom: number; bearing: number; pitch: number; fitted: number } | null = null;
+let areaViewActive = false;
+const areaViewListeners = new Set<() => void>();
+
+export function subscribeAreaView(listener: () => void): () => void {
+  areaViewListeners.add(listener);
+  return () => {
+    areaViewListeners.delete(listener);
+  };
+}
+
+export function getAreaViewActive(): boolean {
+  return areaViewActive;
+}
+
+function publishAreaView() {
+  for (const listener of areaViewListeners) listener();
+}
 
 export function toggleAreaView(map: maplibregl.Map, centre: Point, radiusMiles = 10): number | null {
   if (areaView !== null && Math.abs(map.getZoom() - areaView.fitted) < 0.6) {
     const v = areaView;
     areaView = null;
+    areaViewActive = false;
+    publishAreaView();
     map.jumpTo({ center: v.center, zoom: v.zoom, bearing: v.bearing, pitch: v.pitch });
     return null;
   }
@@ -39,6 +58,8 @@ export function toggleAreaView(map: maplibregl.Map, centre: Point, radiusMiles =
   const pitch = map.getPitch();
   const fitted = fitUrbanArea(map, centre, radiusMiles);
   areaView = { center: [c.lng, c.lat], zoom, bearing, pitch, fitted };
+  areaViewActive = true;
+  publishAreaView();
   return fitted;
 }
 
@@ -94,12 +115,14 @@ export function landmarksAhead(
   coneDegrees = 45,
   maxMiles = 5,
   minimumSpacingMetres = 500,
+  route: Pick<CalculatedRoute, "geometry"> | null = null,
 ) {
   const effectiveConeDegrees = fix.speedMph < 8 ? 180 : coneDegrees;
   const visible: VisibleLandmark[] = [];
   for (const landmark of landmarks) {
     const miles = distanceKm(fix, landmark) * 0.621371;
     if (miles > maxMiles) continue;
+    if (route !== null && distanceFromRouteMetres(route, landmark) > ROUTE_CORRIDOR_METRES) continue;
     const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
     if (Math.abs(relativeDegrees) > effectiveConeDegrees) continue;
     const distanceScore = (1 - miles / maxMiles) * DISTANCE_WEIGHT;
@@ -126,6 +149,7 @@ export function landmarksAhead(
 }
 
 const KEEP_CONE_DEGREES = 135;
+const ROUTE_CORRIDOR_METRES = 400;
 const MAX_MILES = 5;
 
 export function stickyLandmarksAhead(
@@ -133,8 +157,9 @@ export function stickyLandmarksAhead(
   landmarks: Array<{ id: string; name: string; category: string; priority: number; latitude: number; longitude: number }>,
   previous: VisibleLandmark[],
   limit = 9,
+  route: Pick<CalculatedRoute, "geometry"> | null = null,
 ) {
-  const ranked = landmarksAhead(fix, landmarks, Infinity);
+  const ranked = landmarksAhead(fix, landmarks, Infinity, 45, 5, 500, route);
   const rankedById = new Map(ranked.map((landmark) => [landmark.id, landmark]));
   const knownById = new Map(landmarks.map((landmark) => [landmark.id, landmark]));
   const keepConeDegrees = fix.speedMph < 8 ? 180 : KEEP_CONE_DEGREES;
@@ -144,6 +169,7 @@ export function stickyLandmarksAhead(
     if (kept.length >= limit) break;
     const landmark = knownById.get(prev.id);
     if (!landmark) continue;
+    if (route !== null && distanceFromRouteMetres(route, landmark) > ROUTE_CORRIDOR_METRES) continue;
     const miles = distanceKm(fix, landmark) * 0.621371;
     const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
     if (Math.abs(relativeDegrees) > keepConeDegrees) continue;

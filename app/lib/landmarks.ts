@@ -1,4 +1,5 @@
 import type { Point } from "./driving";
+import { nearestMainRoadMetres } from "./driving.ts";
 import { fetchOverpass } from "./safety";
 
 export type LandmarkCategory =
@@ -26,7 +27,11 @@ export type Landmark = Point & {
   name: string;
   category: LandmarkCategory;
   priority: LandmarkPriority;
+  mainroadMetres: number;
 };
+
+const MAIN_ROAD_HIGHWAYS = new Set(["motorway", "trunk", "primary", "secondary", "tertiary", "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link"]);
+const MAIN_ROAD_MAX_METRES = 150;
 
 export const LANDMARK_LABELS: Record<LandmarkCategory, string> = {
   petrol: "Petrol station",
@@ -115,6 +120,7 @@ type OverpassElement = {
   lat?: number;
   lon?: number;
   center?: { lat: number; lon: number };
+  geometry?: Array<{ lat: number; lon: number }>;
   tags?: Record<string, string>;
 };
 
@@ -138,17 +144,29 @@ export function classifyLandmark(tags: Record<string, string>): LandmarkCategory
 
 export async function fetchLandmarks(centre: Point, radiusMetres = 3_000, signal?: AbortSignal): Promise<Landmark[]> {
   const around = `(around:${Math.round(radiusMetres)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})`;
-  const query = `[out:json][timeout:15];(
+  const roadsRadius = Math.min(radiusMetres, 2_000);
+  const roadsAround = `(around:${Math.round(roadsRadius)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})`;
+  const poiQuery = `[out:json][timeout:20];(
 nwr${around}["amenity"]["name"];
 nwr${around}["shop"]["name"];
 nwr${around}["tourism"]["name"];
 nwr${around}["leisure"]["name"];
 way${around}["landuse"~"^(retail|commercial)$"]["name"];
 );out center tags qt;`;
-  const payload = await fetchOverpass(query, 0, 1_200, signal, 30_000);
-  const elements: OverpassElement[] = payload?.elements ?? [];
+  const roadQuery = `[out:json][timeout:20];way${roadsAround}["highway"~"^(motorway|trunk|primary|secondary|tertiary)(_link)?$"];out tags geom qt;`;
+  const [poiPayload, roadPayload] = await Promise.all([
+    fetchOverpass(poiQuery, 0, 1_200, signal, 30_000),
+    fetchOverpass(roadQuery, 0, 1_200, signal, 30_000),
+  ]);
+  const roadLines: Array<Array<{ lat: number; lon: number }>> = [];
+  for (const element of roadPayload?.elements ?? []) {
+    const tags = element.tags ?? {};
+    if (typeof tags.highway === "string" && MAIN_ROAD_HIGHWAYS.has(tags.highway) && Array.isArray(element.geometry)) {
+      roadLines.push(element.geometry as Array<{ lat: number; lon: number }>);
+    }
+  }
   const landmarks: Landmark[] = [];
-  for (const element of elements) {
+  for (const element of poiPayload?.elements ?? []) {
     const tags = element.tags ?? {};
     const category = classifyLandmark(tags);
     if (!category) continue;
@@ -156,6 +174,8 @@ way${around}["landuse"~"^(retail|commercial)$"]["name"];
       ? { latitude: element.lat, longitude: element.lon }
       : element.center ? { latitude: element.center.lat, longitude: element.center.lon } : null;
     if (!point) continue;
+    const mainroadMetres = roadLines.length ? nearestMainRoadMetres(point, roadLines) : 0;
+    if (mainroadMetres > MAIN_ROAD_MAX_METRES) continue;
     landmarks.push({
       id: `${element.type}/${element.id}`,
       name: tags.name ?? tags.brand ?? LANDMARK_LABELS[category],
@@ -163,6 +183,7 @@ way${around}["landuse"~"^(retail|commercial)$"]["name"];
       priority: LANDMARK_PRIORITIES[category],
       latitude: point.latitude,
       longitude: point.longitude,
+      mainroadMetres,
     });
   }
   return landmarks;

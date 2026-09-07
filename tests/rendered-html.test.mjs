@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.43/);
+  assert.match(html, /v2.10.44/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -27,7 +27,7 @@ test("renders the Map Engine application shell", async () => {
   assert.match(html, /Start live position/);
   assert.match(html, /aria-label="Zoom in"/);
   assert.match(html, /aria-label="Zoom out"/);
-  assert.match(html, /aria-label="Show towns and cities within 10 miles\. Press again to return to the previous view"/);
+  assert.match(html, /aria-label="Show towns and cities within 10 miles"/);
   assert.doesNotMatch(html, /aria-label="Enter full screen"/);
   assert.match(html, /aria-label="Show map legend"/);
   assert.doesNotMatch(html, /aria-label="Open destination search"/);
@@ -112,8 +112,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.43"/);
-  assert.match(serviceWorker, /map-engine-shell-v1225/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.44"/);
+  assert.match(serviceWorker, /map-engine-shell-v1226/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -134,6 +134,7 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(landmarks, /LANDMARK_PRIORITIES/);
   assert.match(landmarks, /nwr\$\{around\}/);
   assert.match(landmarks, /out center tags qt;/);
+  assert.match(landmarks, /out tags geom qt;/);
   assert.match(landmarks, /fuel: "petrol"/);
   assert.match(mapEngine, /LOCAL_ROAD_WIDTH_SCALE = 0\.48/);
   assert.doesNotMatch(serviceWorker, /skipWaiting/);
@@ -559,4 +560,13 @@ test("toggleAreaView zooms out on the first press and restores the previous view
   assert.equal(jumps[1].center[0], -1.8991);
   assert.equal(jumps[1].bearing, -12);
   assert.equal(jumps[1].pitch, 55);
+});
+
+test("nearestMainRoadMetres measures the distance to the nearest main road", async () => {
+  const { nearestMainRoadMetres } = await import("../app/lib/driving.ts");
+  const road = [{ lat: 52.0, lon: -2.0 }, { lat: 52.0, lon: -1.98 }];
+  const onRoad = nearestMainRoadMetres({ latitude: 52.0, longitude: -1.99 }, [road]);
+  const offRoad = nearestMainRoadMetres({ latitude: 52.002, longitude: -1.99 }, [road]);
+  assert.ok(onRoad < 5, `onside-road landmark should be a few metres out, got ${onRoad}`);
+  assert.ok(offRoad > 220 && offRoad < 225, `a 0.002 degree offset should be ~221 m, got ${offRoad}`);
 });

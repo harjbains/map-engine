@@ -96,7 +96,11 @@
 .zoom-controls button + button { border-top-width:2px; }
 .zoom-controls button:hover { background:rgba(49,121,185,.1); }
 .zoom-controls button:focus-visible { position:relative; outline:2px solid #3179b9; outline-offset:-3px; }
-.zoom-controls button.area-button { width:auto; min-width:56px; padding:0 14px; border-radius:18px; font-size:13px; font-weight:800; letter-spacing:.5px; box-shadow:0 8px 28px rgba(42,48,50,.16); }
+.zoom-controls button.area-button { width:56px; height:56px; padding:0; border-radius:50%; }
+.zoom-controls button.area-button svg { width:26px; height:26px; display:block; margin:auto; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.zoom-controls button.area-button .icon-collapse { display:none; }
+.zoom-controls button.area-button[aria-pressed="true"] .icon-expand { display:none; }
+.zoom-controls button.area-button[aria-pressed="true"] .icon-collapse { display:block; }
 .debug-hud { position:absolute; left:10px; bottom:10px; z-index:6; background:rgba(20,27,33,.82); color:#9fdfb0; font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; letter-spacing:.3px; padding:4px 8px; border-radius:6px; pointer-events:none; white-space:pre; }
 .postcode-dock { position:absolute; left:8px; right:8px; bottom:10px; z-index:9; display:flex; flex-wrap:nowrap; align-items:center; justify-content:flex-start; gap:6px; padding:7px 9px; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity; scrollbar-width:none; border:1px solid rgba(48,64,72,.18); border-radius:19px; background:rgba(245,246,242,.82); box-shadow:0 10px 34px rgba(30,38,42,.24); backdrop-filter:blur(18px) saturate(1.25); }
 .postcode-dock::-webkit-scrollbar { display:none; }

@@ -6,6 +6,28 @@ export function toMph(metresPerSecond: number): number {
   return Math.max(0, metresPerSecond) * MPS_TO_MPH;
 }
 
+export function nearestMainRoadMetres(point: Point, roadLines: Array<Array<{ lat: number; lon: number }>>): number {
+  let nearest = Number.POSITIVE_INFINITY;
+  const latitudeScale = Math.cos(point.latitude * Math.PI / 180);
+  const fixed = { x: point.longitude * latitudeScale, y: point.latitude };
+  for (const line of roadLines) {
+    for (let index = 1; index < line.length; index += 1) {
+      const start = line[index - 1];
+      const end = line[index];
+      const startX = start.lon * latitudeScale;
+      const endX = end.lon * latitudeScale;
+      const dx = endX - startX;
+      const dy = end.lat - start.lat;
+      const denominator = dx * dx + dy * dy;
+      const fraction = denominator === 0 ? 0 : Math.max(0, Math.min(1, ((fixed.x - startX) * dx + (fixed.y - start.lat) * dy) / denominator));
+      const projected = { x: startX + fraction * dx, y: start.lat + fraction * dy };
+      const metres = Math.hypot((fixed.x - projected.x) * 111_320, (fixed.y - projected.y) * 110_574);
+      if (metres < nearest) nearest = metres;
+    }
+  }
+  return nearest;
+}
+
 export function smooth(previous: number | null, sample: number, alpha: number): number {
   return previous === null ? sample : previous + alpha * (sample - previous);
 }
