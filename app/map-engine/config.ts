@@ -4,10 +4,7 @@ import type { CalculatedRoute } from "../lib/routing";
 import type { Point } from "../lib/driving";
 import type { RouteProfile } from "../lib/route-engine-core";
 
-export type ReleaseMode = "current" | "stable";
-
 export type Settings = {
-  releaseMode: ReleaseMode;
   darkMode: boolean;
   default3d: boolean;
   autoZoom: boolean;
@@ -39,7 +36,6 @@ export type InstallPromptEvent = Event & {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  releaseMode: "stable",
   darkMode: false,
   default3d: true,
   autoZoom: true,
@@ -59,7 +55,7 @@ export const STORAGE_KEYS = {
   destinationFavourites: "map-engine-destination-favourites-v1",
 } as const;
 
-export const APP_VERSION = "v2.10.50";
+export const APP_VERSION = "v2.10.51";
 export const ROUTE_TIMEOUT_MS = 18_000;
 export const DEFAULT_START = { longitude: -2.152557, latitude: 52.556476, zoom: 15.3 } as const;
 

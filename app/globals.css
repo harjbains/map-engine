@@ -55,7 +55,7 @@ button { font:inherit; }
 .journey-live-stats b, .journey-live-stats em { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .journey-live-stats b { margin-bottom:2px; color:#64737a; font-size:10px; font-style:normal; font-weight:950; letter-spacing:.08em; }
 .journey-live-stats em { color:#172026; font-size:16px; font-style:normal; font-weight:950; line-height:1.15; }
-.maplibregl-ctrl-bottom-right { right:12px; bottom:208px; }
+.maplibregl-ctrl-bottom-right { right:12px; bottom:84px; }
 .maplibregl-ctrl-attrib { background:rgba(8,13,16,.72)!important; color:#aab5ba; }
 .maplibregl-ctrl-attrib a { color:#d7e0e4; }
 @media (max-width:700px) and (orientation:portrait) { .permission-card { width:calc(100vw - 40px); bottom:16px; } .drive-controls { bottom:150px; } .vehicle-chevron { top:55%; } }

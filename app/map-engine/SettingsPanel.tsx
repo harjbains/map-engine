@@ -1,4 +1,4 @@
-import type { InstallPromptEvent, OfflinePack, ReleaseMode, Settings } from "./config";
+import type { InstallPromptEvent, OfflinePack, Settings } from "./config";
 
 type SettingsPanelProps = {
   settings: Settings;
@@ -7,7 +7,6 @@ type SettingsPanelProps = {
   packProgress: { done: number; total: number } | null;
   packError: string | null;
   trafficConfigured: boolean;
-  simulating: boolean;
   installPrompt: InstallPromptEvent | null;
   onClose: () => void;
   onRemoveOfflineArea: () => void;
@@ -19,12 +18,10 @@ type SettingsPanelProps = {
   onAutoZoom: (value: boolean) => void;
   onLiveTraffic: (value: boolean) => void;
   onPitch: (pitch: number) => void;
-  onReleaseMode: (mode: ReleaseMode) => void;
-  onToggleSimulation: () => void;
   onInstall: () => void;
 };
 
-export function SettingsPanel({ settings, offlinePack, packRadius, packProgress, packError, trafficConfigured, simulating, installPrompt, onClose, onRemoveOfflineArea, onSetPackRadius, onCancelDownload, onSaveOfflineArea, onToggle, onDefault3d, onAutoZoom, onLiveTraffic, onPitch, onReleaseMode, onToggleSimulation, onInstall }: SettingsPanelProps) {
+export function SettingsPanel({ settings, offlinePack, packRadius, packProgress, packError, trafficConfigured, installPrompt, onClose, onRemoveOfflineArea, onSetPackRadius, onCancelDownload, onSaveOfflineArea, onToggle, onDefault3d, onAutoZoom, onLiveTraffic, onPitch, onInstall }: SettingsPanelProps) {
   const progressPercent = packProgress?.total ? Math.round(packProgress.done / packProgress.total * 100) : 0;
 
   return (
@@ -67,14 +64,6 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
 
           <section className="settings-group">
             <h3>App</h3>
-            <div className="map-style-setting release-mode-setting">
-              <span>Version fallback</span>
-              <div role="group" aria-label="Map Engine version mode">
-                <button className={settings.releaseMode === "current" ? "selected" : ""} aria-pressed={settings.releaseMode === "current"} onClick={() => onReleaseMode("current")}>Current v1.16.1</button>
-                <button className={settings.releaseMode === "stable" ? "selected" : ""} aria-pressed={settings.releaseMode === "stable"} onClick={() => onReleaseMode("stable")}>Compatibility v1.5.7</button>
-              </div>
-            </div>
-            <button className="secondary-wide" onClick={onToggleSimulation}>{simulating ? "Stop simulated drive" : "Start desktop simulated drive"}</button>
             {installPrompt && <button className="secondary-wide" onClick={onInstall}>Install Map Engine</button>}
             <p className="settings-note">Install from your browser for an app-like tablet experience. GPS follow continues offline inside a saved area.</p>
           </section>

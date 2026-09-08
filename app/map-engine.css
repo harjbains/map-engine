@@ -483,3 +483,11 @@
 
 .drive-shell.classic .dark-mode-button { border-color:#398957; }
 
+/* Landmarks (POI) toggle button */
+.drive-shell .poi-toggle-button { display:grid; place-items:center; border-width:3px; }
+.drive-shell .poi-toggle-button .poi-toggle-icon { width:18px; height:18px; stroke-width:2.5; }
+.drive-shell.classic .poi-toggle-button[aria-pressed="false"] { border-color:#bd3e38; }
+.drive-shell.dark .poi-toggle-button[aria-pressed="false"] { border-color:#ef766e; }
+.drive-shell.classic .poi-toggle-button[aria-pressed="true"] { border-color:#398957; }
+.drive-shell.dark .poi-toggle-button[aria-pressed="true"] { border-color:#69c985; }
+

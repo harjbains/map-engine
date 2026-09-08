@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.50/);
+  assert.match(html, /v2.10.51/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -31,7 +31,7 @@ test("renders the Map Engine application shell", async () => {
   assert.doesNotMatch(html, /aria-label="Enter full screen"/);
   assert.match(html, /aria-label="Show map legend"/);
   assert.match(html, /aria-label="Show landmarks"/);
-  assert.doesNotMatch(html, /aria-label="Open destination search"/);
+  assert.match(html, /aria-label="Open destination search"/);
   assert.match(html, /aria-label="Map heading /);
   assert.doesNotMatch(html, />Download<\/b>/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Starter Project/i);
@@ -113,8 +113,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.50"/);
-  assert.match(serviceWorker, /map-engine-shell-v1232/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.51"/);
+  assert.match(serviceWorker, /map-engine-shell-v1233/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -249,16 +249,16 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /manualZoomRef\.current = nextZoom/);
   assert.doesNotMatch(mapEngine, /const adjustZoom[\s\S]{0,240}changeFollow\(false\)/);
   assert.match(mapEngine, /\["place-city", "text-color", "#b9c8ce"\]/);
-  assert.match(mapEngine, /requestAnimationFrame\(animate\)/);
+  assert.doesNotMatch(mapEngine, /requestAnimationFrame\(animate\)/);
   assert.doesNotMatch(mapEngine, /setInterval\(.*850/);
   assert.match(mapEngine, /Current road and locality/);
   assert.match(mapEngine, /physical road signs always take priority/);
   assert.match(mapEngine, /map-engine-destination-history-v1/);
   assert.match(mapEngine, /Recent destinations/);
   assert.match(mapEngine, /\.slice\(0, 10\)/);
-  assert.match(mapEngine, /Current v1\.16\.1/);
+  assert.doesNotMatch(mapEngine, /Current v1\.16\.1/);
   assert.match(mapEngine, /13, 10\.5, 15, 12\.5, 17, 15\.5, 19, 18/);
-  assert.match(mapEngine, /Compatibility v1\.5\.7/);
+  assert.doesNotMatch(mapEngine, /Compatibility v1\.5\.7/);
   assert.match(mapEngine, /map-engine-destination-favourites-v1/);
   assert.match(mapEngine, />Home</);
   assert.match(mapEngine, />Hagley Road</);

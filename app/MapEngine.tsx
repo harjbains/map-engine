@@ -52,8 +52,6 @@ export default function MapEngine() {
   const destinationInputRef = useRef<HTMLInputElement>(null);
   const routeAbortRef = useRef<AbortController | null>(null);
   const destinationMarkerRef = useRef<maplibregl.Marker | null>(null);
-  const simulationRef = useRef<number | null>(null);
-  const simulationActiveRef = useRef(false);
   const lastViewUpdateRef = useRef(0);
   const manualZoomRef = useRef<number | null>(null);
   const safetyDataRef = useRef<SafetyFeatureCollection | null>(null);
@@ -82,7 +80,6 @@ export default function MapEngine() {
   const [packProgress, setPackProgress] = useState<{ done: number; total: number } | null>(null);
   const [packError, setPackError] = useState<string | null>(null);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
-  const [simulating, setSimulating] = useState(false);
   const [viewBearing, setViewBearing] = useState(-12);
   const [searchOpen, setSearchOpen] = useState(false);
   const [destinationQuery, setDestinationQuery] = useState("");
@@ -144,7 +141,6 @@ export default function MapEngine() {
           } as Settings & { mapStyle?: unknown; atlasMode?: unknown };
           delete next.mapStyle;
           delete next.atlasMode;
-          next.releaseMode = "stable";
           setSettings(next);
           settingsRef.current = next;
           setIs3d(next.default3d);
@@ -362,7 +358,6 @@ export default function MapEngine() {
 
   useEffect(() => () => {
     if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
-    if (simulationRef.current !== null) window.cancelAnimationFrame(simulationRef.current);
     if (roadQueryTimerRef.current !== null) window.clearTimeout(roadQueryTimerRef.current);
     abortPackRef.current?.abort();
     destinationSearchAbortRef.current?.abort();
@@ -423,7 +418,7 @@ export default function MapEngine() {
     const map = mapRef.current;
     if (!map) return;
     const resolveFromCentre = () => {
-      if (latestFixRef.current || simulationActiveRef.current) return;
+      if (latestFixRef.current) return;
       const centre = map.getCenter();
       resolveRoadAndLocality(map, { latitude: centre.lat, longitude: centre.lng });
     };
@@ -474,7 +469,7 @@ export default function MapEngine() {
   }, []);
 
   useEffect(() => {
-    if (mapReady && fix && !simulationActiveRef.current) renderFixOnMap(fix);
+    if (mapReady && fix) renderFixOnMap(fix);
   }, [fix, mapReady, renderFixOnMap]);
 
   useEffect(() => {
@@ -579,109 +574,6 @@ export default function MapEngine() {
       { enableHighAccuracy: true, maximumAge: 1_000, timeout: 30_000 },
     );
   }, [applyPosition, changeFollow]);
-
-  const stopSimulation = () => {
-    simulationActiveRef.current = false;
-    if (simulationRef.current !== null) window.cancelAnimationFrame(simulationRef.current);
-    simulationRef.current = null;
-    setSimulating(false);
-  };
-
-  const startSimulation = () => {
-    stopSimulation();
-    if (watchRef.current !== null) {
-      navigator.geolocation.clearWatch(watchRef.current);
-      watchRef.current = null;
-    }
-    const centre = mapRef.current?.getCenter();
-    const origin = centre ? { latitude: centre.lat, longitude: centre.lng } : DEFAULT_START;
-    const metroPerLatitude = 110_574;
-    const metroPerLongitude = 111_320 * Math.cos(origin.latitude * Math.PI / 180);
-    const offset = (latitudeOffsetM: number, longitudeOffsetM: number) => ({
-      latitude: origin.latitude + latitudeOffsetM / metroPerLatitude,
-      longitude: origin.longitude + longitudeOffsetM / metroPerLongitude,
-    });
-    const route = [
-      offset(0, 0),
-      offset(-260, 0),
-      offset(-260, 180),
-      offset(0, 360),
-      offset(200, 180),
-      offset(200, -40),
-      offset(0, -40),
-    ];
-    let leg = 0;
-    let direction = 1;
-    let legStarted = performance.now();
-    let lastFrame = 0;
-    let lastUiUpdate = 0;
-    let animatedBearing: number | null = null;
-    const legDuration = 12_000;
-    simulationActiveRef.current = true;
-    setSimulating(true);
-    changeFollow(true);
-    setSettingsOpen(false);
-    setLocationState("active");
-    setMapMessage(null);
-
-    const animate = (now: number) => {
-      if (!simulationActiveRef.current) return;
-      if (now - lastFrame < 32) {
-        simulationRef.current = window.requestAnimationFrame(animate);
-        return;
-      }
-      lastFrame = now;
-      let fraction = (now - legStarted) / legDuration;
-      if (fraction >= 1) {
-        leg += direction;
-        if (leg >= route.length - 1) {
-          leg = route.length - 1;
-          direction = -1;
-        } else if (leg <= 0) {
-          leg = 0;
-          direction = 1;
-        }
-        legStarted = now;
-        fraction = 0;
-      }
-      const from = route[leg];
-      const to = route[leg + direction];
-      const latitude = from.latitude + (to.latitude - from.latitude) * fraction;
-      const longitude = from.longitude + (to.longitude - from.longitude) * fraction;
-      const targetBearing = (Math.atan2(to.longitude - from.longitude, to.latitude - from.latitude) * 180 / Math.PI + 360) % 360;
-      animatedBearing = smoothBearing(animatedBearing, targetBearing, 0.08);
-      const bearing = animatedBearing;
-      const nextFix: VehicleFix = { latitude, longitude, accuracy: 5, bearing, speedMph: 28 };
-      latestFixRef.current = nextFix;
-      locationActiveRef.current = true;
-
-      const map = mapRef.current;
-      if (map?.isStyleLoaded()) {
-        if (followRef.current) {
-          map.easeTo({
-            center: [nextFix.longitude, nextFix.latitude],
-            offset: vehicleScreenOffset(map),
-            bearing,
-            pitch: is3dRef.current ? settingsRef.current.pitch : 0,
-            zoom: followZoomTarget(settingsRef.current, nextFix.speedMph, manualZoomRef.current, map.getZoom()),
-            duration: 0,
-          });
-        } else {
-          const vehicle = vehicleElementRef.current;
-          if (vehicle) {
-            positionVehicleMarker(map, vehicle, nextFix, false);
-          }
-        }
-      }
-
-      if (now - lastUiUpdate >= 200) {
-        lastUiUpdate = now;
-        setFix(nextFix);
-      }
-      simulationRef.current = window.requestAnimationFrame(animate);
-    };
-    simulationRef.current = window.requestAnimationFrame(animate);
-  };
 
   const recenter = () => {
     const map = mapRef.current;
@@ -964,7 +856,7 @@ export default function MapEngine() {
   }, [activeRoute, updateSettings, changeFollow]);
 
   useEffect(() => {
-    if (!mapReady || !activeRoute || !fix || simulationActiveRef.current || fix.speedMph < 8) return;
+    if (!mapReady || !activeRoute || !fix || fix.speedMph < 8) return;
     if (Date.now() < rerouteCooldownUntilRef.current) return;
     const metres = distanceFromRouteMetres(activeRoute, fix);
     const now = Date.now();
@@ -1088,7 +980,7 @@ export default function MapEngine() {
 
       <MapLegend open={legendOpen} onClose={() => setLegendOpen(false)} darkMode={settings.darkMode} />
 
-      {settings.releaseMode === "current" && activeRoute && routeDetailsOpen && (
+      {activeRoute && routeDetailsOpen && (
         <section className="active-route-panel" aria-label="Active route" aria-live="polite">
           <button className="route-panel-close" type="button" onClick={() => setRouteDetailsOpen(false)} aria-label="Hide route details">×</button>
           <strong>{activeRoute.destination.name.toUpperCase()} · {formatMiles(routeJourney?.remainingMiles ?? activeRoute.distanceMiles)} mi · {routeJourney?.remainingMinutes ?? activeRoute.durationMinutes} min</strong>
@@ -1103,7 +995,7 @@ export default function MapEngine() {
         </section>
       )}
 
-      {settings.releaseMode === "current" && !activeRoute && (
+      {!activeRoute && (
         <DestinationSearch
           inputRef={destinationInputRef}
           open={searchOpen}
@@ -1140,7 +1032,7 @@ export default function MapEngine() {
 
       {mapMessage && <div className="map-alert" role="status">{mapMessage}</div>}
 
-      {settings.releaseMode === "current" && <PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
+      {<PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 
       <div className="zoom-controls" aria-label="Map zoom controls">
         <button onClick={() => adjustZoom(1)} aria-label="Zoom in">+</button>
@@ -1223,7 +1115,6 @@ export default function MapEngine() {
           packProgress={packProgress}
           packError={packError}
           trafficConfigured={traffic.configured === true}
-          simulating={simulating}
           installPrompt={installPrompt}
           onClose={() => setSettingsOpen(false)}
           onRemoveOfflineArea={() => void removeOfflineArea()}
@@ -1238,8 +1129,6 @@ export default function MapEngine() {
             updateSettings({ liveTraffic: value });
           }}
           onPitch={(pitch) => updateSettings({ pitch })}
-          onReleaseMode={(mode) => { if (mode === "stable") { setSearchOpen(false); endRoute(); } updateSettings({ releaseMode: mode }); }}
-          onToggleSimulation={simulating ? stopSimulation : startSimulation}
           onInstall={() => { void (async () => { if (!installPrompt) return; await installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); })(); }}
         />
       )}
