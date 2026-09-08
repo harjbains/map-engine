@@ -491,3 +491,6 @@
 .drive-shell.classic .poi-toggle-button[aria-pressed="true"] { border-color:#398957; }
 .drive-shell.dark .poi-toggle-button[aria-pressed="true"] { border-color:#69c985; }
 
+/* Postcode quick-lookup bar hidden from the driving screen */
+.postcode-dock { display:none; }
+
