@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.49/);
+  assert.match(html, /v2.10.50/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -113,8 +113,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.49"/);
-  assert.match(serviceWorker, /map-engine-shell-v1231/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.50"/);
+  assert.match(serviceWorker, /map-engine-shell-v1232/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -517,6 +517,19 @@ test("isFreshFix accepts a live fix and zero/unknown timestamps, rejects stale f
   assert.ok(isFreshFix(now));
   assert.ok(isFreshFix(0), "unknown/zero timestamp must not be treated as stale");
   assert.ok(!isFreshFix(now - 11_000));
+});
+
+test("acceptsPositionUpdate tolerates a skewed device clock as long as fixes advance", async () => {
+  const { acceptsPositionUpdate } = await import("../app/lib/driving.ts");
+  const now = Date.now();
+  assert.ok(acceptsPositionUpdate(now, 0), "live fix accepted on first sample");
+  assert.ok(acceptsPositionUpdate(now - 120_000, 0), "first fix accepted even when the system clock reads behind GPS");
+  assert.ok(
+    acceptsPositionUpdate(now - 90_000, now - 120_000),
+    "later fix accepted while the GPS clock keeps advancing",
+  );
+  assert.ok(!acceptsPositionUpdate(now - 90_000, now - 60_000), "stale replay without advancing is rejected");
+  assert.ok(acceptsPositionUpdate(0, now - 60_000), "unknown zero timestamp still passes");
 });
 
 test("fitUrbanArea frames the radius deterministically and does not drift", async () => {

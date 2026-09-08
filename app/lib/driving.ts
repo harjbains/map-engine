@@ -84,3 +84,20 @@ export function isFreshFix(timestamp: number, now = Date.now(), maxAgeMs = 10_00
   if (timestamp <= 0) return true;
   return now - timestamp <= maxAgeMs;
 }
+
+export function acceptsPositionUpdate(timestamp: number, lastTimestamp: number, now = Date.now(), maxAgeMs = 10_000): boolean {
+  if (timestamp <= 0) return true;
+  const freshByClock = now - timestamp <= maxAgeMs;
+  const progressing = timestamp > lastTimestamp;
+  return freshByClock || progressing;
+}
+
+export function bindCompassHeading(onHeading: (heading: number) => void): void {
+  const handler = (event: DeviceOrientationEvent) => {
+    const webkitHeading = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
+    const heading = webkitHeading ?? (event.alpha === null ? null : (360 - event.alpha) % 360);
+    if (heading !== null) onHeading(heading);
+  };
+  window.addEventListener("deviceorientationabsolute", handler as EventListener, { passive: true });
+  window.addEventListener("deviceorientation", handler, { passive: true });
+}

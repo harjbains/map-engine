@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import maplibregl from "maplibre-gl";
-import { dynamicZoom, isFreshFix, plausibleGpsStep, smooth, smoothBearing, toMph, type Point } from "./lib/driving";
+import { dynamicZoom, acceptsPositionUpdate, bindCompassHeading, plausibleGpsStep, smooth, smoothBearing, toMph, type Point } from "./lib/driving";
 import type { PostcodeGroupId } from "./lib/birmingham-postcodes";
 import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollection } from "./lib/safety";
 import { CompassStrip } from "./map-engine/CompassStrip";
@@ -34,6 +34,8 @@ export default function MapEngine() {
   const vehicleElementRef = useRef<HTMLDivElement>(null);
   const latestFixRef = useRef<VehicleFix | null>(null);
   const lastGoodFixAtRef = useRef<number>(0);
+  const lastPositionTimestampRef = useRef<number>(0);
+  const locationFailedRef = useRef(false);
   const watchRef = useRef<number | null>(null);
   const orientationBoundRef = useRef(false);
   const locationActiveRef = useRef(false);
@@ -435,7 +437,8 @@ export default function MapEngine() {
 
   const applyPosition = useCallback((position: GeolocationPosition) => {
     const coords = position.coords;
-    if (!isFreshFix(position.timestamp)) return;
+    if (!acceptsPositionUpdate(position.timestamp, lastPositionTimestampRef.current)) return;
+    lastPositionTimestampRef.current = position.timestamp;
     if (coords.accuracy > (latestFixRef.current === null ? 1000 : MAX_ACCEPTED_ACCURACY_METRES)) {
       if (latestFixRef.current === null) setMapMessage("Weak GPS signal — the map needs a fix within 1000 m to start. Try a window or outside.");
       return;
@@ -540,6 +543,7 @@ export default function MapEngine() {
     }
     setLocationState("requesting");
     locationActiveRef.current = false;
+    locationFailedRef.current = false;
     setMapMessage(null);
     changeFollow(true);
     if (typeof DeviceOrientationEvent !== "undefined" && !orientationBoundRef.current) {
@@ -547,26 +551,22 @@ export default function MapEngine() {
       if (orientationType.requestPermission) {
         try { await orientationType.requestPermission(); } catch { /* GPS bearing remains available while moving. */ }
       }
-      const orientationHandler = (event: DeviceOrientationEvent) => {
-        const webkitHeading = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
-        const heading = webkitHeading ?? (event.alpha === null ? null : (360 - event.alpha) % 360);
-        if (heading !== null) deviceHeadingRef.current = heading;
-      };
-      window.addEventListener("deviceorientationabsolute", orientationHandler as EventListener, { passive: true });
-      window.addEventListener("deviceorientation", orientationHandler, { passive: true });
+      bindCompassHeading((heading) => { deviceHeadingRef.current = heading; });
       orientationBoundRef.current = true;
     }
     if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
     const locationError = (error: GeolocationPositionError) => {
-      if (locationActiveRef.current && error.code !== error.PERMISSION_DENIED) return;
       if (error.code === error.PERMISSION_DENIED) {
+        locationActiveRef.current = false;
         setLocationState("denied");
         setMapMessage("Location is blocked for this site. Allow it from the address-bar site controls, then try again.");
-      } else {
-        setLocationState("unavailable");
-        setMapMessage("No location fix arrived. You can retry or use the desktop simulated drive in Settings.");
+        changeFollow(false);
+        return;
       }
-      changeFollow(false);
+      if (latestFixRef.current !== null) return;
+      if (locationFailedRef.current) return;
+      locationFailedRef.current = true;
+      setMapMessage("GPS is taking a while to lock on. Keep moving or sit near a window — the map keeps trying automatically.");
     };
     navigator.geolocation.getCurrentPosition(applyPosition, locationError, {
       enableHighAccuracy: false,
