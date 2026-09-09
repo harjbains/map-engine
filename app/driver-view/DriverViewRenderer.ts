@@ -42,6 +42,15 @@ export type WorldObject = {
   seed: number;
 };
 
+export type SceneFootprint = {
+  height: number;
+  kind: BuildingKind;
+  base: string;
+  roof: string;
+  seed: number;
+  ring: Array<{ x: number; z: number }>;
+};
+
 export type RouteEvent = {
   x: number;
   z: number;
@@ -72,7 +81,7 @@ export type SceneState = {
   headingCur: number | null;
   rnd: () => number;
   world: WorldObject[];
-  buildings: WorldObject[];
+  buildings: SceneFootprint[];
   branches: RoadBranch[];
   centerline: Array<{ x: number; z: number }>;
   events: RouteEvent[];
@@ -499,6 +508,117 @@ function drawObject(ctx: CanvasRenderingContext2D, scene: SceneState, object: Wo
   }
 }
 
+function drawBuildingWalls(ctx: CanvasRenderingContext2D, scene: SceneState) {
+  if (scene.buildings.length === 0) return;
+  const quads: Array<{
+    corners: Array<{ x: number; y: number }>;
+    depth: number;
+    facing: number;
+    kind: BuildingKind;
+    seed: number;
+    base: string;
+  }> = [];
+  for (const building of scene.buildings) {
+    const ring = building.ring;
+    if (ring.length < 3) continue;
+    let centroidX = 0;
+    let centroidZ = 0;
+    for (const point of ring) {
+      centroidX += point.x;
+      centroidZ += point.z;
+    }
+    centroidX /= ring.length;
+    centroidZ /= ring.length;
+    for (let i = 0; i < ring.length; i += 1) {
+      const p = ring[i];
+      const q = ring[(i + 1) % ring.length];
+      if (p.z < -2 && q.z < -2) continue;
+      if (Math.min(p.z, q.z) > 220) continue;
+      const groundP = project(scene, p.x, p.z);
+      const groundQ = project(scene, q.x, q.z);
+      const topP = project(scene, p.x, p.z);
+      topP.y = scene.horizon + (scene.focal * (CAM_H - building.height)) / Math.max(Z_NEAR, p.z);
+      const topQ = project(scene, q.x, q.z);
+      topQ.y = scene.horizon + (scene.focal * (CAM_H - building.height)) / Math.max(Z_NEAR, q.z);
+      const edgeX = q.x - p.x;
+      const edgeZ = q.z - p.z;
+      const midX = (p.x + q.x) / 2;
+      const midZ = (p.z + q.z) / 2;
+      let normalX = -edgeZ;
+      let normalZ = edgeX;
+      const toCentroidX = centroidX - midX;
+      const toCentroidZ = centroidZ - midZ;
+      if (normalX * toCentroidX + normalZ * toCentroidZ < 0) {
+        normalX = -normalX;
+        normalZ = -normalZ;
+      }
+      const normalLen = Math.hypot(normalX, normalZ) || 1;
+      normalX /= normalLen;
+      normalZ /= normalLen;
+      const facing = -(normalX * midX + normalZ * midZ) / (Math.hypot(midX, midZ) || 1);
+      if (facing <= 0) continue;
+      quads.push({
+        corners: [groundP, groundQ, topQ, topP],
+        depth: (p.z + q.z) / 2,
+        facing,
+        kind: building.kind,
+        seed: building.seed,
+        base: building.base,
+      });
+    }
+  }
+  quads.sort((a, b) => b.depth - a.depth);
+  for (const quad of quads) {
+    const brightness = 0.7 + 0.3 * quad.facing;
+    ctx.fillStyle = shade(quad.base, brightness);
+    ctx.beginPath();
+    ctx.moveTo(quad.corners[0].x, quad.corners[0].y);
+    for (const corner of quad.corners.slice(1)) ctx.lineTo(corner.x, corner.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.22)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    drawBuildingWindows(ctx, quad);
+  }
+}
+
+function drawBuildingWindows(ctx: CanvasRenderingContext2D, quad: { corners: Array<{ x: number; y: number }>; facing: number; kind: BuildingKind; seed: number; base: string; depth: number }) {
+  if (quad.facing < 0.72 || quad.depth < 2 || quad.depth > 55) return;
+  if (quad.kind === "industrial") return;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const corner of quad.corners) {
+    if (corner.x < minX) minX = corner.x;
+    if (corner.x > maxX) maxX = corner.x;
+    if (corner.y < minY) minY = corner.y;
+    if (corner.y > maxY) maxY = corner.y;
+  }
+  const width = maxX - minX;
+  const height = maxY - minY;
+  if (width < 14 || height < 10) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(quad.corners[0].x, quad.corners[0].y);
+  for (const corner of quad.corners.slice(1)) ctx.lineTo(corner.x, corner.y);
+  ctx.closePath();
+  ctx.clip();
+  const cols = Math.max(2, Math.min(6, Math.floor(width / 16)));
+  const rows = Math.max(2, Math.min(6, Math.floor(height / 16)));
+  const cellW = width / cols;
+  const cellH = height / rows;
+  for (let c = 0; c < cols; c += 1) {
+    for (let r = 0; r < rows; r += 1) {
+      if ((quad.seed >> (r * 3 + c)) & 1) continue;
+      ctx.fillStyle = "rgba(255,221,140,0.5)";
+      ctx.fillRect(minX + c * cellW + cellW * 0.18, minY + r * cellH + cellH * 0.18, cellW * 0.64, cellH * 0.64);
+    }
+  }
+  ctx.restore();
+}
+
 function drawVignette(ctx: CanvasRenderingContext2D, scene: SceneState) {
   const gradient = ctx.createLinearGradient(0, 0, 0, scene.height);
   gradient.addColorStop(0, "rgba(0,0,0,0)");
@@ -767,33 +887,31 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   }
   const realFootprints = position ? (controls.roadContext?.buildings ?? []) : [];
   for (const footprint of realFootprints) {
+    const ring: Array<{ x: number; z: number }> = [];
     let minX = Infinity;
     let maxX = -Infinity;
     let minZ = Infinity;
     let maxZ = -Infinity;
     for (const [lon, lat] of footprint.ring) {
       const local = localPoint(position!, heading, lon, lat);
+      ring.push(local);
       if (local.x < minX) minX = local.x;
       if (local.x > maxX) maxX = local.x;
       if (local.z < minZ) minZ = local.z;
       if (local.z > maxZ) maxZ = local.z;
     }
-    if (maxZ < -6 || minZ > 300) continue;
+    if (ring.length < 3 || maxZ < -6 || minZ > 300) continue;
     const cx = (minX + maxX) / 2;
     const cz = Math.max(1.8, (minZ + maxZ) / 2);
     const [base, roof] = BUILDING_COLOURS[footprint.kind] ?? BUILDING_COLOURS.other;
     const seed = (Math.abs(cx * 97) + Math.abs(cz * 131) + Math.abs((footprint.height || 1) * 17)) >>> 0;
     scene.buildings.push({
-      kind: "building",
-      side: cx >= 0 ? 1 : -1,
-      x: cx,
-      z: cz,
-      w: Math.max(2.2, maxX - minX),
-      h: footprint.height || 6.5,
-      d: Math.max(2.2, maxZ - minZ),
+      height: footprint.height || 6.5,
+      kind: footprint.kind,
       base,
       roof,
       seed,
+      ring,
     });
   }
   for (const object of scene.world) {
@@ -808,11 +926,10 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   if (!scene.syntheticLights) drawRealSignals(ctx, scene);
   drawBranchLabels(ctx, scene);
   const hasRealBuildings = scene.buildings.length > 0;
-  const drawables = [
-    ...scene.world.filter((object) => !(hasRealBuildings && object.kind === "building")),
-    ...scene.buildings,
-  ];
-  for (const object of drawables.sort((a, b) => b.z - a.z)) drawObject(ctx, scene, object);
+  for (const object of scene.world
+    .filter((item) => !(hasRealBuildings && item.kind === "building"))
+    .sort((a, b) => b.z - a.z)) drawObject(ctx, scene, object);
+  drawBuildingWalls(ctx, scene);
   drawVignette(ctx, scene);
   return approach;
 }
