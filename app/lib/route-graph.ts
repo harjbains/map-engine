@@ -149,6 +149,7 @@ export async function calculateWeightedRoute(
     durationMinutes: Math.max(1, Math.round(plan.durationSeconds / 60)),
     instruction,
     steps,
+    segmentMaxMph: plan.speeds ?? [],
     minorRoadMiles: plan.minorMetres / 1609.344,
     finalMinorRoadMiles: plan.finalMinorMetres / 1609.344,
   };
@@ -198,6 +199,7 @@ export async function calculateRouteOptions(
           durationMinutes: plan.durationMinutes,
           instruction: plan.instruction,
           steps: plan.steps,
+          segmentMaxMph: plan.segmentMaxMph ?? [],
           minorRoadMiles: plan.minorRoadMiles,
           finalMinorRoadMiles: plan.finalMinorRoadMiles,
         },

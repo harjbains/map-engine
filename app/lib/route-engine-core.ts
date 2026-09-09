@@ -47,6 +47,7 @@ export type RoutePlan = {
   durationSeconds: number;
   minorMetres: number;
   finalMinorMetres: number;
+  speeds?: number[];
 };
 
 export type TurnInstruction = {
@@ -362,13 +363,14 @@ export function computeRoutePlan(path: TraversedEdge[], graph: RoadGraph): Route
   if (!path.length) {
     const point = [...graph.nodes.values()][0];
     return point
-      ? { coordinates: [{ latitude: point.latitude, longitude: point.longitude }], metres: 0, durationSeconds: 0, minorMetres: 0, finalMinorMetres: 0 }
+      ? { coordinates: [{ latitude: point.latitude, longitude: point.longitude }], metres: 0, durationSeconds: 0, minorMetres: 0, finalMinorMetres: 0, speeds: [] }
       : null;
   }
   const coordinates: RoutePoint[] = [];
   let metres = 0;
   let durationSeconds = 0;
   let minorMetres = 0;
+  const speeds: number[] = [];
   for (const step of path) {
     const start = graph.nodes.get(step.from);
     const end = graph.nodes.get(step.to);
@@ -377,9 +379,10 @@ export function computeRoutePlan(path: TraversedEdge[], graph: RoadGraph): Route
     coordinates.push({ latitude: end.latitude, longitude: end.longitude });
     metres += step.metres;
     const info = graph.wayInfo.get(step.wayId);
+    const speed = info ? classSpeedMph(info.highway) : 30;
+    speeds.push(speed);
     if (info) {
-      const speed = classSpeedMph(info.highway) * 0.44704;
-      durationSeconds += step.metres / speed;
+      durationSeconds += step.metres / (speed * 0.44704);
       if (isMinorRoad(info.highway)) minorMetres += step.metres;
     }
   }
@@ -396,7 +399,7 @@ export function computeRoutePlan(path: TraversedEdge[], graph: RoadGraph): Route
       break;
     }
   }
-  return { coordinates, metres, durationSeconds, minorMetres, finalMinorMetres };
+  return { coordinates, metres, durationSeconds, minorMetres, finalMinorMetres, speeds };
 }
 
 function bearingBetween(from: RoutePoint, to: RoutePoint): number {
@@ -480,6 +483,7 @@ export type EvaluatedRoute = {
   finalMinorRoadMiles: number;
   instruction: TurnInstruction | null;
   steps?: RouteStep[];
+  segmentMaxMph?: number[];
 };
 
 const ROUTE_PROFILES: RouteProfile[] = ["fast", "short", "avoid-lanes"];
@@ -514,6 +518,7 @@ export function evaluateRouteProfiles(
       finalMinorRoadMiles: plan.finalMinorMetres / 1609.344,
       instruction,
       steps,
+      segmentMaxMph: plan.speeds ?? [],
     };
   }
   return evaluated;

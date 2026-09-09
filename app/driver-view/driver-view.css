@@ -248,6 +248,96 @@
   position: absolute;
   right: 18px;
   bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.driver-view-road-status {
+  align-self: flex-start;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(11, 17, 21, 0.55);
+  border: 1px solid rgba(161, 190, 205, 0.15);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a9b5bb;
+}
+
+.driver-view-road-status.is-ok {
+  color: #4cd082;
+  border-color: rgba(76, 208, 130, 0.4);
+}
+
+.driver-view-road-status.is-loading {
+  color: #f4c95d;
+  border-color: rgba(244, 201, 93, 0.35);
+}
+
+.driver-view-road-status.is-error {
+  color: #ef766e;
+  border-color: rgba(239, 118, 110, 0.4);
+}
+
+.driver-view-gps em {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: #5caaf4;
+  color: #07131b;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.driver-view-sim {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(11, 17, 21, 0.6);
+  border: 1px solid rgba(161, 190, 205, 0.17);
+  backdrop-filter: blur(10px);
+  text-align: right;
+}
+
+.driver-view-sim-label {
+  font-size: 8px;
+  font-weight: 800;
+  color: #7e8b92;
+  letter-spacing: 0.16em;
+}
+
+.driver-view-sim-controls {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.driver-view-sim-controls button {
+  padding: 7px 13px;
+  border: 1px solid rgba(92, 170, 244, 0.5);
+  border-radius: 9px;
+  background: rgba(92, 170, 244, 0.14);
+  color: #dff0fb;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.driver-view-sim-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.driver-view-sim-status {
+  font-size: 10px;
+  font-weight: 800;
+  color: #f4c95d;
 }
 
 .driver-view-exit {

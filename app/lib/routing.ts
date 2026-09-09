@@ -37,6 +37,7 @@ export type CalculatedRoute = {
   durationMinutes: number;
   instruction: RouteInstruction | null;
   steps?: RouteStep[];
+  segmentMaxMph?: number[];
   minorRoadMiles?: number;
   finalMinorRoadMiles?: number;
 };

@@ -59,6 +59,21 @@ test("fast profile prefers a pseudo main road over a shorter direct lane", () =>
   assert.equal(disconnected, null);
 });
 
+test("computed route plans record the max speed of each road segment", () => {
+  const { nodes, ways } = profileFixture();
+  const graph = core.buildRoadGraph(ways, nodes, "fast");
+  const path = core.findShortestPath(graph, 1, 6);
+  assert.ok(path);
+  const plan = core.computeRoutePlan(path, graph);
+  assert.ok(plan);
+  assert.ok(Array.isArray(plan.speeds));
+  assert.equal(plan.speeds.length, plan.coordinates.length - 1);
+  assert.deepEqual(plan.speeds, [58, 58, 11], "trunk streets at 58 mph and the closing track at 11 mph");
+  const evaluated = core.evaluateRouteProfiles(ways, nodes, { latitude: 52.0, longitude: -2.0 }, { latitude: 52.0, longitude: -2.0046 });
+  assert.ok(evaluated.fast);
+  assert.equal(evaluated.fast.segmentMaxMph.length, evaluated.fast.coordinates.length - 1);
+});
+
 test("fast, short and avoid-lanes profiles choose different roads", () => {
   const { nodes, ways } = profileFixture();
   const fast = core.findShortestPath(core.buildRoadGraph(ways, nodes, "fast"), 1, 6);
