@@ -443,8 +443,8 @@ export default function MapEngine() {
     const coords = position.coords;
     if (!acceptsPositionUpdate(position.timestamp, lastPositionTimestampRef.current)) return;
     lastPositionTimestampRef.current = position.timestamp;
-    if (coords.accuracy > (latestFixRef.current === null ? 1000 : MAX_ACCEPTED_ACCURACY_METRES)) {
-      if (latestFixRef.current === null) setMapMessage("Weak GPS signal — the map needs a fix within 1000 m to start. Try a window or outside.");
+    if (coords.accuracy > (latestFixRef.current === null ? 2500 : MAX_ACCEPTED_ACCURACY_METRES)) {
+      if (latestFixRef.current === null) setMapMessage("Acquiring GPS signal…");
       return;
     }
     const lastSmoothing = smoothedRef.current;
