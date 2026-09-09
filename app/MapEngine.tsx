@@ -13,7 +13,7 @@ import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
 import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, getAreaViewActive, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, subscribeAreaView, toggleAreaView, vehicleScreenOffset } from "./map-engine/map-navigation";
-import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
+import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setAreaViewMode, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
 import { ensureSafetyLayers, filterSignalsToTravelCorridor, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
@@ -103,8 +103,14 @@ export default function MapEngine() {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (map && mapReady) setLandmarkChips(map, settings.showLandmarks ? landmarks.visible : []);
-  }, [mapReady, landmarks.visible, settings.showLandmarks]);
+    if (map && mapReady) setLandmarkChips(map, settings.showLandmarks && !areaActive ? landmarks.visible : []);
+  }, [mapReady, landmarks.visible, settings.showLandmarks, areaActive]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !map.isStyleLoaded()) return;
+    setAreaViewMode(map, areaActive);
+  }, [areaActive, mapReady]);
 
   useEffect(() => clearLandmarkChips, []);
 

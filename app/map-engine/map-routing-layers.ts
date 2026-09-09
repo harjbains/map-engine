@@ -138,6 +138,33 @@ export function collapseAttributionControl(map: maplibregl.Map) {
   control?.removeAttribute("open");
 }
 
+const AREA_VIEW_KEEP_LABEL_PREFIXES = ["road", "route", "place", "water", "traffic", "active-route", "safety", "camera", "crossing", "parking", "ev", "postcode", "landmark", "area"];
+const SERIOUS_INCIDENT_FILTER = [">=", ["coalesce", ["get", "magnitude"], 0], 2];
+let areaLabelVisibility = new Map<string, string>();
+
+export function setAreaViewMode(map: maplibregl.Map, active: boolean) {
+  for (const layer of [TRAFFIC_INCIDENT_POINT_LAYER, TRAFFIC_INCIDENT_LABEL_LAYER]) {
+    if (map.getLayer(layer)) map.setFilter(layer, active ? SERIOUS_INCIDENT_FILTER as never : null);
+  }
+  const layers = map.getStyle()?.layers ?? [];
+  for (const layer of layers) {
+    if (layer.type !== "symbol") continue;
+    const id = layer.id;
+    if (AREA_VIEW_KEEP_LABEL_PREFIXES.some((prefix) => id.startsWith(prefix))) continue;
+    if (!map.getLayer(id)) continue;
+    if (active) {
+      if (!areaLabelVisibility.has(id)) {
+        areaLabelVisibility.set(id, (layer.layout?.visibility as string | undefined) ?? "visible");
+        map.setLayoutProperty(id, "visibility", "none");
+      }
+    } else {
+      const restore = areaLabelVisibility.get(id) ?? (layer.layout?.visibility as string | undefined) ?? "visible";
+      map.setLayoutProperty(id, "visibility", restore);
+    }
+  }
+  if (!active) areaLabelVisibility.clear();
+}
+
 export function waitForMapStyle(map: maplibregl.Map, signal: AbortSignal, timeoutMs = 6_000) {
   if (map.isStyleLoaded()) return Promise.resolve();
   return new Promise<void>((resolve, reject) => {

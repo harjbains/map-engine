@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.52/);
+  assert.match(html, /v2.10.53/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -113,8 +113,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.52"/);
-  assert.match(serviceWorker, /map-engine-shell-v1234/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.53"/);
+  assert.match(serviceWorker, /map-engine-shell-v1235/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -314,6 +314,11 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(tomtomClient, /trafficLevelStep=0\.02/);
   assert.match(mapRoutingLayers, /"source-layer": "Traffic incident POI"/);
   assert.match(mapRoutingLayers, /"source-layer": "Traffic incident flow"/);
+  assert.match(mapEngine, /settings\.showLandmarks && !areaActive/);
+  assert.match(mapEngine, /setAreaViewMode\(map, areaActive\)/);
+  assert.match(mapRoutingLayers, /SERIOUS_INCIDENT_FILTER = \[">=", \["coalesce", \["get", "magnitude"\], 0\], 2\]/);
+  assert.match(mapRoutingLayers, /layer\.type !== "symbol"/);
+  assert.match(mapRoutingLayers, /areaLabelVisibility\.get\(id\)/);
   assert.match(mapEngine, /traffic-road-status/);
   assert.match(mapEngine, /TomTom traffic is stale/);
   assert.match(geocoding, /location_bias_scale/);
