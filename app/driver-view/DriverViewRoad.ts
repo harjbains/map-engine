@@ -18,16 +18,19 @@ export type RoadJunction = {
   name: string | null;
 };
 
+export const BUILDING_KINDS = ["house", "apartments", "shop", "office", "industrial", "civic", "other"] as const;
+export type BuildingKind = (typeof BUILDING_KINDS)[number];
+
 export type RoadAhead = {
   trace: Array<[number, number]>;
   steps: RouteStep[];
   signals: Array<[number, number]>;
-  buildings: Array<{ ring: Array<[number, number]>; height: number }>;
+  buildings: Array<{ ring: Array<[number, number]>; height: number; kind: BuildingKind }>;
   junctions: RoadJunction[];
   roadName: string | null;
 };
 
-export type RealBuilding = { ring: Array<[number, number]>; height: number };
+export type RealBuilding = { ring: Array<[number, number]>; height: number; kind: BuildingKind };
 
 type RoadElement = {
   type?: string;
@@ -145,6 +148,17 @@ function buildCornerSteps(local: Array<{ x: number; z: number }>, wayAt: number[
   return steps;
 }
 
+function buildingKind(tags?: Record<string, string>): BuildingKind {
+  const building = tags?.building;
+  if (!building) return "other";
+  if (tags?.shop || building === "retail" || building === "kiosk" || building === "supermarket" || building === "mall" || building === "department_store") return "shop";
+  if (tags?.office || building === "office" || building === "commercial" || building === "bank") return "office";
+  if (building === "apartments" || building === "apartment" || building === "flats" || building === "hotel" || building === "residential" || building === "dormitory") return "apartments";
+  if (building === "warehouse" || building === "industrial" || building === "garage" || building === "garages" || building === "factory" || building === "manufacture" || building === "shed" || building === "storage" || building === "depot") return "industrial";
+  if (building === "church" || building === "cathedral" || building === "chapel" || building === "mosque" || building === "school" || building === "hospital" || building === "university" || building === "college" || building === "civic" || building === "public" || building === "government") return "civic";
+  return "house";
+}
+
 function buildingHeight(tags?: Record<string, string>): number {
   const metres = parseFloat(tags?.height ?? "");
   if (Number.isFinite(metres) && metres > 0) return Math.min(60, Math.max(3, metres));
@@ -217,8 +231,8 @@ function detectJunctions(graph: ReturnType<typeof buildRoadGraph>, trace: number
   return junctions;
 }
 
-function collectBuildings(elements: RoadElement[], nodes: Map<number, GraphNode>, coordinates: Array<[number, number]>): Array<{ ring: Array<[number, number]>; height: number }> {
-  const buildings: Array<{ ring: Array<[number, number]>; height: number }> = [];
+function collectBuildings(elements: RoadElement[], nodes: Map<number, GraphNode>, coordinates: Array<[number, number]>): Array<{ ring: Array<[number, number]>; height: number; kind: BuildingKind }> {
+  const buildings: Array<{ ring: Array<[number, number]>; height: number; kind: BuildingKind }> = [];
   for (const element of elements) {
     if (element.type !== "way" || !element.tags?.["building"] || !Array.isArray(element.nodes)) continue;
     const ring = ringFromNodes(element.nodes, nodes);
@@ -232,7 +246,7 @@ function collectBuildings(elements: RoadElement[], nodes: Map<number, GraphNode>
     lon /= ring.length;
     lat /= ring.length;
     if (nearestTraceMetres(lon, lat, coordinates) > 60) continue;
-    buildings.push({ ring, height: buildingHeight(element.tags) });
+    buildings.push({ ring, height: buildingHeight(element.tags), kind: buildingKind(element.tags) });
     if (buildings.length >= 60) break;
   }
   return buildings;

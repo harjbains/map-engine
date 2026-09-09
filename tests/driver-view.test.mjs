@@ -7,7 +7,7 @@ const simulator = await import("../app/driver-view/DriverViewSimulator.ts");
 const renderer = await import("../app/driver-view/DriverViewRenderer.ts");
 
 test("Driver View ships as an isolated, feature-flagged module", async () => {
-  const [config, screen, boundary, view, adapter, renderer, scene, map, barrel, css, road, simulatorFile, mapEngine] = await Promise.all([
+  const [config, screen, boundary, view, adapter, renderer, scene, barrel, css, road, simulatorFile, mapEngine] = await Promise.all([
     readFile(new URL("../app/driver-view/DriverViewConfig.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewErrorBoundary.tsx", import.meta.url), "utf8"),
@@ -15,7 +15,6 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
     readFile(new URL("../app/driver-view/DriverViewAdapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewRenderer.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewScene.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/driver-view/DriverViewMap.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/driver-view.css", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewRoad.ts", import.meta.url), "utf8"),
@@ -36,17 +35,20 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(screen, /className="driver-view-exit"/);
   assert.match(screen, /DriverViewScene controls=\{sceneControlsRef\}/);
   assert.match(view, /className="driver-view-toggle/);
-  assert.match(scene, /<DriverViewMap controls=\{controls\} \/>/);
-  assert.match(map, /export function DriverViewMap/);
-  assert.match(map, /new maplibregl\.Map/);
-  assert.match(map, /pitch: DRIVER_VIEW_PITCH/);
-  assert.match(map, /className="driver-view-map"/);
-  assert.match(map, /fill-extrusion|building-3d|setBearing/);
+  assert.match(scene, /className="driver-view-scene-canvas"/);
+  assert.match(scene, /buildScene/);
+  assert.match(scene, /renderScene/);
   assert.match(scene, /computeApproach/);
   assert.match(renderer, /export function localiseRoute/);
   assert.match(renderer, /export function zAtMetres/);
   assert.match(renderer, /export function buildEvents/);
   assert.match(renderer, /export function computeApproach/);
+  assert.match(renderer, /export function buildScene/);
+  assert.match(renderer, /export function renderScene/);
+  assert.match(renderer, /const CAM_H = 1\.5/);
+  assert.match(renderer, /horizon: Math\.round\(height \* 0\.5\)/);
+  assert.match(renderer, /BUILDING_COLOURS:/);
+  assert.match(renderer, /footprint\.kind/);
   assert.match(adapter, /SceneControls = \{/);
   assert.match(adapter, /position: \{ lat: number; lon: number; bearing: number \} \| null/);
   assert.match(adapter, /route: Array<\[number, number\]>/);
@@ -58,7 +60,7 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(road, /export async function fetchRoadContext/);
   assert.match(road, /export function resolveRoadAhead/);
   assert.match(road, /way\["building"\]\(/);
-  assert.match(road, /buildings: Array<\{ ring: Array<\[number, number\]>; height: number \}>/);
+  assert.match(road, /buildings: Array<\{ ring: Array<\[number, number\]>; height: number; kind: BuildingKind \}>/);
   assert.match(road, /RoadJunction/);
   assert.match(road, /junctions: RoadJunction\[\]/);
   assert.match(road, /detectJunctions/);
@@ -81,7 +83,7 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(scene, /onApproach\?: \(info: ApproachInfo \| null\) => void/);
   assert.match(css, /\.driver-view-approach \{/);
   assert.match(css, /\.driver-view-scene \{/);
-  assert.match(css, /\.driver-view-map \{/);
+  assert.match(css, /\.driver-view-scene-canvas \{/);
   assert.match(renderer, /side: 1 \| -1/);
   assert.match(renderer, /side: runSum > 0 \? 1 : -1/);
   assert.match(renderer, /export function zAtMetres/);
@@ -131,6 +133,7 @@ test("resolveRoadAhead includes the real buildings beside the road and drops far
   assert.equal(resolved.buildings.length, 1, "only the building beside the road is kept, the 220 m one is dropped");
   assert.equal(resolved.buildings[0].ring.length, 4, "the footprint ring is preserved as lon/lat pairs");
   assert.equal(resolved.buildings[0].height, 9, "height comes from building:levels (3 storeys)");
+  assert.equal(resolved.buildings[0].kind, "house", "building=house is classified as a house");
   const [lon, lat] = resolved.buildings[0].ring[0];
   assert.ok(Math.abs(lon - -2.0003) < 1e-6 && Math.abs(lat - 51.0001) < 1e-6);
 });
