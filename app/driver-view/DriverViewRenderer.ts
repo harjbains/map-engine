@@ -39,6 +39,7 @@ export type SceneState = {
   bend: number;
   rnd: () => number;
   world: WorldObject[];
+  centerline: Array<{ x: number; z: number }>;
 };
 
 function mulberry32(seed: number) {
@@ -107,7 +108,44 @@ export function buildScene(width: number, height: number): SceneState {
     bend: 0,
     rnd,
     world,
+    centerline: [],
   };
+}
+
+function localRoutePoints(controls: SceneControls) {
+  const position = controls.position;
+  const coordinates = controls.route;
+  if (!position || coordinates.length < 2) return null;
+  const cosLat = Math.cos((position.lat * Math.PI) / 180);
+  const sinH = Math.sin((position.bearing * Math.PI) / 180);
+  const cosH = Math.cos((position.bearing * Math.PI) / 180);
+  const points: Array<{ x: number; z: number }> = [];
+  for (const [lon, lat] of coordinates) {
+    const east = (lon - position.lon) * 111320 * cosLat;
+    const north = (lat - position.lat) * 111320;
+    const x = east * cosH - north * sinH;
+    const z = east * sinH + north * cosH;
+    if (z < -4) continue;
+    if (z > 950) break;
+    if (points.length && z - points[points.length - 1].z < 0.8) continue;
+    points.push({ x, z });
+  }
+  return points;
+}
+
+function clX(scene: SceneState, z: number): number {
+  const centerline = scene.centerline;
+  if (centerline.length === 0) return 0;
+  if (z <= centerline[0].z) return centerline[0].x;
+  if (z >= centerline[centerline.length - 1].z) return centerline[centerline.length - 1].x;
+  for (let i = 1; i < centerline.length; i += 1) {
+    if (z <= centerline[i].z) {
+      const span = centerline[i].z - centerline[i - 1].z;
+      const t = span > 0 ? (z - centerline[i - 1].z) / span : 0;
+      return centerline[i - 1].x + (centerline[i].x - centerline[i - 1].x) * t;
+    }
+  }
+  return centerline[centerline.length - 1].x;
 }
 
 function project(scene: SceneState, x: number, z: number) {
@@ -166,7 +204,31 @@ function drawGround(ctx: CanvasRenderingContext2D, scene: SceneState) {
 
 function roadPoints(scene: SceneState, offset: number) {
   const zs = [1.8, 4, 8, 16, 32, 60, 90];
-  return zs.map((z) => project(scene, offset, z));
+  return zs.map((z) => project(scene, clX(scene, z) + offset, z));
+}
+
+function drawRouteRibbon(ctx: CanvasRenderingContext2D, scene: SceneState) {
+  if (scene.centerline.length < 2) return;
+  const left: Array<{ x: number; y: number }> = [];
+  const right: Array<{ x: number; y: number }> = [];
+  for (const z of [2, 4, 8, 16, 26, 40, 60, 90]) {
+    const centre = clX(scene, z);
+    left.push(project(scene, centre - 1.35, z));
+    right.push(project(scene, centre + 1.25, z));
+  }
+  ctx.fillStyle = "rgba(92,170,244,0.85)";
+  ctx.beginPath();
+  ctx.moveTo(left[0].x, left[0].y);
+  for (const point of left) ctx.lineTo(point.x, point.y);
+  for (let i = right.length - 1; i >= 0; i -= 1) ctx.lineTo(right[i].x, right[i].y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(38,116,208,0.9)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(left[0].x, left[0].y);
+  for (const point of left) ctx.lineTo(point.x, point.y);
+  ctx.stroke();
 }
 
 function drawRoad(ctx: CanvasRenderingContext2D, scene: SceneState) {
@@ -189,21 +251,27 @@ function drawRoad(ctx: CanvasRenderingContext2D, scene: SceneState) {
     ctx.stroke();
   }
 
-  ctx.strokeStyle = "rgba(255,255,255,0.7)";
-  ctx.lineWidth = 2.4;
-  const dashes: Array<[number, number]> = [[2.2, 6], [12, 18], [24, 32], [38, 48], [54, 66], [74, 88]];
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  const dashes: Array<[number, number]> = [];
+  for (let z = 2; z < 90; z += 9) {
+    if (Math.floor((z - 2) / 9) % 2 === 0) dashes.push([z, Math.min(z + 4, 90)]);
+  }
   for (const [a, b] of dashes) {
-    const start = project(scene, 0, a);
-    const end = project(scene, 0, b);
+    const start = project(scene, clX(scene, a), a);
+    const end = project(scene, clX(scene, b), b);
+    const width = Math.max(1.4, (end.y - start.y) * 0.11);
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
+    ctx.lineWidth = width;
     ctx.stroke();
   }
+  drawRouteRibbon(ctx, scene);
 }
 
 function drawBlock(ctx: CanvasRenderingContext2D, scene: SceneState, object: WorldObject) {
-  const p = project(scene, object.x, object.z);
+  const p = project(scene, clX(scene, object.z) + object.x, object.z);
   const scale = scene.focal / Math.max(Z_NEAR, object.z);
   const w = object.w * scale;
   const h = object.h * scale;
@@ -239,7 +307,7 @@ function drawBlock(ctx: CanvasRenderingContext2D, scene: SceneState, object: Wor
 function drawObject(ctx: CanvasRenderingContext2D, scene: SceneState, object: WorldObject) {
   if (object.z < Z_NEAR) return;
   if (object.kind === "building" && object.z < 14) return;
-  const p = project(scene, object.x, object.z);
+  const p = project(scene, clX(scene, object.z) + object.x, object.z);
   const scale = scene.focal / Math.max(Z_NEAR, object.z);
   if (scale > scene.height * 1.2) return;
   const w = object.w * scale;
@@ -301,6 +369,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   const step = speedMps * dt;
   scene.tiltCur += (controls.tilt - scene.tiltCur) * Math.min(1, dt * 5);
   scene.bend = scene.tiltCur * 4.5;
+  scene.centerline = localRoutePoints(controls) ?? [];
   for (const object of scene.world) {
     object.z -= step;
     if (object.z < Z_NEAR) respawn(scene.rnd, object);

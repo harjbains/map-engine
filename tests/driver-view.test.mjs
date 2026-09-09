@@ -35,7 +35,14 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(renderer, /export function renderScene/);
   assert.match(renderer, /function drawBlock/);
   assert.match(renderer, /function drawRoad/);
+  assert.match(renderer, /function localRoutePoints/);
+  assert.match(renderer, /function clX/);
+  assert.match(renderer, /function drawRouteRibbon/);
   assert.match(adapter, /SceneControls = \{/);
+  assert.match(adapter, /position: \{ lat: number; lon: number; bearing: number \} \| null/);
+  assert.match(adapter, /route: Array<\[number, number\]>/);
+  assert.match(screen, /position: props\.fix \? \{ lat: props\.fix\.lat, lon: props\.fix\.lon, bearing: props\.fix\.bearing \} : null/);
+  assert.match(screen, /route: props\.route\?\.geometry\?\.coordinates \?\? \[\]/);
   assert.match(css, /\.driver-view-scene \{/);
   assert.match(css, /\.driver-view-scene-canvas \{/);
 

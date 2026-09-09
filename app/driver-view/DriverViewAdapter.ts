@@ -37,6 +37,8 @@ export type SceneControls = {
   tilt: number;
   headingDegrees: number | null;
   gpsLocked: boolean;
+  position: { lat: number; lon: number; bearing: number } | null;
+  route: Array<[number, number]>;
 };
 
 export function createDriverViewData(props: DriverViewProps): DriverViewData {

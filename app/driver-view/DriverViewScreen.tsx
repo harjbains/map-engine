@@ -9,7 +9,14 @@ export function DriverViewScreen(props: DriverViewProps) {
   const data = useMemo(() => createDriverViewData(props), [props]);
   const previousBearingRef = useRef<number | null>(null);
   const [tilt, setTilt] = useState(0);
-  const sceneControlsRef = useRef<SceneControls>({ speedMph: 0, tilt: 0, headingDegrees: null, gpsLocked: false });
+  const sceneControlsRef = useRef<SceneControls>({
+    speedMph: 0,
+    tilt: 0,
+    headingDegrees: null,
+    gpsLocked: false,
+    position: null,
+    route: [],
+  });
 
   useEffect(() => {
     sceneControlsRef.current = {
@@ -17,8 +24,10 @@ export function DriverViewScreen(props: DriverViewProps) {
       tilt,
       headingDegrees: data.headingDegrees,
       gpsLocked: data.gpsLocked,
+      position: props.fix ? { lat: props.fix.lat, lon: props.fix.lon, bearing: props.fix.bearing } : null,
+      route: props.route?.geometry?.coordinates ?? [],
     };
-  }, [data, tilt]);
+  }, [data, tilt, props.fix, props.route]);
 
   useEffect(() => {
     if (data.headingDegrees === null) {
