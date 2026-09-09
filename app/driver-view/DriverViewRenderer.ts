@@ -47,6 +47,7 @@ export type SceneState = {
   focal: number;
   tiltCur: number;
   bend: number;
+  headingCur: number | null;
   rnd: () => number;
   world: WorldObject[];
   centerline: Array<{ x: number; z: number }>;
@@ -119,6 +120,7 @@ export function buildScene(width: number, height: number): SceneState {
     focal: height * 0.95,
     tiltCur: 0,
     bend: 0,
+    headingCur: null,
     rnd,
     world,
     centerline: [],
@@ -140,7 +142,10 @@ export function localiseRoute(coordinates: Array<[number, number]>, position: { 
     const z = east * sinH + north * cosH;
     if (z < -4) continue;
     if (z > maxZ) break;
-    if (points.length && z - points[points.length - 1].z < 0.8) continue;
+    if (points.length) {
+      const last = points[points.length - 1];
+      if (Math.abs(x - last.x) < 0.8 && Math.abs(z - last.z) < 0.8) continue;
+    }
     points.push({ x, z });
   }
   return points;
@@ -576,21 +581,31 @@ function drawJunctions(ctx: CanvasRenderingContext2D, scene: SceneState): Approa
 }
 
 export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, controls: SceneControls, dt: number): ApproachInfo | null {
-  const speedMps = Math.max(0, controls.speedMph) * 0.44704 * 0.5;
+  const speedMps = Math.max(0, controls.speedMph) * 0.44704;
   const step = speedMps * dt;
   scene.tiltCur += (controls.tilt - scene.tiltCur) * Math.min(1, dt * 5);
   scene.bend = scene.tiltCur * 4.5;
   const position = controls.position;
+  if (position) {
+    const targetHeading = position.bearing;
+    if (scene.headingCur === null) {
+      scene.headingCur = targetHeading;
+    } else {
+      const delta = ((targetHeading - scene.headingCur + 540) % 360) - 180;
+      scene.headingCur = (scene.headingCur + delta * Math.min(1, dt * 3.4) + 360) % 360;
+    }
+  }
+  const heading = scene.headingCur ?? position?.bearing ?? 0;
   let routePoints: Array<{ x: number; z: number }> = [];
   let stepsToUse: Array<{ arrow: string; road: string; metres: number }> = controls.routeSteps ?? [];
   let signals: Array<{ x: number; z: number }> = [];
   let syntheticLights = true;
   if (position && controls.route.length >= 2) {
-    routePoints = localiseRoute(controls.route, position, position.bearing);
+    routePoints = localiseRoute(controls.route, position, heading);
   } else if (position && controls.roadContext) {
-    routePoints = localiseRoute(controls.roadContext.trace, position, position.bearing);
+    routePoints = localiseRoute(controls.roadContext.trace, position, heading);
     stepsToUse = controls.roadContext.steps ?? [];
-    signals = (controls.roadContext.signals ?? []).map(([lon, lat]) => localPoint(position, position.bearing, lon, lat));
+    signals = (controls.roadContext.signals ?? []).map(([lon, lat]) => localPoint(position, heading, lon, lat));
     syntheticLights = false;
   }
   scene.centerline = routePoints;

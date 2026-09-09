@@ -4,6 +4,7 @@ import test from "node:test";
 
 const roadAhead = await import("../app/driver-view/DriverViewRoad.ts");
 const simulator = await import("../app/driver-view/DriverViewSimulator.ts");
+const renderer = await import("../app/driver-view/DriverViewRenderer.ts");
 
 test("Driver View ships as an isolated, feature-flagged module", async () => {
   const [config, screen, boundary, view, adapter, renderer, scene, barrel, css, road, simulatorFile, mapEngine] = await Promise.all([
@@ -77,6 +78,8 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(css, /\.driver-view-approach \{/);
   assert.match(css, /\.driver-view-scene \{/);
   assert.match(css, /\.driver-view-scene-canvas \{/);
+  assert.match(renderer, /headingCur/);
+  assert.match(renderer, /scene\.headingCur/);
 
   assert.match(barrel, /export \{ DriverView \}/);
 });
@@ -98,6 +101,34 @@ test("resolveRoadAhead traces the road the vehicle is driving on with its juncti
   assert.equal(resolved.steps[0].road, "Main Street");
   assert.ok(resolved.steps[0].metres > 0);
   assert.ok(resolved.signals.some(([lon, lat]) => lon === -2.0 && lat === 51.0002));
+});
+
+test("localiseRoute keeps corner vertices so the road bends instead of cutting straight through", () => {
+  const position = { lat: 51.0, lon: -2.0 };
+  const points = renderer.localiseRoute(
+    [
+      [-2.0, 51.0],
+      [-2.0, 51.001],
+      [-1.9995, 51.001],
+    ],
+    position,
+    0,
+    950,
+  );
+  assert.equal(points.length, 3, "the corner point and the road beyond it must not be merged away");
+  assert.ok(Math.abs(points[1].z - points[2].z) < 10, "the turning vertex is at nearly the same depth as the corner");
+  assert.ok(points[2].x > 10, "the road beyond the corner is kept and bends east");
+  const merged = renderer.localiseRoute(
+    [
+      [-2.0, 51.0],
+      [-2.0, 51.000005],
+      [-1.999995, 51.000005],
+    ],
+    position,
+    0,
+    950,
+  );
+  assert.ok(merged.length < 3, "sub-metre jitter from dense OSM nodes is still merged away");
 });
 
 test("DriverViewSimulation follows the route at each road's max speed", () => {
