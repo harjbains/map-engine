@@ -2,14 +2,28 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createDriverViewData, type ApproachInfo, type DriverViewProps, type SceneControls } from "./DriverViewAdapter";
+import { fetchRoadContext, resolveRoadAhead } from "./DriverViewRoad";
 import { DriverViewScene } from "./DriverViewScene";
 import { DRIVER_VIEW_EXIT_LABEL } from "./DriverViewConfig";
+
+function metresBetween(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
+  const latitudeDelta = (b.lat - a.lat) * Math.PI / 180;
+  const longitudeDelta = (b.lon - a.lon) * Math.PI / 180;
+  const latitudeA = a.lat * Math.PI / 180;
+  const latitudeB = b.lat * Math.PI / 180;
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(latitudeA) * Math.cos(latitudeB) * Math.sin(longitudeDelta / 2) ** 2;
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
 
 export function DriverViewScreen(props: DriverViewProps) {
   const data = useMemo(() => createDriverViewData(props), [props]);
   const previousBearingRef = useRef<number | null>(null);
   const [tilt, setTilt] = useState(0);
   const [approach, setApproach] = useState<ApproachInfo | null>(null);
+  const fixRef = useRef(props.fix);
+  fixRef.current = props.fix;
+  const roadContextRef = useRef<SceneControls["roadContext"]>(null);
   const sceneControlsRef = useRef<SceneControls>({
     speedMph: 0,
     tilt: 0,
@@ -18,6 +32,7 @@ export function DriverViewScreen(props: DriverViewProps) {
     position: null,
     route: [],
     routeSteps: [],
+    roadContext: null,
   });
 
   useEffect(() => {
@@ -29,8 +44,40 @@ export function DriverViewScreen(props: DriverViewProps) {
       position: props.fix ? { lat: props.fix.lat, lon: props.fix.lon, bearing: props.fix.bearing } : null,
       route: props.route?.geometry?.coordinates ?? [],
       routeSteps: props.route?.steps ?? [],
+      roadContext: roadContextRef.current,
     };
   }, [data, tilt, props.fix, props.route]);
+
+  useEffect(() => {
+    if (!data.gpsLocked) {
+      roadContextRef.current = null;
+      sceneControlsRef.current = { ...sceneControlsRef.current, roadContext: null };
+      return;
+    }
+    let disposed = false;
+    let controller: AbortController | null = null;
+    const lastFetch = { lat: 0, lon: 0 };
+    const probe = async () => {
+      const fix = fixRef.current;
+      if (!fix || disposed) return;
+      if (lastFetch.lat !== 0 && metresBetween(lastFetch, { lat: fix.lat, lon: fix.lon }) < 500) return;
+      lastFetch.lat = fix.lat;
+      lastFetch.lon = fix.lon;
+      controller?.abort();
+      controller = new AbortController();
+      const elements = await fetchRoadContext({ lat: fix.lat, lon: fix.lon }, fix.bearing, controller.signal);
+      if (disposed) return;
+      roadContextRef.current = resolveRoadAhead(elements, { lat: fix.lat, lon: fix.lon }, fix.bearing);
+      sceneControlsRef.current = { ...sceneControlsRef.current, roadContext: roadContextRef.current };
+    };
+    probe();
+    const timer = window.setInterval(probe, 15_000);
+    return () => {
+      disposed = true;
+      controller?.abort();
+      window.clearInterval(timer);
+    };
+  }, [data.gpsLocked]);
 
   useEffect(() => {
     if (data.headingDegrees === null) {

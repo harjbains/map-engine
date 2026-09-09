@@ -1,0 +1,211 @@
+import type { RouteStep } from "../lib/routing.ts";
+import {
+  buildRoadGraph,
+  distanceMetres,
+  snapNearestNode,
+  type DirectedEdge,
+  type GraphNode,
+  type GraphWay,
+} from "../lib/route-engine-core.ts";
+import { fetchOverpass } from "../lib/safety.ts";
+import { localiseRoute } from "./DriverViewRenderer.ts";
+
+export const DRIVABLE_HIGHWAY = "^motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|track|road$";
+
+export type RoadAhead = {
+  trace: Array<[number, number]>;
+  steps: RouteStep[];
+  signals: Array<[number, number]>;
+  roadName: string | null;
+};
+
+type RoadElement = {
+  type?: string;
+  id?: number;
+  lat?: number;
+  lon?: number;
+  tags?: Record<string, string>;
+  nodes?: number[];
+};
+
+function bearingBetweenNodes(from: GraphNode, to: GraphNode): number {
+  return (Math.atan2(to.longitude - from.longitude, to.latitude - from.latitude) * 180 / Math.PI + 360) % 360;
+}
+
+function angleDeviation(from: number, to: number): number {
+  let deviation = to - from;
+  while (deviation > 180) deviation -= 360;
+  while (deviation < -180) deviation += 360;
+  return Math.abs(deviation);
+}
+
+export function roadContextBounds(position: { lat: number; lon: number }, headingDegrees: number, aheadMetres = 1600, halfWidthMetres = 850): { south: number; west: number; north: number; east: number } {
+  const radians = (headingDegrees * Math.PI) / 180;
+  const cosLat = Math.cos((position.lat * Math.PI) / 180);
+  const centreLat = position.lat + (aheadMetres * 0.6 * Math.cos(radians)) / 111320;
+  const centreLon = position.lon + (aheadMetres * 0.6 * Math.sin(radians)) / (111320 * cosLat);
+  const latPad = halfWidthMetres / 111320;
+  const lonPad = halfWidthMetres / (111320 * cosLat);
+  return {
+    south: centreLat - latPad,
+    west: centreLon - lonPad,
+    north: centreLat + latPad,
+    east: centreLon + lonPad,
+  };
+}
+
+export async function fetchRoadContext(position: { lat: number; lon: number }, headingDegrees: number, signal: AbortSignal): Promise<RoadElement[]> {
+  const bounds = roadContextBounds(position, headingDegrees);
+  const query = `[out:json][timeout:20];(` +
+    `way["highway"~"${DRIVABLE_HIGHWAY}"](${bounds.south.toFixed(5)},${bounds.west.toFixed(5)},${bounds.north.toFixed(5)},${bounds.east.toFixed(5)});` +
+    `node["highway"="traffic_signals"](${bounds.south.toFixed(5)},${bounds.west.toFixed(5)},${bounds.north.toFixed(5)},${bounds.east.toFixed(5)});` +
+    `node["highway"="mini_roundabout"](${bounds.south.toFixed(5)},${bounds.west.toFixed(5)},${bounds.north.toFixed(5)},${bounds.east.toFixed(5)});` +
+    `);(._;>;);out body;`;
+  try {
+    const payload = await fetchOverpass(query, 0, 1400, signal, 10_000);
+    const elements = payload?.elements as RoadElement[] | undefined;
+    return Array.isArray(elements) ? elements : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildCornerSteps(local: Array<{ x: number; z: number }>, wayAt: number[], graph: ReturnType<typeof buildRoadGraph>): RouteStep[] {
+  const steps: RouteStep[] = [];
+  if (local.length < 2) return steps;
+  let heading: number | null = null;
+  let metres = 0;
+  let runSum = 0;
+  let runIndex = -1;
+  let runActive = false;
+  let runDistance = 0;
+  const finishRun = () => {
+    if (runActive && Math.abs(runSum) >= 8) {
+      const roundabout = Math.abs(runSum) >= 150 && runDistance <= 200;
+      const index = Math.min(runIndex, wayAt.length - 1);
+      const info = graph.wayInfo.get(wayAt[index] ?? 0);
+      const road = info?.name || info?.ref || (roundabout ? "Roundabout" : "Next road");
+      const arrow = roundabout ? "↻" : runSum > 0 ? "↱" : "↰";
+      steps.push({ arrow, road, metres });
+    }
+    runActive = false;
+    runSum = 0;
+    runIndex = -1;
+    runDistance = 0;
+  };
+  for (let i = 1; i < local.length; i += 1) {
+    const dx = local[i].x - local[i - 1].x;
+    const dz = local[i].z - local[i - 1].z;
+    metres += Math.hypot(dx, dz);
+    if (Math.hypot(dx, dz) < 0.05) continue;
+    let current = Math.atan2(dx, dz);
+    if (heading === null) {
+      heading = current;
+      continue;
+    }
+    let delta = current - heading;
+    heading = current;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+    const degrees = (delta * 180) / Math.PI;
+    if (Math.abs(degrees) >= 8) {
+      if (runActive && Math.sign(runSum) !== Math.sign(degrees)) finishRun();
+      if (!runActive) {
+        runIndex = i;
+        runActive = true;
+        runSum = degrees;
+        runDistance = Math.hypot(dx, dz);
+      } else {
+        runSum += degrees;
+        runDistance += Math.hypot(dx, dz);
+      }
+    } else {
+      finishRun();
+    }
+  }
+  finishRun();
+  return steps;
+}
+
+export function resolveRoadAhead(elements: RoadElement[], position: { lat: number; lon: number }, headingDegrees: number): RoadAhead | null {
+  const nodes = new Map<number, GraphNode>();
+  const ways: GraphWay[] = [];
+  const signals: Array<[number, number]> = [];
+  for (const element of elements) {
+    if (element.type === "node" && typeof element.lat === "number" && typeof element.lon === "number" && typeof element.id === "number") {
+      if (element.tags?.highway === "traffic_signals" || element.tags?.highway === "mini_roundabout") signals.push([element.lon, element.lat]);
+      nodes.set(element.id, { id: element.id, latitude: element.lat, longitude: element.lon });
+    } else if (element.type === "way" && element.tags?.highway && Array.isArray(element.nodes) && element.nodes.length > 1 && typeof element.id === "number") {
+      ways.push({ id: element.id, highway: element.tags.highway, tags: element.tags, nodes: element.nodes });
+    }
+  }
+  if (ways.length === 0 || nodes.size === 0) return null;
+  const graph = buildRoadGraph(ways, nodes, "fast");
+  const point = { latitude: position.lat, longitude: position.lon };
+  const start = snapNearestNode(graph, point, 350);
+  if (start === null) return null;
+  const heading = ((headingDegrees % 360) + 360) % 360;
+  const startNode = graph.nodes.get(start);
+  if (!startNode) return null;
+  let firstEdge: DirectedEdge | null = null;
+  let firstDeviation = Infinity;
+  for (const edge of graph.adjacency.get(start) ?? []) {
+    const to = graph.nodes.get(edge.to);
+    if (!to) continue;
+    const deviation = angleDeviation(bearingBetweenNodes(startNode, to), heading);
+    if (deviation > 110) continue;
+    if (deviation < firstDeviation) {
+      firstDeviation = deviation;
+      firstEdge = edge;
+    }
+  }
+  if (!firstEdge) return null;
+  const trace: number[] = [start];
+  const wayAt: number[] = [];
+  const visited = new Set<number>([start]);
+  let current = firstEdge.to;
+  wayAt.push(firstEdge.wayId);
+  let guard = 0;
+  while (guard++ < 200 && visited.size < 180) {
+    const previous = trace[trace.length - 1];
+    if (visited.has(current)) break;
+    visited.add(current);
+    trace.push(current);
+    const currentNode = graph.nodes.get(current);
+    const previousNode = graph.nodes.get(previous);
+    if (!currentNode || !previousNode) break;
+    if (distanceMetres(point, currentNode) > 2400) break;
+    const inbound = bearingBetweenNodes(previousNode, currentNode);
+    const edges = graph.adjacency.get(current) ?? [];
+    let chosen: DirectedEdge | null = null;
+    let chosenDeviation = Infinity;
+    for (const edge of edges) {
+      if (edge.to === previous) continue;
+      const next = graph.nodes.get(edge.to);
+      if (!next) continue;
+      const deviation = angleDeviation(bearingBetweenNodes(currentNode, next), inbound);
+      if (deviation < chosenDeviation) {
+        chosenDeviation = deviation;
+        chosen = edge;
+      }
+    }
+    if (!chosen) break;
+    wayAt.push(chosen.wayId);
+    current = chosen.to;
+  }
+  const coordinates: Array<[number, number]> = [];
+  for (const id of trace) {
+    const node = graph.nodes.get(id);
+    if (node) coordinates.push([node.longitude, node.latitude]);
+  }
+  if (coordinates.length < 2) return null;
+  const local = localiseRoute(coordinates, position, heading, 950);
+  const steps = buildCornerSteps(local, wayAt, graph);
+  const firstInfo = graph.wayInfo.get(wayAt[0] ?? 0);
+  return {
+    trace: coordinates,
+    steps,
+    signals,
+    roadName: firstInfo?.name || firstInfo?.ref || null,
+  };
+}

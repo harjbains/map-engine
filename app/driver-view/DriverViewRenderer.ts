@@ -51,6 +51,8 @@ export type SceneState = {
   world: WorldObject[];
   centerline: Array<{ x: number; z: number }>;
   events: RouteEvent[];
+  signals: Array<{ x: number; z: number }>;
+  syntheticLights: boolean;
 };
 
 function mulberry32(seed: number) {
@@ -121,16 +123,15 @@ export function buildScene(width: number, height: number): SceneState {
     world,
     centerline: [],
     events: [],
+    signals: [],
+    syntheticLights: true,
   };
 }
 
-function localRoutePoints(controls: SceneControls) {
-  const position = controls.position;
-  const coordinates = controls.route;
-  if (!position || coordinates.length < 2) return null;
+export function localiseRoute(coordinates: Array<[number, number]>, position: { lat: number; lon: number }, headingDegrees: number, maxZ = 950): Array<{ x: number; z: number }> {
   const cosLat = Math.cos((position.lat * Math.PI) / 180);
-  const sinH = Math.sin((position.bearing * Math.PI) / 180);
-  const cosH = Math.cos((position.bearing * Math.PI) / 180);
+  const sinH = Math.sin((headingDegrees * Math.PI) / 180);
+  const cosH = Math.cos((headingDegrees * Math.PI) / 180);
   const points: Array<{ x: number; z: number }> = [];
   for (const [lon, lat] of coordinates) {
     const east = (lon - position.lon) * 111320 * cosLat;
@@ -138,11 +139,20 @@ function localRoutePoints(controls: SceneControls) {
     const x = east * cosH - north * sinH;
     const z = east * sinH + north * cosH;
     if (z < -4) continue;
-    if (z > 950) break;
+    if (z > maxZ) break;
     if (points.length && z - points[points.length - 1].z < 0.8) continue;
     points.push({ x, z });
   }
   return points;
+}
+
+function localPoint(position: { lat: number; lon: number }, headingDegrees: number, lon: number, lat: number) {
+  const cosLat = Math.cos((position.lat * Math.PI) / 180);
+  const sinH = Math.sin((headingDegrees * Math.PI) / 180);
+  const cosH = Math.cos((headingDegrees * Math.PI) / 180);
+  const east = (lon - position.lon) * 111320 * cosLat;
+  const north = (lat - position.lat) * 111320;
+  return { x: east * cosH - north * sinH, z: east * sinH + north * cosH };
 }
 
 function clX(scene: SceneState, z: number): number {
@@ -496,6 +506,13 @@ function drawTrafficLight(ctx: CanvasRenderingContext2D, scene: SceneState, x: n
   }
 }
 
+function drawRealSignals(ctx: CanvasRenderingContext2D, scene: SceneState) {
+  for (const signal of scene.signals) {
+    if (signal.z < Z_NEAR + 0.3 || signal.z > 250) continue;
+    drawTrafficLight(ctx, scene, signal.x, signal.z, Math.round(signal.z / 7));
+  }
+}
+
 function drawJunctionOverlay(ctx: CanvasRenderingContext2D, scene: SceneState, event: RouteEvent) {
   if (event.z < Z_NEAR || event.z > 200) return;
   if (event.kind === "roundabout") {
@@ -515,7 +532,7 @@ function drawJunctionOverlay(ctx: CanvasRenderingContext2D, scene: SceneState, e
     ctx.fill();
     ctx.stroke();
     drawSignboard(ctx, scene, event.x - 6.5, event.z, event.label, "ROUNDABOUT");
-    drawTrafficLight(ctx, scene, event.x - ROAD_HALF - 1.6, event.z, Math.round(event.metres / 7));
+    if (scene.syntheticLights) drawTrafficLight(ctx, scene, event.x - ROAD_HALF - 1.6, event.z, Math.round(event.metres / 7));
     return;
   }
   const bandX = 9;
@@ -543,7 +560,7 @@ function drawJunctionOverlay(ctx: CanvasRenderingContext2D, scene: SceneState, e
   ctx.stroke();
   const signSide = event.turn > 0 ? ROAD_HALF + 1.6 : -(ROAD_HALF + 1.6);
   drawSignboard(ctx, scene, event.x + signSide, event.z, event.label, event.turn > 0 ? "TURN RIGHT" : event.turn < 0 ? "TURN LEFT" : "AHEAD");
-  drawTrafficLight(ctx, scene, event.x - signSide * 0.4, event.z, Math.round(event.metres / 7));
+  if (scene.syntheticLights) drawTrafficLight(ctx, scene, event.x - signSide * 0.4, event.z, Math.round(event.metres / 7));
 }
 
 function drawJunctions(ctx: CanvasRenderingContext2D, scene: SceneState): ApproachInfo | null {
@@ -563,9 +580,23 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   const step = speedMps * dt;
   scene.tiltCur += (controls.tilt - scene.tiltCur) * Math.min(1, dt * 5);
   scene.bend = scene.tiltCur * 4.5;
-  const routePoints = localRoutePoints(controls) ?? [];
+  const position = controls.position;
+  let routePoints: Array<{ x: number; z: number }> = [];
+  let stepsToUse: Array<{ arrow: string; road: string; metres: number }> = controls.routeSteps ?? [];
+  let signals: Array<{ x: number; z: number }> = [];
+  let syntheticLights = true;
+  if (position && controls.route.length >= 2) {
+    routePoints = localiseRoute(controls.route, position, position.bearing);
+  } else if (position && controls.roadContext) {
+    routePoints = localiseRoute(controls.roadContext.trace, position, position.bearing);
+    stepsToUse = controls.roadContext.steps ?? [];
+    signals = (controls.roadContext.signals ?? []).map(([lon, lat]) => localPoint(position, position.bearing, lon, lat));
+    syntheticLights = false;
+  }
   scene.centerline = routePoints;
-  scene.events = buildEvents(routePoints, controls.routeSteps);
+  scene.events = buildEvents(routePoints, stepsToUse);
+  scene.signals = signals;
+  scene.syntheticLights = syntheticLights;
   for (const object of scene.world) {
     object.z -= step;
     if (object.z < Z_NEAR) respawn(scene.rnd, object);
@@ -575,6 +606,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   drawGround(ctx, scene);
   drawRoad(ctx, scene);
   const approach = drawJunctions(ctx, scene);
+  if (!scene.syntheticLights) drawRealSignals(ctx, scene);
   for (const object of [...scene.world].sort((a, b) => b.z - a.z)) drawObject(ctx, scene, object);
   drawVignette(ctx, scene);
   return approach;

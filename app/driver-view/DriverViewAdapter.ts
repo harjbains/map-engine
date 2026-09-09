@@ -1,5 +1,6 @@
 import type { ActiveRoute, VehicleFix } from "../map-engine/config";
 import type { RouteStep } from "../lib/routing";
+import type { RoadAhead } from "./DriverViewRoad";
 
 export type DriverViewProps = {
   enabled: boolean;
@@ -41,6 +42,7 @@ export type SceneControls = {
   position: { lat: number; lon: number; bearing: number } | null;
   route: Array<[number, number]>;
   routeSteps: RouteStep[];
+  roadContext: RoadAhead | null;
 };
 
 export type ApproachInfo = {
