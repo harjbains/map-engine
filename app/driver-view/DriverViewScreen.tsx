@@ -78,21 +78,19 @@ export function DriverViewScreen(props: DriverViewProps) {
             </div>
           </div>
         </div>
-        <dl className="driver-view-stats">
-          <div><dt>ROAD</dt><dd>{data.currentRoad ?? "…"}</dd></div>
-          <div><dt>LOCALITY</dt><dd>{data.currentLocality ?? "…"}</dd></div>
-          <div><dt>NEXT</dt><dd>{data.nextInstruction ?? "—"}</dd></div>
-          <div><dt>TO</dt><dd>{data.destination ?? "No destination set"}</dd></div>
+        <aside className="driver-view-inline">
+          <div className="driver-view-inline-row"><span>ROAD</span><b>{data.currentRoad ?? "…"}</b></div>
+          <div className="driver-view-inline-row"><span>LOCALITY</span><b>{data.currentLocality ?? "…"}</b></div>
+          <div className="driver-view-inline-row"><span>NEXT</span><b>{data.nextInstruction ?? "—"}</b></div>
+          <div className="driver-view-inline-row"><span>TO</span><b>{data.destination ?? "No destination"}</b></div>
           {data.remainingMiles !== null && data.remainingMinutes !== null && (
-            <>
-              <div><dt>DISTANCE</dt><dd>{Math.round(data.remainingMiles * 10) / 10} mi</dd></div>
-              <div><dt>REMAINING</dt><dd>{data.remainingMinutes} min</dd></div>
-              <div><dt>ARRIVE</dt><dd>{data.arrivalTime ?? "—"}</dd></div>
-            </>
+            <div className="driver-view-inline-row driver-view-inline-journey">
+              <span>JOURNEY</span>
+              <b>{Math.round(data.remainingMiles * 10) / 10} mi · {data.remainingMinutes} min{data.arrivalTime ? ` · ${data.arrivalTime}` : ""}</b>
+            </div>
           )}
-        </dl>
+        </aside>
         <footer className="driver-view-footer">
-          <small>The live map keeps running underneath — your route, GPS follow and settings are not reset when switching views.</small>
           <button type="button" className="driver-view-exit" onClick={props.onToggle}>{DRIVER_VIEW_EXIT_LABEL}</button>
         </footer>
       </div>
