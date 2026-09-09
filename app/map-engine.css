@@ -122,6 +122,7 @@
 .vehicle-map-marker::before { content:""; position:absolute; left:6px; top:7px; width:20px; height:7px; border-top:4px solid currentColor; border-radius:50%; }
 .vehicle-map-marker::after { content:""; position:absolute; left:15px; top:12px; width:4px; height:17px; border-radius:1px 1px 3px 3px; background:currentColor; clip-path:polygon(0 0,100% 0,78% 100%,22% 100%); }
 .recenter-button { height:45px; display:flex; align-items:center; gap:9px; padding:0 14px; border:1px solid rgba(112,183,255,.34); border-radius:11px; background:rgba(13,22,28,.94); color:#fff; font-size:13px; font-weight:800; box-shadow:0 8px 30px rgba(0,0,0,.25); cursor:pointer; }
+.recenter-button:only-child { margin-bottom:46px; }
 .target-icon { width:17px; height:17px; position:relative; border:2px solid #70b7ff; border-radius:50%; }
 .target-icon::before, .target-icon::after { content:""; position:absolute; background:#70b7ff; }
 .target-icon::before { width:3px; height:23px; left:5px; top:-5px; }

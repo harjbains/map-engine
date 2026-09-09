@@ -1,4 +1,4 @@
-const SHELL_CACHE = "map-engine-shell-v1245";
+const SHELL_CACHE = "map-engine-shell-v1246";
 const MAP_CACHE = "map-engine-map-v1";
 
 const scopeUrl = new URL(self.registration.scope);
