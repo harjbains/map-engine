@@ -16,8 +16,11 @@ export type RoadAhead = {
   trace: Array<[number, number]>;
   steps: RouteStep[];
   signals: Array<[number, number]>;
+  buildings: Array<{ ring: Array<[number, number]>; height: number }>;
   roadName: string | null;
 };
+
+export type RealBuilding = { ring: Array<[number, number]>; height: number };
 
 type RoadElement = {
   type?: string;
@@ -60,7 +63,8 @@ export async function fetchRoadContext(position: { lat: number; lon: number }, h
     `way["highway"~"${DRIVABLE_HIGHWAY}"](${bounds.south.toFixed(5)},${bounds.west.toFixed(5)},${bounds.north.toFixed(5)},${bounds.east.toFixed(5)});` +
     `node["highway"="traffic_signals"](${bounds.south.toFixed(5)},${bounds.west.toFixed(5)},${bounds.north.toFixed(5)},${bounds.east.toFixed(5)});` +
     `node["highway"="mini_roundabout"](${bounds.south.toFixed(5)},${bounds.west.toFixed(5)},${bounds.north.toFixed(5)},${bounds.east.toFixed(5)});` +
-    `);(._;>;);out body;`;
+    `way["building"](${bounds.south.toFixed(5)},${bounds.west.toFixed(5)},${bounds.north.toFixed(5)},${bounds.east.toFixed(5)});` +
+    `);(._;>;);out body 1600;`;
   try {
     const payload = await fetchOverpass(query, 0, 1400, signal, 10_000);
     const elements = payload?.elements as RoadElement[] | undefined;
@@ -125,6 +129,69 @@ function buildCornerSteps(local: Array<{ x: number; z: number }>, wayAt: number[
   }
   finishRun();
   return steps;
+}
+
+function buildingHeight(tags?: Record<string, string>): number {
+  const metres = parseFloat(tags?.height ?? "");
+  if (Number.isFinite(metres) && metres > 0) return Math.min(60, Math.max(3, metres));
+  const levels = parseFloat(tags?.["building:levels"] ?? "");
+  if (Number.isFinite(levels) && levels > 0) return Math.min(60, Math.max(3, levels * 3));
+  return 6.5;
+}
+
+function ringFromNodes(wayNodes: number[], nodes: Map<number, GraphNode>): Array<[number, number]> {
+  const ring: Array<[number, number]> = [];
+  for (const id of wayNodes) {
+    const node = nodes.get(id);
+    if (!node) continue;
+    const point: [number, number] = [node.longitude, node.latitude];
+    const last = ring[ring.length - 1];
+    if (last && Math.abs(last[0] - point[0]) < 1e-9 && Math.abs(last[1] - point[1]) < 1e-9) continue;
+    ring.push(point);
+  }
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (first && last && first !== last && Math.abs(last[0] - first[0]) < 1e-9 && Math.abs(last[1] - first[1]) < 1e-9) ring.pop();
+  return ring;
+}
+
+function nearestTraceMetres(lon: number, lat: number, coordinates: Array<[number, number]>): number {
+  let best = Infinity;
+  for (let i = 0; i < coordinates.length; i += 1) {
+    const point = { latitude: coordinates[i][1], longitude: coordinates[i][0] };
+    best = Math.min(best, distanceMetres({ latitude: lat, longitude: lon }, point));
+    if (i === 0) continue;
+    const previous = coordinates[i - 1];
+    best = Math.min(
+      best,
+      distanceMetres(
+        { latitude: lat, longitude: lon },
+        { latitude: (previous[1] + coordinates[i][1]) / 2, longitude: (previous[0] + coordinates[i][0]) / 2 },
+      ),
+    );
+  }
+  return best;
+}
+
+function collectBuildings(elements: RoadElement[], nodes: Map<number, GraphNode>, coordinates: Array<[number, number]>): Array<{ ring: Array<[number, number]>; height: number }> {
+  const buildings: Array<{ ring: Array<[number, number]>; height: number }> = [];
+  for (const element of elements) {
+    if (element.type !== "way" || !element.tags?.["building"] || !Array.isArray(element.nodes)) continue;
+    const ring = ringFromNodes(element.nodes, nodes);
+    if (ring.length < 3) continue;
+    let lon = 0;
+    let lat = 0;
+    for (const [l, a] of ring) {
+      lon += l;
+      lat += a;
+    }
+    lon /= ring.length;
+    lat /= ring.length;
+    if (nearestTraceMetres(lon, lat, coordinates) > 60) continue;
+    buildings.push({ ring, height: buildingHeight(element.tags) });
+    if (buildings.length >= 60) break;
+  }
+  return buildings;
 }
 
 export function resolveRoadAhead(elements: RoadElement[], position: { lat: number; lon: number }, headingDegrees: number): RoadAhead | null {
@@ -206,6 +273,7 @@ export function resolveRoadAhead(elements: RoadElement[], position: { lat: numbe
     trace: coordinates,
     steps,
     signals,
+    buildings: collectBuildings(elements, nodes, coordinates),
     roadName: firstInfo?.name || firstInfo?.ref || null,
   };
 }

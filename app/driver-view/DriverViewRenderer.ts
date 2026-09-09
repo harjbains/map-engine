@@ -50,6 +50,7 @@ export type SceneState = {
   headingCur: number | null;
   rnd: () => number;
   world: WorldObject[];
+  buildings: WorldObject[];
   centerline: Array<{ x: number; z: number }>;
   events: RouteEvent[];
   signals: Array<{ x: number; z: number }>;
@@ -123,6 +124,7 @@ export function buildScene(width: number, height: number): SceneState {
     headingCur: null,
     rnd,
     world,
+    buildings: [],
     centerline: [],
     events: [],
     signals: [],
@@ -612,6 +614,38 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   scene.events = buildEvents(routePoints, stepsToUse);
   scene.signals = signals;
   scene.syntheticLights = syntheticLights;
+  scene.buildings = [];
+  const realFootprints = position ? (controls.roadContext?.buildings ?? []) : [];
+  for (const footprint of realFootprints) {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    for (const [lon, lat] of footprint.ring) {
+      const local = localPoint(position!, heading, lon, lat);
+      if (local.x < minX) minX = local.x;
+      if (local.x > maxX) maxX = local.x;
+      if (local.z < minZ) minZ = local.z;
+      if (local.z > maxZ) maxZ = local.z;
+    }
+    if (maxZ < -6 || minZ > 280) continue;
+    const cx = (minX + maxX) / 2;
+    const cz = Math.max(1.8, (minZ + maxZ) / 2);
+    const seed = (Math.abs(cx * 97) + Math.abs(cz * 131) + Math.abs((footprint.height || 1) * 17)) % BUILDINGS.length;
+    const [base, roof] = BUILDINGS[Math.floor(seed)];
+    scene.buildings.push({
+      kind: "building",
+      side: cx >= 0 ? 1 : -1,
+      x: cx,
+      z: cz,
+      w: Math.max(2.2, maxX - minX),
+      h: footprint.height || 6.5,
+      d: Math.max(2.2, maxZ - minZ),
+      base,
+      roof,
+      seed: Math.floor(seed * 2654435761),
+    });
+  }
   for (const object of scene.world) {
     object.z -= step;
     if (object.z < Z_NEAR) respawn(scene.rnd, object);
@@ -622,7 +656,12 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   drawRoad(ctx, scene);
   const approach = drawJunctions(ctx, scene);
   if (!scene.syntheticLights) drawRealSignals(ctx, scene);
-  for (const object of [...scene.world].sort((a, b) => b.z - a.z)) drawObject(ctx, scene, object);
+  const hasRealBuildings = scene.buildings.length > 0;
+  const drawables = [
+    ...scene.world.filter((object) => !(hasRealBuildings && object.kind === "building")),
+    ...scene.buildings,
+  ];
+  for (const object of drawables.sort((a, b) => b.z - a.z)) drawObject(ctx, scene, object);
   drawVignette(ctx, scene);
   return approach;
 }

@@ -58,6 +58,8 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(road, /export function roadContextBounds/);
   assert.match(road, /export async function fetchRoadContext/);
   assert.match(road, /export function resolveRoadAhead/);
+  assert.match(road, /way\["building"\]\(/);
+  assert.match(road, /buildings: Array<\{ ring: Array<\[number, number\]>; height: number \}>/);
   assert.match(simulatorFile, /export class DriverViewSimulation/);
   assert.match(simulatorFile, /advance\(seconds: number, priorSpeedMph: number\)/);
   assert.match(simulatorFile, /positionAt\(metresAlong: number\)/);
@@ -80,6 +82,9 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(css, /\.driver-view-scene-canvas \{/);
   assert.match(renderer, /headingCur/);
   assert.match(renderer, /scene\.headingCur/);
+  assert.match(renderer, /buildings: WorldObject\[\]/);
+  assert.match(renderer, /scene\.buildings/);
+  assert.match(renderer, /controls\.roadContext\?\.buildings/);
 
   assert.match(barrel, /export \{ DriverView \}/);
 });
@@ -101,6 +106,31 @@ test("resolveRoadAhead traces the road the vehicle is driving on with its juncti
   assert.equal(resolved.steps[0].road, "Main Street");
   assert.ok(resolved.steps[0].metres > 0);
   assert.ok(resolved.signals.some(([lon, lat]) => lon === -2.0 && lat === 51.0002));
+});
+
+test("resolveRoadAhead includes the real buildings beside the road and drops far ones", () => {
+  const elements = [
+    { type: "node", id: 1, lat: 51.0, lon: -2.0 },
+    { type: "node", id: 2, lat: 51.0, lon: -1.9995 },
+    { type: "node", id: 11, lat: 51.0001, lon: -2.0003 },
+    { type: "node", id: 12, lat: 51.0001, lon: -2.0001 },
+    { type: "node", id: 13, lat: 51.0002, lon: -2.0001 },
+    { type: "node", id: 14, lat: 51.0002, lon: -2.0003 },
+    { type: "node", id: 21, lat: 51.002, lon: -1.996 },
+    { type: "node", id: 22, lat: 51.002, lon: -1.9959 },
+    { type: "node", id: 23, lat: 51.0021, lon: -1.9959 },
+    { type: "node", id: 24, lat: 51.0021, lon: -1.996 },
+    { type: "way", id: 100, nodes: [1, 2], tags: { highway: "residential", name: "Building Lane" } },
+    { type: "way", id: 200, nodes: [11, 12, 13, 14, 11], tags: { building: "house", "building:levels": "3" } },
+    { type: "way", id: 300, nodes: [21, 22, 23, 24, 21], tags: { building: "yes" } },
+  ];
+  const resolved = roadAhead.resolveRoadAhead(elements, { lat: 51.0, lon: -2.0 }, 90);
+  assert.ok(resolved);
+  assert.equal(resolved.buildings.length, 1, "only the building beside the road is kept, the 220 m one is dropped");
+  assert.equal(resolved.buildings[0].ring.length, 4, "the footprint ring is preserved as lon/lat pairs");
+  assert.equal(resolved.buildings[0].height, 9, "height comes from building:levels (3 storeys)");
+  const [lon, lat] = resolved.buildings[0].ring[0];
+  assert.ok(Math.abs(lon - -2.0003) < 1e-6 && Math.abs(lat - 51.0001) < 1e-6);
 });
 
 test("localiseRoute keeps corner vertices so the road bends instead of cutting straight through", () => {
