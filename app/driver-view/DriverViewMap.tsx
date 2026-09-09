@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type MutableRefObject } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import maplibregl from "maplibre-gl";
 import { styleJsonUrl } from "../lib/tomtom-client";
 import type { SceneControls } from "./DriverViewAdapter";
@@ -17,6 +17,7 @@ export function DriverViewMap({ controls }: { controls: MutableRefObject<SceneCo
   const mapRef = useRef<maplibregl.Map | null>(null);
   const routeMarkerRef = useRef<maplibregl.Marker | null>(null);
   const signalMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const node = containerRef.current;
@@ -41,7 +42,17 @@ export function DriverViewMap({ controls }: { controls: MutableRefObject<SceneCo
     });
     mapRef.current = map;
 
+    map.on("error", (event) => {
+      if (setError) setError(event?.error ? String(event.error.message ?? event.error) : "Map error");
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) mapRef.current.resize();
+    });
+    resizeObserver.observe(node);
+
     map.on("load", () => {
+      map.resize();
       if (map.getLayer("building-3d")) {
         map.setPaintProperty("building-3d", "fill-extrusion-opacity", 0.92);
       }
@@ -93,6 +104,7 @@ export function DriverViewMap({ controls }: { controls: MutableRefObject<SceneCo
     });
 
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
     };
@@ -154,5 +166,14 @@ export function DriverViewMap({ controls }: { controls: MutableRefObject<SceneCo
     return () => cancelAnimationFrame(frame);
   }, [controls]);
 
-  return <div ref={containerRef} className="driver-view-map" />;
+  return (
+    <>
+      <div ref={containerRef} className="driver-view-map" />
+      {error && (
+        <div className="driver-view-map-error" role="alert">
+          MAP: {error}
+        </div>
+      )}
+    </>
+  );
 }
