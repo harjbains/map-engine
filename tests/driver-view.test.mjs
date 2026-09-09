@@ -7,7 +7,7 @@ const simulator = await import("../app/driver-view/DriverViewSimulator.ts");
 const renderer = await import("../app/driver-view/DriverViewRenderer.ts");
 
 test("Driver View ships as an isolated, feature-flagged module", async () => {
-  const [config, screen, boundary, view, adapter, renderer, scene, barrel, css, road, simulatorFile, mapEngine] = await Promise.all([
+  const [config, screen, boundary, view, adapter, renderer, scene, map, barrel, css, road, simulatorFile, mapEngine] = await Promise.all([
     readFile(new URL("../app/driver-view/DriverViewConfig.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewErrorBoundary.tsx", import.meta.url), "utf8"),
@@ -15,6 +15,7 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
     readFile(new URL("../app/driver-view/DriverViewAdapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewRenderer.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewScene.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/driver-view/DriverViewMap.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/driver-view.css", import.meta.url), "utf8"),
     readFile(new URL("../app/driver-view/DriverViewRoad.ts", import.meta.url), "utf8"),
@@ -35,19 +36,17 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(screen, /className="driver-view-exit"/);
   assert.match(screen, /DriverViewScene controls=\{sceneControlsRef\}/);
   assert.match(view, /className="driver-view-toggle/);
-  assert.match(scene, /className="driver-view-scene-canvas"/);
-  assert.match(scene, /ResizeObserver/);
-  assert.match(renderer, /export function buildScene/);
-  assert.match(renderer, /export function renderScene/);
+  assert.match(scene, /<DriverViewMap controls=\{controls\} \/>/);
+  assert.match(map, /export function DriverViewMap/);
+  assert.match(map, /new maplibregl\.Map/);
+  assert.match(map, /pitch: DRIVER_VIEW_PITCH/);
+  assert.match(map, /className="driver-view-map"/);
+  assert.match(map, /fill-extrusion|building-3d|setBearing/);
+  assert.match(scene, /computeApproach/);
   assert.match(renderer, /export function localiseRoute/);
-  assert.match(renderer, /function drawBlock/);
-  assert.match(renderer, /function drawRoad/);
-  assert.match(renderer, /function drawRouteRibbon/);
-  assert.match(renderer, /function buildEvents/);
-  assert.match(renderer, /function drawSignboard/);
-  assert.match(renderer, /function drawTrafficLight/);
-  assert.match(renderer, /function drawJunctionOverlay/);
-  assert.match(renderer, /function drawJunctions/);
+  assert.match(renderer, /export function zAtMetres/);
+  assert.match(renderer, /export function buildEvents/);
+  assert.match(renderer, /export function computeApproach/);
   assert.match(adapter, /SceneControls = \{/);
   assert.match(adapter, /position: \{ lat: number; lon: number; bearing: number \} \| null/);
   assert.match(adapter, /route: Array<\[number, number\]>/);
@@ -82,21 +81,12 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(scene, /onApproach\?: \(info: ApproachInfo \| null\) => void/);
   assert.match(css, /\.driver-view-approach \{/);
   assert.match(css, /\.driver-view-scene \{/);
-  assert.match(css, /\.driver-view-scene-canvas \{/);
-  assert.match(renderer, /headingCur/);
-  assert.match(renderer, /scene\.headingCur/);
-  assert.match(renderer, /buildings: WorldObject\[\]/);
-  assert.match(renderer, /scene\.buildings/);
-  assert.match(renderer, /controls\.roadContext\?\.buildings/);
-  assert.match(renderer, /branches: RoadBranch\[\]/);
-  assert.match(renderer, /scene\.branches/);
-  assert.match(renderer, /controls\.roadContext\?\.junctions/);
-  assert.match(renderer, /drawBranchStubs/);
-  assert.match(renderer, /drawBranchLabels/);
+  assert.match(css, /\.driver-view-map \{/);
   assert.match(renderer, /side: 1 \| -1/);
   assert.match(renderer, /side: runSum > 0 \? 1 : -1/);
   assert.match(renderer, /export function zAtMetres/);
-  assert.match(renderer, /export function edgeBreaks/);
+  assert.match(renderer, /export function buildEvents/);
+  assert.match(renderer, /export function computeApproach/);
 
   assert.match(barrel, /export \{ DriverView \}/);
 });
@@ -168,7 +158,7 @@ test("resolveRoadAhead detects side roads branching left and right from the trac
   assert.equal(right.name, "Cross Lane");
 });
 
-test("zAtMetres interpolates the local depth and edgeBreaks maps branches to gaps", () => {
+test("zAtMetres interpolates local depth and computeApproach reports the next junction", () => {
   const points = [
     { x: 0, z: 0 },
     { x: 0, z: 100 },
@@ -176,16 +166,23 @@ test("zAtMetres interpolates the local depth and edgeBreaks maps branches to gap
   assert.equal(renderer.zAtMetres(points, 0), 0);
   assert.equal(renderer.zAtMetres(points, 100), 100);
   assert.ok(Math.abs(renderer.zAtMetres(points, 40) - 40) < 0.01);
-  const branches = [
-    { z: 50, side: -1, kind: "side", name: "Left Road", cross: false },
-    { z: 60, side: 1, kind: "corner", name: "Right", cross: false },
-  ];
-  const leftGaps = renderer.edgeBreaks(branches, -1);
-  assert.equal(leftGaps.length, 1);
-  assert.ok(leftGaps[0][0] < 50 && leftGaps[0][1] > 50, "the left gap sits around the branch z");
-  const rightGaps = renderer.edgeBreaks(branches, 1);
-  assert.equal(rightGaps.length, 1);
-  assert.ok(rightGaps[0][0] < 60 && rightGaps[0][1] > 60);
+  const approach = renderer.computeApproach(
+    [
+      [-2.0, 51.0],
+      [-2.0, 51.0003],
+      [-1.9997, 51.0003],
+    ],
+    { lat: 51.0, lon: -2.0 },
+    0,
+    [{ arrow: "↱", road: "Acacia Avenue", metres: 40 }],
+  );
+  assert.ok(approach, "the corner ahead is detected");
+  assert.equal(approach.label, "Acacia Avenue");
+  assert.equal(approach.arrow, "↱");
+  assert.equal(approach.kind, "junction");
+  assert.ok(approach.metres >= 30 && approach.metres <= 75, `approach distance ${approach.metres} sits at the corner`);
+  const none = renderer.computeApproach([[-2.0, 51.0], [-2.0, 51.0001]], { lat: 51.0, lon: -2.0 }, 0, []);
+  assert.equal(none, null, "a straight road with no steps reports no approach");
 });
 
 test("localiseRoute keeps corner vertices so the road bends instead of cutting straight through", () => {
