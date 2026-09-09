@@ -25,11 +25,18 @@ export type RouteInstruction = {
   distanceMiles: number;
 };
 
+export type RouteStep = {
+  arrow: string;
+  road: string;
+  metres: number;
+};
+
 export type CalculatedRoute = {
   geometry: { type: "LineString"; coordinates: [number, number][] };
   distanceMiles: number;
   durationMinutes: number;
   instruction: RouteInstruction | null;
+  steps?: RouteStep[];
   minorRoadMiles?: number;
   finalMinorRoadMiles?: number;
 };
@@ -72,6 +79,12 @@ export async function calculateRoute(origin: RoutePoint, destination: Destinatio
 
   const steps = route.legs?.flatMap((leg) => leg.steps ?? []) ?? [];
   const nextStep = steps.find((step) => step.maneuver?.type !== "depart" && step.maneuver?.type !== "arrive" && (step.distance ?? 0) > 0);
+  const routeSteps: RouteStep[] = [];
+  for (const step of steps) {
+    if (step.maneuver?.type === "depart" || step.maneuver?.type === "arrive") continue;
+    if (!step.distance || step.distance <= 0) continue;
+    routeSteps.push({ arrow: instructionArrow(step), road: instructionRoad(step), metres: step.distance });
+  }
   return {
     geometry: { type: "LineString", coordinates: routeCoordinates },
     distanceMiles: (route.distance ?? 0) / 1609.344,
@@ -81,5 +94,6 @@ export async function calculateRoute(origin: RoutePoint, destination: Destinatio
       road: instructionRoad(nextStep),
       distanceMiles: (nextStep.distance ?? 0) / 1609.344,
     } : null,
+    steps: routeSteps,
   };
 }

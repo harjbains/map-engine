@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createDriverViewData, type DriverViewProps, type SceneControls } from "./DriverViewAdapter";
+import { createDriverViewData, type ApproachInfo, type DriverViewProps, type SceneControls } from "./DriverViewAdapter";
 import { DriverViewScene } from "./DriverViewScene";
 import { DRIVER_VIEW_EXIT_LABEL } from "./DriverViewConfig";
 
@@ -9,6 +9,7 @@ export function DriverViewScreen(props: DriverViewProps) {
   const data = useMemo(() => createDriverViewData(props), [props]);
   const previousBearingRef = useRef<number | null>(null);
   const [tilt, setTilt] = useState(0);
+  const [approach, setApproach] = useState<ApproachInfo | null>(null);
   const sceneControlsRef = useRef<SceneControls>({
     speedMph: 0,
     tilt: 0,
@@ -16,6 +17,7 @@ export function DriverViewScreen(props: DriverViewProps) {
     gpsLocked: false,
     position: null,
     route: [],
+    routeSteps: [],
   });
 
   useEffect(() => {
@@ -26,6 +28,7 @@ export function DriverViewScreen(props: DriverViewProps) {
       gpsLocked: data.gpsLocked,
       position: props.fix ? { lat: props.fix.lat, lon: props.fix.lon, bearing: props.fix.bearing } : null,
       route: props.route?.geometry?.coordinates ?? [],
+      routeSteps: props.route?.steps ?? [],
     };
   }, [data, tilt, props.fix, props.route]);
 
@@ -49,7 +52,7 @@ export function DriverViewScreen(props: DriverViewProps) {
   return (
     <section className="driver-view-screen" aria-label="Driver View (experimental)">
       <div className="driver-view-scene" aria-hidden="true">
-        <DriverViewScene controls={sceneControlsRef} />
+        <DriverViewScene controls={sceneControlsRef} onApproach={setApproach} />
       </div>
       <div className="driver-view-hud">
         <header className="driver-view-header">
@@ -62,6 +65,13 @@ export function DriverViewScreen(props: DriverViewProps) {
             <span>{data.gpsLocked ? `${data.lat?.toFixed(6) ?? "…"}, ${data.lon?.toFixed(6) ?? "…"}` : "No GPS fix yet"}</span>
           </div>
         </header>
+        {approach && (
+          <div className="driver-view-approach" role="status">
+            <span>{approach.kind === "roundabout" ? "↻" : approach.arrow}</span>
+            <b>{approach.label}</b>
+            <em>{approach.metres <= 40 ? "NOW" : `${Math.max(10, Math.round(approach.metres / 10) * 10)} m`}</em>
+          </div>
+        )}
         <div className="driver-view-dial">
           <div className={`driver-view-speed${data.overspeed ? " overspeed" : ""}`}>
             <b>{data.speedMph}</b>

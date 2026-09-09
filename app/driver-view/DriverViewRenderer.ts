@@ -1,4 +1,4 @@
-import type { SceneControls } from "./DriverViewAdapter";
+import type { ApproachInfo, SceneControls } from "./DriverViewAdapter";
 
 const Z_NEAR = 1.6;
 const Z_FAR = 90;
@@ -29,6 +29,16 @@ export type WorldObject = {
   seed: number;
 };
 
+export type RouteEvent = {
+  x: number;
+  z: number;
+  metres: number;
+  kind: "junction" | "roundabout";
+  turn: number;
+  label: string;
+  arrow: string;
+};
+
 export type SceneState = {
   width: number;
   height: number;
@@ -40,6 +50,7 @@ export type SceneState = {
   rnd: () => number;
   world: WorldObject[];
   centerline: Array<{ x: number; z: number }>;
+  events: RouteEvent[];
 };
 
 function mulberry32(seed: number) {
@@ -109,6 +120,7 @@ export function buildScene(width: number, height: number): SceneState {
     rnd,
     world,
     centerline: [],
+    events: [],
   };
 }
 
@@ -364,12 +376,196 @@ function drawVignette(ctx: CanvasRenderingContext2D, scene: SceneState) {
   ctx.fillRect(0, 0, scene.width, scene.height);
 }
 
-export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, controls: SceneControls, dt: number) {
+function buildEvents(points: Array<{ x: number; z: number }>, steps: Array<{ arrow: string; road: string; metres: number }>): RouteEvent[] {
+  const events: RouteEvent[] = [];
+  if (points.length < 2) return events;
+  let stepIndex = 0;
+  const emit = (index: number, metresAt: number, roundabout: boolean, turn: number) => {
+    const step = steps[Math.min(stepIndex, Math.max(0, steps.length - 1))];
+    if (steps.length) stepIndex += 1;
+    events.push({
+      x: points[index].x,
+      z: points[index].z,
+      metres: metresAt,
+      kind: roundabout ? "roundabout" : "junction",
+      turn,
+      label: step?.road || (roundabout ? "Roundabout" : "Next road"),
+      arrow: step?.arrow || (roundabout ? "↻" : "↑"),
+    });
+  };
+  let metres = 0;
+  let heading: number | null = null;
+  let runSum = 0;
+  let runIndex = -1;
+  let runActive = false;
+  let runDistance = 0;
+  const finishRun = () => {
+    if (runActive && Math.abs(runSum) >= 8) {
+      if (Math.abs(runSum) >= 150 && runDistance <= 200) emit(runIndex, metres, true, runSum);
+      else emit(runIndex, metres, false, runSum);
+    }
+    runActive = false;
+    runSum = 0;
+    runIndex = -1;
+    runDistance = 0;
+  };
+  for (let i = 1; i < points.length; i += 1) {
+    const dx = points[i].x - points[i - 1].x;
+    const dz = points[i].z - points[i - 1].z;
+    const segment = Math.hypot(dx, dz);
+    metres += segment;
+    if (segment < 0.05) continue;
+    let currentHeading = Math.atan2(dx, dz);
+    if (heading === null) {
+      heading = currentHeading;
+      continue;
+    }
+    let delta = currentHeading - heading;
+    heading = currentHeading;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+    const degrees = (delta * 180) / Math.PI;
+    if (Math.abs(degrees) >= 8) {
+      if (runActive && Math.sign(runSum) !== Math.sign(degrees)) finishRun();
+      if (!runActive) {
+        runIndex = i;
+        runActive = true;
+        runSum = degrees;
+        runDistance = segment;
+      } else {
+        runSum += degrees;
+        runDistance += segment;
+      }
+    } else {
+      finishRun();
+    }
+  }
+  finishRun();
+  return events;
+}
+
+function drawSignboard(ctx: CanvasRenderingContext2D, scene: SceneState, x: number, z: number, label: string, sublabel: string) {
+  const p = project(scene, x, z);
+  const scale = Math.min(1.7, scene.focal / Math.max(Z_NEAR, z));
+  const size = Math.max(10, 15 * scale);
+  const width = Math.max(46, Math.min(240, label.length * size * 0.62 + size * 2.2));
+  const height = Math.max(16, size * 1.35);
+  ctx.fillStyle = "#5a5f66";
+  ctx.fillRect(p.x - 1.5 * scale, p.y - height - size * 2.4, 3 * scale, size * 2.4);
+  ctx.fillStyle = "#0b6e3f";
+  ctx.strokeStyle = "#e8f0e6";
+  ctx.lineWidth = 1.2;
+  if (typeof ctx.roundRect === "function") {
+    ctx.beginPath();
+    ctx.roundRect(p.x - width / 2, p.y - height - size * 1.4, width, height, 2);
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.fillRect(p.x - width / 2, p.y - height - size * 1.4, width, height);
+  }
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 ${size}px system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label || sublabel, p.x, p.y - height - size * 1.4 + height / 2);
+  if (sublabel && sublabel !== label) {
+    ctx.fillStyle = "#d7e8cf";
+    ctx.font = `600 ${size * 0.62}px system-ui, sans-serif`;
+    ctx.fillText(sublabel, p.x, p.y - height - size * 1.4 + height + size * 0.42);
+  }
+}
+
+function drawTrafficLight(ctx: CanvasRenderingContext2D, scene: SceneState, x: number, z: number, seed: number) {
+  const p = project(scene, x, z);
+  const scale = Math.min(1.6, scene.focal / Math.max(Z_NEAR, z));
+  const poleWidth = Math.max(1.6, 0.5 * scale);
+  const headWidth = Math.max(7, 2.6 * scale);
+  const lampRadius = Math.max(1.6, headWidth * 0.24);
+  const phase = (Date.now() / 1000 + seed) % 6;
+  const lights = phase < 3.2 ? ["#3f4a50", "#3f4a50", "#45e06a"] : phase < 4.1 ? ["#3f4a50", "#ffd23e", "#3f4a50"] : ["#ff4a3d", "#3f4a50", "#3f4a50"];
+  const headTop = p.y - headWidth * 2.4 - poleWidth * 3;
+  ctx.fillStyle = "#25292d";
+  ctx.fillRect(p.x - poleWidth / 2, headTop, poleWidth, headWidth * 2.4 + poleWidth * 3);
+  ctx.fillStyle = "#11181d";
+  ctx.fillRect(p.x - headWidth / 2, headTop, headWidth, headWidth * 1.9);
+  for (let i = 0; i < 3; i += 1) {
+    ctx.fillStyle = lights[i];
+    ctx.beginPath();
+    ctx.arc(p.x, headTop + headWidth * 0.5 + i * headWidth * 0.6, lampRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawJunctionOverlay(ctx: CanvasRenderingContext2D, scene: SceneState, event: RouteEvent) {
+  if (event.z < Z_NEAR || event.z > 200) return;
+  if (event.kind === "roundabout") {
+    const p = project(scene, event.x, event.z);
+    const scale = scene.focal / Math.max(Z_NEAR, event.z);
+    const outer = 11.5 * scale;
+    const inner = 6.4 * scale;
+    ctx.fillStyle = "#20272c";
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, outer, outer * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#151b1f";
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, inner, inner * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    drawSignboard(ctx, scene, event.x - 6.5, event.z, event.label, "ROUNDABOUT");
+    drawTrafficLight(ctx, scene, event.x - ROAD_HALF - 1.6, event.z, Math.round(event.metres / 7));
+    return;
+  }
+  const bandX = 9;
+  const bandDepth = 2.6;
+  const pts = [
+    project(scene, event.x - bandX, event.z - bandDepth),
+    project(scene, event.x + bandX, event.z - bandDepth),
+    project(scene, event.x + bandX, event.z + bandDepth),
+    project(scene, event.x - bandX, event.z + bandDepth),
+  ];
+  ctx.fillStyle = "#242c32";
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[2].x, pts[2].y);
+  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[2].x, pts[2].y);
+  ctx.stroke();
+  const signSide = event.turn > 0 ? ROAD_HALF + 1.6 : -(ROAD_HALF + 1.6);
+  drawSignboard(ctx, scene, event.x + signSide, event.z, event.label, event.turn > 0 ? "TURN RIGHT" : event.turn < 0 ? "TURN LEFT" : "AHEAD");
+  drawTrafficLight(ctx, scene, event.x - signSide * 0.4, event.z, Math.round(event.metres / 7));
+}
+
+function drawJunctions(ctx: CanvasRenderingContext2D, scene: SceneState): ApproachInfo | null {
+  let approach: ApproachInfo | null = null;
+  for (const event of scene.events) {
+    if (event.z < Z_NEAR + 0.4 || event.z > 350) continue;
+    drawJunctionOverlay(ctx, scene, event);
+    if (!approach) {
+      approach = { kind: event.kind, label: event.label, metres: event.metres, arrow: event.arrow };
+    }
+  }
+  return approach;
+}
+
+export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, controls: SceneControls, dt: number): ApproachInfo | null {
   const speedMps = Math.max(0, controls.speedMph) * 0.44704 * 0.5;
   const step = speedMps * dt;
   scene.tiltCur += (controls.tilt - scene.tiltCur) * Math.min(1, dt * 5);
   scene.bend = scene.tiltCur * 4.5;
-  scene.centerline = localRoutePoints(controls) ?? [];
+  const routePoints = localRoutePoints(controls) ?? [];
+  scene.centerline = routePoints;
+  scene.events = buildEvents(routePoints, controls.routeSteps);
   for (const object of scene.world) {
     object.z -= step;
     if (object.z < Z_NEAR) respawn(scene.rnd, object);
@@ -378,6 +574,8 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   drawHills(ctx, scene);
   drawGround(ctx, scene);
   drawRoad(ctx, scene);
+  const approach = drawJunctions(ctx, scene);
   for (const object of [...scene.world].sort((a, b) => b.z - a.z)) drawObject(ctx, scene, object);
   drawVignette(ctx, scene);
+  return approach;
 }

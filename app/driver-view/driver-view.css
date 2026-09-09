@@ -169,6 +169,41 @@
   line-height: 1.1;
 }
 
+.driver-view-approach {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: 9px;
+  max-width: 82%;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(11, 17, 21, 0.72);
+  border: 1px solid rgba(92, 170, 244, 0.45);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4);
+}
+
+.driver-view-approach span {
+  font-size: 18px;
+  line-height: 1;
+  color: #5caaf4;
+}
+
+.driver-view-approach b {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.driver-view-approach em {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  color: #f4c95d;
+}
+
 .driver-view-inline {
   position: absolute;
   left: 18px;

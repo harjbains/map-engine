@@ -1,4 +1,5 @@
 import type { ActiveRoute, VehicleFix } from "../map-engine/config";
+import type { RouteStep } from "../lib/routing";
 
 export type DriverViewProps = {
   enabled: boolean;
@@ -39,6 +40,14 @@ export type SceneControls = {
   gpsLocked: boolean;
   position: { lat: number; lon: number; bearing: number } | null;
   route: Array<[number, number]>;
+  routeSteps: RouteStep[];
+};
+
+export type ApproachInfo = {
+  kind: "junction" | "roundabout";
+  label: string;
+  metres: number;
+  arrow: string;
 };
 
 export function createDriverViewData(props: DriverViewProps): DriverViewData {

@@ -132,6 +132,27 @@ test("first-turn instruction arrives at a three-way junction", () => {
   assert.ok(instruction.distanceMiles > 0);
 });
 
+test("buildRouteSteps lists every appendable junction with its road name", () => {
+  const nodes = new Map([
+    [1, node(1, 51.999, -2.0000)],
+    [2, node(2, 52.000, -2.0000)],
+    [3, node(3, 52.000, -1.9992)],
+    [4, node(4, 52.000, -2.0008)],
+  ]);
+  const graph = core.buildRoadGraph([
+    way(30, "primary", [1, 2], {}),
+    way(31, "primary", [2, 3], { name: "Main Street" }),
+    way(32, "primary", [2, 4], {}),
+  ], nodes);
+  const path = core.findShortestPath(graph, 1, 3);
+  assert.ok(path);
+  const steps = core.buildRouteSteps(path, graph);
+  assert.equal(steps.length, 1);
+  assert.equal(steps[0].arrow, "↱");
+  assert.equal(steps[0].road, "Main Street");
+  assert.ok(steps[0].metres > 0);
+});
+
 test("camera enforcement direction is read from a fixed camera direction tag", () => {
   const nodeCamera = { type: "node", id: 1, tags: { highway: "speed_camera", direction: "230" } };
   assert.equal(safety.cameraEnforcementDirection(nodeCamera), 230);

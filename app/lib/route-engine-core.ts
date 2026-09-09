@@ -1,5 +1,7 @@
 export type RoutePoint = { latitude: number; longitude: number };
 
+import type { RouteStep } from "./routing";
+
 export type RouteProfile = "fast" | "short" | "avoid-lanes";
 
 export type WayTags = Record<string, string>;
@@ -441,6 +443,35 @@ export function buildTurnInstruction(path: TraversedEdge[], graph: RoadGraph, mi
   return null;
 }
 
+export function buildRouteSteps(path: TraversedEdge[], graph: RoadGraph, minimumFromStartMetres = 60): RouteStep[] {
+  if (!path.length) return [];
+  const steps: RouteStep[] = [];
+  let travelled = 0;
+  for (let index = 1; index < path.length; index += 1) {
+    const incoming = path[index - 1];
+    const outgoing = path[index];
+    travelled += incoming.metres;
+    if (travelled < minimumFromStartMetres) continue;
+    const from = graph.nodes.get(incoming.from);
+    const mid = graph.nodes.get(outgoing.from);
+    const to = graph.nodes.get(outgoing.to);
+    if (!from || !mid || !to) continue;
+    const junctionEdges = graph.adjacency.get(outgoing.from) ?? [];
+    const branches = new Set(junctionEdges.map((edge) => edge.wayId));
+    if (branches.size < 3) continue;
+    const inbound = bearingBetween(from, mid);
+    const outbound = bearingBetween(mid, to);
+    let deviation = outbound - inbound;
+    while (deviation > 180) deviation -= 360;
+    while (deviation < -180) deviation += 360;
+    if (Math.abs(deviation) < 35) continue;
+    const info = graph.wayInfo.get(outgoing.wayId);
+    const road = info?.name || info?.ref || "Next road";
+    steps.push({ arrow: arrowForTurn(deviation), road, metres: travelled });
+  }
+  return steps;
+}
+
 export type EvaluatedRoute = {
   coordinates: [number, number][];
   distanceMiles: number;
@@ -448,6 +479,7 @@ export type EvaluatedRoute = {
   minorRoadMiles: number;
   finalMinorRoadMiles: number;
   instruction: TurnInstruction | null;
+  steps?: RouteStep[];
 };
 
 const ROUTE_PROFILES: RouteProfile[] = ["fast", "short", "avoid-lanes"];
@@ -469,6 +501,7 @@ export function evaluateRouteProfiles(
     const plan = computeRoutePlan(path, graph);
     if (!plan || !plan.coordinates.length) continue;
     const instruction = buildTurnInstruction(path, graph);
+    const steps = buildRouteSteps(path, graph);
     let coordinates: [number, number][] = plan.coordinates.map((point) => [point.longitude, point.latitude]);
     coordinates = coordinates.map((coordinate, index) => index === 0
       ? [origin.longitude, origin.latitude]
@@ -480,6 +513,7 @@ export function evaluateRouteProfiles(
       minorRoadMiles: plan.minorMetres / 1609.344,
       finalMinorRoadMiles: plan.finalMinorMetres / 1609.344,
       instruction,
+      steps,
     };
   }
   return evaluated;

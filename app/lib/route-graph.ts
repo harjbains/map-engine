@@ -3,6 +3,7 @@ import type { CalculatedRoute, RouteInstruction } from "./routing";
 import { fetchOverpass } from "./safety";
 import {
   buildRoadGraph,
+  buildRouteSteps,
   buildTurnInstruction,
   computeRoutePlan,
   distanceMetres,
@@ -137,6 +138,7 @@ export async function calculateWeightedRoute(
   const plan = computeRoutePlan(path, graph);
   if (!plan || !plan.coordinates.length) throw new Error("No suitable route was found.");
   const instruction: RouteInstruction | null = buildTurnInstruction(path, graph);
+  const steps = buildRouteSteps(path, graph);
   let coordinates: [number, number][] = plan.coordinates.map((point) => [point.longitude, point.latitude]);
   coordinates = coordinates.map((coordinate, index) => index === 0
     ? [origin.longitude, origin.latitude]
@@ -146,6 +148,7 @@ export async function calculateWeightedRoute(
     distanceMiles: plan.metres / 1609.344,
     durationMinutes: Math.max(1, Math.round(plan.durationSeconds / 60)),
     instruction,
+    steps,
     minorRoadMiles: plan.minorMetres / 1609.344,
     finalMinorRoadMiles: plan.finalMinorMetres / 1609.344,
   };
@@ -194,6 +197,7 @@ export async function calculateRouteOptions(
           distanceMiles: plan.distanceMiles,
           durationMinutes: plan.durationMinutes,
           instruction: plan.instruction,
+          steps: plan.steps,
           minorRoadMiles: plan.minorRoadMiles,
           finalMinorRoadMiles: plan.finalMinorRoadMiles,
         },

@@ -2,11 +2,17 @@
 
 import { useEffect, useRef, type MutableRefObject } from "react";
 import { buildScene, renderScene, type SceneState } from "./DriverViewRenderer";
-import type { SceneControls } from "./DriverViewAdapter";
+import type { ApproachInfo, SceneControls } from "./DriverViewAdapter";
 
-export function DriverViewScene({ controls }: { controls: MutableRefObject<SceneControls> }) {
+export function DriverViewScene({ controls, onApproach }: {
+  controls: MutableRefObject<SceneControls>;
+  onApproach?: (info: ApproachInfo | null) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<SceneState | null>(null);
+  const onApproachRef = useRef(onApproach);
+  const lastApproachKeyRef = useRef<string | null>(null);
+  onApproachRef.current = onApproach;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -22,7 +28,14 @@ export function DriverViewScene({ controls }: { controls: MutableRefObject<Scene
       const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
       last = now;
       const scene = sceneRef.current;
-      if (scene) renderScene(ctx, scene, controls.current, dt);
+      if (scene) {
+        const info = renderScene(ctx, scene, controls.current, dt);
+        const key = info ? `${info.kind}|${info.label}|${Math.round(info.metres / 5)}` : "";
+        if (key !== lastApproachKeyRef.current) {
+          lastApproachKeyRef.current = key;
+          onApproachRef.current?.(info);
+        }
+      }
       frame = requestAnimationFrame(tick);
     };
 

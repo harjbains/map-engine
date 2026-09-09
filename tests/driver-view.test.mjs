@@ -38,11 +38,23 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(renderer, /function localRoutePoints/);
   assert.match(renderer, /function clX/);
   assert.match(renderer, /function drawRouteRibbon/);
+  assert.match(renderer, /function buildEvents/);
+  assert.match(renderer, /function drawSignboard/);
+  assert.match(renderer, /function drawTrafficLight/);
+  assert.match(renderer, /function drawJunctionOverlay/);
+  assert.match(renderer, /function drawJunctions/);
   assert.match(adapter, /SceneControls = \{/);
   assert.match(adapter, /position: \{ lat: number; lon: number; bearing: number \} \| null/);
   assert.match(adapter, /route: Array<\[number, number\]>/);
+  assert.match(adapter, /routeSteps: RouteStep\[\]/);
+  assert.match(adapter, /ApproachInfo = \{/);
   assert.match(screen, /position: props\.fix \? \{ lat: props\.fix\.lat, lon: props\.fix\.lon, bearing: props\.fix\.bearing \} : null/);
   assert.match(screen, /route: props\.route\?\.geometry\?\.coordinates \?\? \[\]/);
+  assert.match(screen, /routeSteps: props\.route\?\.steps \?\? \[\]/);
+  assert.match(screen, /onApproach=\{setApproach\}/);
+  assert.match(screen, /driver-view-approach/);
+  assert.match(scene, /onApproach\?: \(info: ApproachInfo \| null\) => void/);
+  assert.match(css, /\.driver-view-approach \{/);
   assert.match(css, /\.driver-view-scene \{/);
   assert.match(css, /\.driver-view-scene-canvas \{/);
 
