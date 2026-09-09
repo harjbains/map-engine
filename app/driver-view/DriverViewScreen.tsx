@@ -1,13 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { createDriverViewData, type DriverViewProps } from "./DriverViewAdapter";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createDriverViewData, type DriverViewProps, type SceneControls } from "./DriverViewAdapter";
+import { DriverViewScene } from "./DriverViewScene";
 import { DRIVER_VIEW_EXIT_LABEL } from "./DriverViewConfig";
 
 export function DriverViewScreen(props: DriverViewProps) {
   const data = useMemo(() => createDriverViewData(props), [props]);
   const previousBearingRef = useRef<number | null>(null);
   const [tilt, setTilt] = useState(0);
+  const sceneControlsRef = useRef<SceneControls>({ speedMph: 0, tilt: 0, headingDegrees: null, gpsLocked: false });
+
+  useEffect(() => {
+    sceneControlsRef.current = {
+      speedMph: data.speedMph,
+      tilt,
+      headingDegrees: data.headingDegrees,
+      gpsLocked: data.gpsLocked,
+    };
+  }, [data, tilt]);
 
   useEffect(() => {
     if (data.headingDegrees === null) {
@@ -26,23 +37,10 @@ export function DriverViewScreen(props: DriverViewProps) {
     return () => window.clearTimeout(timer);
   }, [data.headingDegrees]);
 
-  const dashSeconds = data.speedMph > 0 ? Math.min(2.4, Math.max(0.35, 28 / data.speedMph)) : null;
-  const sceneStyle: CSSProperties = {
-    "--driver-tilt": `${tilt}deg`,
-    "--motion-duration": dashSeconds === null ? "0s" : `${dashSeconds}s`,
-  } as CSSProperties;
-
   return (
     <section className="driver-view-screen" aria-label="Driver View (experimental)">
-      <div className={`driver-view-scene${dashSeconds === null ? " motion-stopped" : ""}`} aria-hidden="true" style={sceneStyle}>
-        <div className="driver-view-sky">
-          <div className="driver-view-sun" />
-        </div>
-        <div className="driver-view-horizon" />
-        <div className="driver-view-road">
-          <div className="driver-view-dash" />
-        </div>
-        <div className="driver-view-streaks" />
+      <div className="driver-view-scene" aria-hidden="true">
+        <DriverViewScene controls={sceneControlsRef} />
       </div>
       <div className="driver-view-hud">
         <header className="driver-view-header">

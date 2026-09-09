@@ -32,6 +32,13 @@ export type DriverViewData = {
   arrivalTime: string | null;
 };
 
+export type SceneControls = {
+  speedMph: number;
+  tilt: number;
+  headingDegrees: number | null;
+  gpsLocked: boolean;
+};
+
 export function createDriverViewData(props: DriverViewProps): DriverViewData {
   const { fix, route, currentRoad, currentLocality, speedLimitMph, speedMph, remainingMiles, remainingMinutes, arrivalTime } = props;
   return {

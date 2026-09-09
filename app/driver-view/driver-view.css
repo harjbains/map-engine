@@ -38,86 +38,10 @@
   overflow: hidden;
 }
 
-.driver-view-sky {
-  position: absolute;
-  inset: 0 0 58%;
-  background: linear-gradient(180deg, #17314a 0%, #2a4d6b 55%, #52708a 100%);
-}
-
-.driver-view-sun {
-  position: absolute;
-  top: 14%;
-  right: 14%;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fff6c9, #f4c95d 60%, #d99a2b);
-  box-shadow: 0 0 44px rgba(244, 201, 93, 0.55);
-}
-
-.driver-view-horizon {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 42%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35) 50%, transparent);
-}
-
-.driver-view-road {
-  position: absolute;
-  left: 50%;
-  top: 30%;
-  bottom: 0;
-  width: 60vw;
-  transform: translateX(-50%) rotate(var(--driver-tilt, 0deg));
-  transform-origin: 50% 100%;
-  transition: transform 0.35s ease-out;
-  background: linear-gradient(180deg, #2b3238 0%, #20272c 60%, #161c21 100%);
-  clip-path: polygon(50% 0, 100% 58%, 100% 100%, 0 100%, 0 58%);
-}
-
-.driver-view-dash {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  transform: translateX(-50%);
-  background: repeating-linear-gradient(180deg, #c9d2d8 0 26px, transparent 26px 58px);
-  opacity: 0.7;
-  animation: driver-view-dash-flow linear infinite;
-  animation-duration: var(--motion-duration, 1s);
-}
-
-.driver-view-streaks {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 56%;
-  height: 8px;
-  opacity: 0.5;
-  transform: rotate(var(--driver-tilt, 0deg));
-  transform-origin: 50% 100%;
-  transition: transform 0.35s ease-out;
-  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.18) 0 36px, transparent 36px 132px);
-  animation: driver-view-streak-flow linear infinite;
-  animation-duration: var(--motion-duration, 1s);
-}
-
-.driver-view-scene.motion-stopped .driver-view-dash,
-.driver-view-scene.motion-stopped .driver-view-streaks {
-  animation-play-state: paused;
-}
-
-@keyframes driver-view-dash-flow {
-  from { background-position: 0 0; }
-  to { background-position: 0 58px; }
-}
-
-@keyframes driver-view-streak-flow {
-  from { background-position: 0 0; }
-  to { background-position: -132px 0; }
+.driver-view-scene-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .driver-view-hud {
