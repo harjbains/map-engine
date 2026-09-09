@@ -1,15 +1,40 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createDriverViewData, type DriverViewProps } from "./DriverViewAdapter";
 import { DRIVER_VIEW_EXIT_LABEL } from "./DriverViewConfig";
 
 export function DriverViewScreen(props: DriverViewProps) {
   const data = useMemo(() => createDriverViewData(props), [props]);
+  const previousBearingRef = useRef<number | null>(null);
+  const [tilt, setTilt] = useState(0);
+
+  useEffect(() => {
+    if (data.headingDegrees === null) {
+      previousBearingRef.current = null;
+      setTilt(0);
+      return;
+    }
+    const previous = previousBearingRef.current;
+    previousBearingRef.current = data.headingDegrees;
+    if (previous === null) return;
+    let delta = data.headingDegrees - previous;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    setTilt(Math.max(-9, Math.min(9, delta)));
+    const timer = window.setTimeout(() => setTilt(0), 380);
+    return () => window.clearTimeout(timer);
+  }, [data.headingDegrees]);
+
+  const dashSeconds = data.speedMph > 0 ? Math.min(2.4, Math.max(0.35, 28 / data.speedMph)) : null;
+  const sceneStyle: CSSProperties = {
+    "--driver-tilt": `${tilt}deg`,
+    "--motion-duration": dashSeconds === null ? "0s" : `${dashSeconds}s`,
+  } as CSSProperties;
 
   return (
     <section className="driver-view-screen" aria-label="Driver View (experimental)">
-      <div className="driver-view-scene" aria-hidden="true">
+      <div className={`driver-view-scene${dashSeconds === null ? " motion-stopped" : ""}`} aria-hidden="true" style={sceneStyle}>
         <div className="driver-view-sky">
           <div className="driver-view-sun" />
         </div>
@@ -17,6 +42,7 @@ export function DriverViewScreen(props: DriverViewProps) {
         <div className="driver-view-road">
           <div className="driver-view-dash" />
         </div>
+        <div className="driver-view-streaks" />
       </div>
       <div className="driver-view-hud">
         <header className="driver-view-header">

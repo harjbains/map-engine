@@ -25,8 +25,14 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
 
   assert.match(screen, /aria-label="Driver View \(experimental\)"/);
   assert.match(screen, /className="driver-view-exit"/);
+  assert.match(screen, /motion-stopped/);
+  assert.match(screen, /--driver-tilt/);
+  assert.match(screen, /--motion-duration/);
   assert.match(view, /className="driver-view-toggle/);
   assert.match(css, /\.driver-view-screen \{/);
+  assert.match(css, /@keyframes driver-view-dash-flow/);
+  assert.match(css, /@keyframes driver-view-streak-flow/);
+  assert.match(css, /\.driver-view-scene\.motion-stopped/);
 
   assert.match(barrel, /export \{ DriverView \}/);
 });
