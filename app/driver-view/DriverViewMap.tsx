@@ -5,8 +5,11 @@ import maplibregl from "maplibre-gl";
 import { styleJsonUrl } from "../lib/tomtom-client";
 import type { SceneControls } from "./DriverViewAdapter";
 
-const DRIVER_VIEW_PITCH = 78;
-const DRIVER_VIEW_ZOOM = 17;
+const DRIVER_VIEW_PITCH = 84;
+const DRIVER_VIEW_ZOOM = 18.5;
+const DRIVER_VIEW_LOOK_AHEAD_METRES = 14;
+const DRIVER_VIEW_ORIGIN = { lon: -1.89, lat: 52.475 } as const;
+const METRES_PER_DEGREE_LATITUDE = 111_320;
 const ROUTE_SOURCE = "driver-route";
 const ROUTE_LAYER = "driver-route-line";
 const SIGNAL_SOURCE = "driver-signals";
@@ -25,7 +28,7 @@ export function DriverViewMap({ controls }: { controls: MutableRefObject<SceneCo
     const map = new maplibregl.Map({
       container: node,
       style: styleJsonUrl(),
-      center: [-1.89, 52.475],
+      center: [DRIVER_VIEW_ORIGIN.lon, DRIVER_VIEW_ORIGIN.lat],
       zoom: DRIVER_VIEW_ZOOM,
       pitch: DRIVER_VIEW_PITCH,
       bearing: 0,
@@ -43,7 +46,10 @@ export function DriverViewMap({ controls }: { controls: MutableRefObject<SceneCo
     mapRef.current = map;
 
     map.on("error", (event) => {
-      if (setError) setError(event?.error ? String(event.error.message ?? event.error) : "Map error");
+      const detail = event?.error as { message?: string; status?: number } | undefined;
+      if (!detail || typeof detail !== "object") return;
+      if ("status" in detail && detail.status && detail.status < 400) return;
+      setError(`${detail.message ?? "Map error"}`);
     });
 
     const resizeObserver = new ResizeObserver(() => {
@@ -128,36 +134,43 @@ export function DriverViewMap({ controls }: { controls: MutableRefObject<SceneCo
           lastBearing = bearing;
         }
         if (Math.abs(pos.lat - lastLat) > 1e-6 || Math.abs(pos.lon - lastLon) > 1e-6) {
-          map.setCenter([pos.lon, pos.lat]);
+          const radians = pos.bearing * Math.PI / 180;
+          const north = DRIVER_VIEW_LOOK_AHEAD_METRES * Math.cos(radians);
+          const east = DRIVER_VIEW_LOOK_AHEAD_METRES * Math.sin(radians);
+          const cameraLat = pos.lat + north / METRES_PER_DEGREE_LATITUDE;
+          const cameraLon = pos.lon + east / (METRES_PER_DEGREE_LATITUDE * Math.cos(pos.lat * Math.PI / 180));
+          map.setCenter([cameraLon, cameraLat]);
           lastLat = pos.lat;
           lastLon = pos.lon;
         }
       }
 
-      const route = ctrl.route;
-      if (route && route.length >= 2 && map.isSourceLoaded(ROUTE_SOURCE)) {
-        const source = map.getSource(ROUTE_SOURCE) as maplibregl.GeoJSONSource;
-        source?.setData({
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              geometry: { type: "LineString", coordinates: route },
-              properties: {},
-            },
-          ],
-        });
-      }
+      if (map.isStyleLoaded()) {
+        const route = ctrl.route;
+        if (route && route.length >= 2 && map.getSource(ROUTE_SOURCE)) {
+          const source = map.getSource(ROUTE_SOURCE) as maplibregl.GeoJSONSource | undefined;
+          source?.setData({
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                geometry: { type: "LineString", coordinates: route },
+                properties: {},
+              },
+            ],
+          });
+        }
 
-      const roadCtx = ctrl.roadContext;
-      if (roadCtx && map.isSourceLoaded(SIGNAL_SOURCE)) {
-        const features: GeoJSON.Feature[] = (roadCtx.signals ?? []).map(([lon, lat]) => ({
-          type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: [lon, lat] },
-          properties: {},
-        }));
-        const source = map.getSource(SIGNAL_SOURCE) as maplibregl.GeoJSONSource;
-        source?.setData({ type: "FeatureCollection", features });
+        const roadCtx = ctrl.roadContext;
+        if (roadCtx && map.getSource(SIGNAL_SOURCE)) {
+          const features: GeoJSON.Feature[] = (roadCtx.signals ?? []).map(([lon, lat]) => ({
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: [lon, lat] },
+            properties: {},
+          }));
+          const source = map.getSource(SIGNAL_SOURCE) as maplibregl.GeoJSONSource | undefined;
+          source?.setData({ type: "FeatureCollection", features });
+        }
       }
 
       frame = requestAnimationFrame(tick);
