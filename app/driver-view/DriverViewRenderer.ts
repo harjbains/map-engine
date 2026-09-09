@@ -213,8 +213,8 @@ export type EdgeGap = [number, number];
 
 export function edgeBreaks(branches: RoadBranch[], side: 1 | -1): EdgeGap[] {
   return branches
-    .filter((branch) => branch.side === side)
-    .map((branch) => [branch.z - 2.1, branch.z + 2.1] as EdgeGap)
+    .filter((branch) => branch.side === side && branch.kind === "side")
+    .map((branch) => [branch.z - 2.6, branch.z + 2.6] as EdgeGap)
     .sort((a, b) => a[0] - b[0]);
 }
 
@@ -288,31 +288,36 @@ function drawGround(ctx: CanvasRenderingContext2D, scene: SceneState) {
 }
 
 function roadPoints(scene: SceneState, offset: number) {
-  const zs = [1.8, 4, 8, 16, 32, 60, 120];
+  const zs = [1.8, 2.8, 4.2, 6, 9, 13, 19, 28, 42, 62, 90, 120];
   return zs.map((z) => project(scene, clX(scene, z) + offset, z));
 }
 
 function drawRouteRibbon(ctx: CanvasRenderingContext2D, scene: SceneState) {
   if (scene.centerline.length < 2) return;
+  const zs = [1.8, 2.8, 4.2, 6, 9, 13, 19, 28, 42, 62, 90, 120];
   const left: Array<{ x: number; y: number }> = [];
   const right: Array<{ x: number; y: number }> = [];
-  for (const z of [2, 4, 8, 16, 26, 40, 60, 120]) {
+  for (const z of zs) {
     const centre = clX(scene, z);
-    left.push(project(scene, centre - 1.35, z));
-    right.push(project(scene, centre + 1.25, z));
+    left.push(project(scene, centre - 1.1, z));
+    right.push(project(scene, centre + 1.1, z));
   }
-  ctx.fillStyle = "rgba(92,170,244,0.85)";
+  ctx.fillStyle = "rgba(66,140,232,0.15)";
   ctx.beginPath();
   ctx.moveTo(left[0].x, left[0].y);
   for (const point of left) ctx.lineTo(point.x, point.y);
   for (let i = right.length - 1; i >= 0; i -= 1) ctx.lineTo(right[i].x, right[i].y);
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = "rgba(38,116,208,0.9)";
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(96,170,240,0.32)";
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.moveTo(left[0].x, left[0].y);
   for (const point of left) ctx.lineTo(point.x, point.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(right[0].x, right[0].y);
+  for (const point of right) ctx.lineTo(point.x, point.y);
   ctx.stroke();
 }
 
@@ -355,36 +360,53 @@ function drawEdgeWithBreaks(ctx: CanvasRenderingContext2D, scene: SceneState, of
   strokeRun(ctx, run);
 }
 
-function drawBranchStubs(ctx: CanvasRenderingContext2D, scene: SceneState) {
-  ctx.fillStyle = "#272e34";
-  ctx.strokeStyle = "rgba(255,255,255,0.55)";
-  ctx.lineWidth = 1.6;
+function drawJunctionMouths(ctx: CanvasRenderingContext2D, scene: SceneState) {
+  const mouthHalf = 2.6;
+  const sideLen = 9;
+  const farSpan = 1.3;
   for (const branch of scene.branches) {
-    if (branch.z < Z_NEAR + 0.4 || branch.z > 120) continue;
+    if (branch.kind !== "side") continue;
+    if (branch.z < Z_NEAR + 0.6 || branch.z > 120) continue;
     const jx = clX(scene, branch.z);
-    const innerX = jx + branch.side * (ROAD_HALF - 0.42);
-    const outerX = jx + branch.side * (ROAD_HALF - 0.42 + 13);
-    const near = 2.0;
-    const skew = 1.6;
-    const n1 = project(scene, innerX, branch.z - near);
-    const n2 = project(scene, innerX, branch.z + near);
-    const o1 = project(scene, outerX, branch.z - near - skew);
-    const o2 = project(scene, outerX, branch.z + near + skew);
+    const side = branch.side;
+    const n1 = project(scene, jx + side * ROAD_HALF, branch.z - mouthHalf);
+    const n2 = project(scene, jx + side * ROAD_HALF, branch.z + mouthHalf);
+    const f1 = project(scene, jx + side * (ROAD_HALF + sideLen), branch.z - farSpan);
+    const f2 = project(scene, jx + side * (ROAD_HALF + sideLen), branch.z + farSpan);
+    ctx.fillStyle = "#272e34";
     ctx.beginPath();
     ctx.moveTo(n1.x, n1.y);
-    ctx.lineTo(o1.x, o1.y);
-    ctx.lineTo(o2.x, o2.y);
+    ctx.lineTo(f1.x, f1.y);
+    ctx.lineTo(f2.x, f2.y);
     ctx.lineTo(n2.x, n2.y);
     ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 1.7;
     ctx.beginPath();
     ctx.moveTo(n1.x, n1.y);
-    ctx.lineTo(o1.x, o1.y);
+    ctx.lineTo(f1.x, f1.y);
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(n2.x, n2.y);
-    ctx.lineTo(o2.x, o2.y);
+    ctx.lineTo(f2.x, f2.y);
     ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(f1.x, f1.y);
+    ctx.lineTo(f2.x, f2.y);
+    ctx.stroke();
+    const d1 = project(scene, jx + side * (ROAD_HALF + 1.1), branch.z - mouthHalf + 0.5);
+    const d2 = project(scene, jx + side * (ROAD_HALF + 1.1), branch.z + mouthHalf - 0.5);
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 1.3;
+    ctx.setLineDash([3, 2.6]);
+    ctx.beginPath();
+    ctx.moveTo(d1.x, d1.y);
+    ctx.lineTo(d2.x, d2.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 }
 
@@ -399,7 +421,7 @@ function drawRoad(ctx: CanvasRenderingContext2D, scene: SceneState) {
   ctx.closePath();
   ctx.fill();
 
-  drawBranchStubs(ctx, scene);
+  drawJunctionMouths(ctx, scene);
 
   drawEdgeWithBreaks(ctx, scene, -(ROAD_HALF - 0.42), -1);
   drawEdgeWithBreaks(ctx, scene, ROAD_HALF - 0.42, 1);
@@ -765,7 +787,7 @@ function drawBranchLabels(ctx: CanvasRenderingContext2D, scene: SceneState) {
       (other) => other.kind === "corner" && other.side === branch.side && Math.abs(other.z - branch.z) < 6,
     );
     if (duplicateCorner) continue;
-    drawSignboard(ctx, scene, jx + branch.side * (ROAD_HALF + 2.8), branch.z, branch.name, branch.name);
+    drawSignboard(ctx, scene, jx + branch.side * (ROAD_HALF + 2.1), branch.z, branch.name, branch.name);
   }
 }
 

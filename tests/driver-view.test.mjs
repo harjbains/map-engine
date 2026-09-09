@@ -49,6 +49,10 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(renderer, /horizon: Math\.round\(height \* 0\.5\)/);
   assert.match(renderer, /BUILDING_COLOURS:/);
   assert.match(renderer, /footprint\.kind/);
+  assert.match(renderer, /function drawJunctionMouths/);
+  assert.match(renderer, /mouthHalf = 2\.6/);
+  assert.match(renderer, /branch\.kind === "side"/);
+  assert.match(renderer, /edgeBreaks/);
   assert.match(adapter, /SceneControls = \{/);
   assert.match(adapter, /position: \{ lat: number; lon: number; bearing: number \} \| null/);
   assert.match(adapter, /route: Array<\[number, number\]>/);
@@ -159,6 +163,25 @@ test("resolveRoadAhead detects side roads branching left and right from the trac
   assert.equal(left.name, "Acacia Avenue");
   assert.ok(right, "Cross Lane branches to the right");
   assert.equal(right.name, "Cross Lane");
+});
+
+test("a junction is recognisable from geometry alone even when its street name is hidden", async () => {
+  const branch = {
+    z: 40,
+    side: 1,
+    kind: "side",
+    name: null,
+    cross: false,
+  };
+  const gaps = renderer.edgeBreaks([branch], 1);
+  assert.equal(gaps.length, 1, "the side road breaks the edge line into a gap");
+  assert.ok(Math.abs(gaps[0][0] - (40 - 2.6)) < 1e-9, "the boundary opens 2.6 m before the junction");
+  assert.ok(Math.abs(gaps[0][1] - (40 + 2.6)) < 1e-9, "the boundary opens 2.6 m after the junction");
+  const opposite = renderer.edgeBreaks([branch], -1);
+  assert.equal(opposite.length, 0, "only the side the road is on gets the opening");
+  const mouths = (await readFile(new URL("../app/driver-view/DriverViewRenderer.ts", import.meta.url), "utf8")).match(/function drawJunctionMouths[\s\S]*?\n}/);
+  assert.ok(mouths, "the renderer draws the joining road surface at each side-road mouth");
+  assert.match(mouths[0], /branch\.kind !== "side"/, "geometry opens regardless of the street name");
 });
 
 test("zAtMetres interpolates local depth and computeApproach reports the next junction", () => {
