@@ -12,11 +12,18 @@ import { localiseRoute } from "./DriverViewRenderer.ts";
 
 export const DRIVABLE_HIGHWAY = "^motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|track|road$";
 
+export type RoadJunction = {
+  metres: number;
+  side: 1 | -1;
+  name: string | null;
+};
+
 export type RoadAhead = {
   trace: Array<[number, number]>;
   steps: RouteStep[];
   signals: Array<[number, number]>;
   buildings: Array<{ ring: Array<[number, number]>; height: number }>;
+  junctions: RoadJunction[];
   roadName: string | null;
 };
 
@@ -40,6 +47,13 @@ function angleDeviation(from: number, to: number): number {
   while (deviation > 180) deviation -= 360;
   while (deviation < -180) deviation += 360;
   return Math.abs(deviation);
+}
+
+function signedAngle(from: number, to: number): number {
+  let deviation = to - from;
+  while (deviation > 180) deviation -= 360;
+  while (deviation < -180) deviation += 360;
+  return deviation;
 }
 
 export function roadContextBounds(position: { lat: number; lon: number }, headingDegrees: number, aheadMetres = 1600, halfWidthMetres = 850): { south: number; west: number; north: number; east: number } {
@@ -173,6 +187,36 @@ function nearestTraceMetres(lon: number, lat: number, coordinates: Array<[number
   return best;
 }
 
+function detectJunctions(graph: ReturnType<typeof buildRoadGraph>, trace: number[], nodes: Map<number, GraphNode>): RoadJunction[] {
+  const junctions: RoadJunction[] = [];
+  if (trace.length < 3) return junctions;
+  const metresAt: number[] = [0];
+  for (let i = 1; i < trace.length; i += 1) {
+    const from = nodes.get(trace[i - 1]);
+    const to = nodes.get(trace[i]);
+    metresAt.push(metresAt[i - 1] + (from && to ? distanceMetres(from, to) : 0));
+  }
+  for (let i = 1; i < trace.length - 1; i += 1) {
+    const id = trace[i];
+    const previousId = trace[i - 1];
+    const nextId = trace[i + 1];
+    const here = nodes.get(id);
+    const previous = nodes.get(previousId);
+    if (!here || !previous) continue;
+    const inbound = bearingBetweenNodes(previous, here);
+    for (const edge of graph.adjacency.get(id) ?? []) {
+      if (edge.to === previousId || edge.to === nextId) continue;
+      const next = nodes.get(edge.to);
+      if (!next) continue;
+      const deviation = signedAngle(inbound, bearingBetweenNodes(here, next));
+      if (Math.abs(deviation) < 10 || Math.abs(deviation) > 170) continue;
+      const info = graph.wayInfo.get(edge.wayId);
+      junctions.push({ metres: metresAt[i], side: deviation > 0 ? 1 : -1, name: info?.name || info?.ref || null });
+    }
+  }
+  return junctions;
+}
+
 function collectBuildings(elements: RoadElement[], nodes: Map<number, GraphNode>, coordinates: Array<[number, number]>): Array<{ ring: Array<[number, number]>; height: number }> {
   const buildings: Array<{ ring: Array<[number, number]>; height: number }> = [];
   for (const element of elements) {
@@ -274,6 +318,7 @@ export function resolveRoadAhead(elements: RoadElement[], position: { lat: numbe
     steps,
     signals,
     buildings: collectBuildings(elements, nodes, coordinates),
+    junctions: detectJunctions(graph, trace, nodes),
     roadName: firstInfo?.name || firstInfo?.ref || null,
   };
 }

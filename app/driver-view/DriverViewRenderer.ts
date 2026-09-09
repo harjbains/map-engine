@@ -35,8 +35,17 @@ export type RouteEvent = {
   metres: number;
   kind: "junction" | "roundabout";
   turn: number;
+  side: 1 | -1;
   label: string;
   arrow: string;
+};
+
+export type RoadBranch = {
+  z: number;
+  side: 1 | -1;
+  kind: "corner" | "side";
+  name: string | null;
+  cross: boolean;
 };
 
 export type SceneState = {
@@ -51,6 +60,7 @@ export type SceneState = {
   rnd: () => number;
   world: WorldObject[];
   buildings: WorldObject[];
+  branches: RoadBranch[];
   centerline: Array<{ x: number; z: number }>;
   events: RouteEvent[];
   signals: Array<{ x: number; z: number }>;
@@ -125,6 +135,7 @@ export function buildScene(width: number, height: number): SceneState {
     rnd,
     world,
     buildings: [],
+    branches: [],
     centerline: [],
     events: [],
     signals: [],
@@ -160,6 +171,29 @@ function localPoint(position: { lat: number; lon: number }, headingDegrees: numb
   const east = (lon - position.lon) * 111320 * cosLat;
   const north = (lat - position.lat) * 111320;
   return { x: east * cosH - north * sinH, z: east * sinH + north * cosH };
+}
+
+export function zAtMetres(points: Array<{ x: number; z: number }>, metres: number): number {
+  if (points.length === 0) return 0;
+  let travelled = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    const segment = Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
+    if (travelled + segment >= metres) {
+      const fraction = segment > 0.0001 ? (metres - travelled) / segment : 0;
+      return points[i - 1].z + (points[i].z - points[i - 1].z) * fraction;
+    }
+    travelled += segment;
+  }
+  return points[points.length - 1].z;
+}
+
+export type EdgeGap = [number, number];
+
+export function edgeBreaks(branches: RoadBranch[], side: 1 | -1): EdgeGap[] {
+  return branches
+    .filter((branch) => branch.side === side)
+    .map((branch) => [branch.z - 2.1, branch.z + 2.1] as EdgeGap)
+    .sort((a, b) => a[0] - b[0]);
 }
 
 function clX(scene: SceneState, z: number): number {
@@ -260,6 +294,78 @@ function drawRouteRibbon(ctx: CanvasRenderingContext2D, scene: SceneState) {
   ctx.stroke();
 }
 
+function strokeRun(ctx: CanvasRenderingContext2D, run: Array<{ x: number; y: number }>) {
+  if (run.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(run[0].x, run[0].y);
+  for (const point of run.slice(1)) ctx.lineTo(point.x, point.y);
+  ctx.stroke();
+}
+
+function inAnyGap(z: number, gaps: EdgeGap[]): boolean {
+  for (const [a, b] of gaps) {
+    if (z >= a && z <= b) return true;
+  }
+  return false;
+}
+
+function drawEdgeWithBreaks(ctx: CanvasRenderingContext2D, scene: SceneState, offset: number, side: 1 | -1) {
+  const gaps = edgeBreaks(scene.branches, side);
+  ctx.strokeStyle = "rgba(255,255,255,0.75)";
+  ctx.lineWidth = 3;
+  if (gaps.length === 0) {
+    const pts = roadPoints(scene, offset);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (const point of pts) ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    return;
+  }
+  let run: Array<{ x: number; y: number }> = [];
+  for (let z = 1.8; z <= 90; z += 1.5) {
+    if (!inAnyGap(z, gaps)) {
+      run.push(project(scene, clX(scene, z) + offset, z));
+    } else {
+      strokeRun(ctx, run);
+      run = [];
+    }
+  }
+  strokeRun(ctx, run);
+}
+
+function drawBranchStubs(ctx: CanvasRenderingContext2D, scene: SceneState) {
+  ctx.fillStyle = "#272e34";
+  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  ctx.lineWidth = 1.6;
+  for (const branch of scene.branches) {
+    if (branch.z < Z_NEAR + 0.4 || branch.z > 90) continue;
+    const jx = clX(scene, branch.z);
+    const innerX = jx + branch.side * (ROAD_HALF - 0.42);
+    const outerX = jx + branch.side * (ROAD_HALF - 0.42 + 13);
+    const near = 2.0;
+    const skew = 1.6;
+    const n1 = project(scene, innerX, branch.z - near);
+    const n2 = project(scene, innerX, branch.z + near);
+    const o1 = project(scene, outerX, branch.z - near - skew);
+    const o2 = project(scene, outerX, branch.z + near + skew);
+    ctx.beginPath();
+    ctx.moveTo(n1.x, n1.y);
+    ctx.lineTo(o1.x, o1.y);
+    ctx.lineTo(o2.x, o2.y);
+    ctx.lineTo(n2.x, n2.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(n1.x, n1.y);
+    ctx.lineTo(o1.x, o1.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(n2.x, n2.y);
+    ctx.lineTo(o2.x, o2.y);
+    ctx.stroke();
+  }
+}
+
 function drawRoad(ctx: CanvasRenderingContext2D, scene: SceneState) {
   const left = roadPoints(scene, -ROAD_HALF);
   const right = roadPoints(scene, ROAD_HALF);
@@ -271,14 +377,10 @@ function drawRoad(ctx: CanvasRenderingContext2D, scene: SceneState) {
   ctx.closePath();
   ctx.fill();
 
-  ctx.strokeStyle = "rgba(255,255,255,0.75)";
-  ctx.lineWidth = 3;
-  for (const edge of [roadPoints(scene, -(ROAD_HALF - 0.42)), roadPoints(scene, ROAD_HALF - 0.42)]) {
-    ctx.beginPath();
-    ctx.moveTo(edge[0].x, edge[0].y);
-    for (const point of edge) ctx.lineTo(point.x, point.y);
-    ctx.stroke();
-  }
+  drawBranchStubs(ctx, scene);
+
+  drawEdgeWithBreaks(ctx, scene, -(ROAD_HALF - 0.42), -1);
+  drawEdgeWithBreaks(ctx, scene, ROAD_HALF - 0.42, 1);
 
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   const dashes: Array<[number, number]> = [];
@@ -405,7 +507,8 @@ function buildEvents(points: Array<{ x: number; z: number }>, steps: Array<{ arr
       z: points[index].z,
       metres: metresAt,
       kind: roundabout ? "roundabout" : "junction",
-      turn,
+      turn: runSum,
+      side: runSum > 0 ? 1 : -1,
       label: step?.road || (roundabout ? "Roundabout" : "Next road"),
       arrow: step?.arrow || (roundabout ? "↻" : "↑"),
     });
@@ -520,6 +623,19 @@ function drawRealSignals(ctx: CanvasRenderingContext2D, scene: SceneState) {
   }
 }
 
+function drawBranchLabels(ctx: CanvasRenderingContext2D, scene: SceneState) {
+  for (const branch of scene.branches) {
+    if (branch.kind !== "side" || !branch.name) continue;
+    if (branch.z < Z_NEAR || branch.z > 200) continue;
+    const jx = clX(scene, branch.z);
+    const duplicateCorner = scene.branches.some(
+      (other) => other.kind === "corner" && other.side === branch.side && Math.abs(other.z - branch.z) < 6,
+    );
+    if (duplicateCorner) continue;
+    drawSignboard(ctx, scene, jx + branch.side * (ROAD_HALF + 2.8), branch.z, branch.name, branch.name);
+  }
+}
+
 function drawJunctionOverlay(ctx: CanvasRenderingContext2D, scene: SceneState, event: RouteEvent) {
   if (event.z < Z_NEAR || event.z > 200) return;
   if (event.kind === "roundabout") {
@@ -615,6 +731,29 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   scene.signals = signals;
   scene.syntheticLights = syntheticLights;
   scene.buildings = [];
+  scene.branches = [];
+  for (const event of scene.events) {
+    if (event.kind === "roundabout") continue;
+    scene.branches.push({ z: event.z, side: event.side, kind: "corner", name: event.label, cross: false });
+  }
+  const junctions = position ? (controls.roadContext?.junctions ?? null) : null;
+  if (junctions) {
+    const hasBothSides = new Set<number>();
+    for (const junction of junctions) {
+      if (junctions.some((other) => other !== junction && Math.abs(other.metres - junction.metres) < 8 && other.side !== junction.side)) {
+        hasBothSides.add(Math.round(junction.metres));
+      }
+    }
+    for (const junction of junctions) {
+      scene.branches.push({
+        z: zAtMetres(routePoints, junction.metres),
+        side: junction.side,
+        kind: "side",
+        name: junction.name,
+        cross: hasBothSides.has(Math.round(junction.metres)),
+      });
+    }
+  }
   const realFootprints = position ? (controls.roadContext?.buildings ?? []) : [];
   for (const footprint of realFootprints) {
     let minX = Infinity;
@@ -656,6 +795,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   drawRoad(ctx, scene);
   const approach = drawJunctions(ctx, scene);
   if (!scene.syntheticLights) drawRealSignals(ctx, scene);
+  drawBranchLabels(ctx, scene);
   const hasRealBuildings = scene.buildings.length > 0;
   const drawables = [
     ...scene.world.filter((object) => !(hasRealBuildings && object.kind === "building")),

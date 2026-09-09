@@ -60,6 +60,9 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(road, /export function resolveRoadAhead/);
   assert.match(road, /way\["building"\]\(/);
   assert.match(road, /buildings: Array<\{ ring: Array<\[number, number\]>; height: number \}>/);
+  assert.match(road, /RoadJunction/);
+  assert.match(road, /junctions: RoadJunction\[\]/);
+  assert.match(road, /detectJunctions/);
   assert.match(simulatorFile, /export class DriverViewSimulation/);
   assert.match(simulatorFile, /advance\(seconds: number, priorSpeedMph: number\)/);
   assert.match(simulatorFile, /positionAt\(metresAlong: number\)/);
@@ -85,6 +88,15 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(renderer, /buildings: WorldObject\[\]/);
   assert.match(renderer, /scene\.buildings/);
   assert.match(renderer, /controls\.roadContext\?\.buildings/);
+  assert.match(renderer, /branches: RoadBranch\[\]/);
+  assert.match(renderer, /scene\.branches/);
+  assert.match(renderer, /controls\.roadContext\?\.junctions/);
+  assert.match(renderer, /drawBranchStubs/);
+  assert.match(renderer, /drawBranchLabels/);
+  assert.match(renderer, /side: 1 \| -1/);
+  assert.match(renderer, /side: runSum > 0 \? 1 : -1/);
+  assert.match(renderer, /export function zAtMetres/);
+  assert.match(renderer, /export function edgeBreaks/);
 
   assert.match(barrel, /export \{ DriverView \}/);
 });
@@ -131,6 +143,49 @@ test("resolveRoadAhead includes the real buildings beside the road and drops far
   assert.equal(resolved.buildings[0].height, 9, "height comes from building:levels (3 storeys)");
   const [lon, lat] = resolved.buildings[0].ring[0];
   assert.ok(Math.abs(lon - -2.0003) < 1e-6 && Math.abs(lat - 51.0001) < 1e-6);
+});
+
+test("resolveRoadAhead detects side roads branching left and right from the trace", () => {
+  const elements = [
+    { type: "node", id: 1, lat: 51.0, lon: -2.0 },
+    { type: "node", id: 2, lat: 51.0002, lon: -2.0 },
+    { type: "node", id: 3, lat: 51.0005, lon: -1.9996 },
+    { type: "node", id: 4, lat: 51.0002, lon: -2.0003 },
+    { type: "node", id: 5, lat: 51.0002, lon: -1.9997 },
+    { type: "way", id: 30, nodes: [1, 2, 3], tags: { highway: "primary", name: "Main Street" } },
+    { type: "way", id: 40, nodes: [2, 4], tags: { highway: "residential", name: "Acacia Avenue" } },
+    { type: "way", id: 50, nodes: [2, 5], tags: { highway: "tertiary", name: "Cross Lane" } },
+  ];
+  const resolved = roadAhead.resolveRoadAhead(elements, { lat: 51.0, lon: -2.0 }, 0);
+  assert.ok(resolved);
+  assert.ok(resolved.junctions.length >= 2, "the left and right side roads are both detected");
+  const left = resolved.junctions.find((j) => j.side === -1);
+  const right = resolved.junctions.find((j) => j.side === 1);
+  assert.ok(left, "Acacia Avenue branches to the left when heading north");
+  assert.ok(left.metres > 0 && left.metres < 60, "the junction is within 60 m of the start");
+  assert.equal(left.name, "Acacia Avenue");
+  assert.ok(right, "Cross Lane branches to the right");
+  assert.equal(right.name, "Cross Lane");
+});
+
+test("zAtMetres interpolates the local depth and edgeBreaks maps branches to gaps", () => {
+  const points = [
+    { x: 0, z: 0 },
+    { x: 0, z: 100 },
+  ];
+  assert.equal(renderer.zAtMetres(points, 0), 0);
+  assert.equal(renderer.zAtMetres(points, 100), 100);
+  assert.ok(Math.abs(renderer.zAtMetres(points, 40) - 40) < 0.01);
+  const branches = [
+    { z: 50, side: -1, kind: "side", name: "Left Road", cross: false },
+    { z: 60, side: 1, kind: "corner", name: "Right", cross: false },
+  ];
+  const leftGaps = renderer.edgeBreaks(branches, -1);
+  assert.equal(leftGaps.length, 1);
+  assert.ok(leftGaps[0][0] < 50 && leftGaps[0][1] > 50, "the left gap sits around the branch z");
+  const rightGaps = renderer.edgeBreaks(branches, 1);
+  assert.equal(rightGaps.length, 1);
+  assert.ok(rightGaps[0][0] < 60 && rightGaps[0][1] > 60);
 });
 
 test("localiseRoute keeps corner vertices so the road bends instead of cutting straight through", () => {
