@@ -13,6 +13,7 @@ import { MapHeader } from "./map-engine/MapHeader";
 import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
+import { UberShiftProgress } from "./map-engine/UberShiftProgress";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
 import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, getAreaViewActive, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, subscribeAreaView, toggleAreaView, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setAreaViewMode, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
@@ -1072,6 +1073,8 @@ export default function MapEngine() {
       {mapMessage && <div className="map-alert" role="status">{mapMessage}</div>}
 
       {pickupNotice && <div className="pickup-notice" role="status">{pickupNotice}</div>}
+
+      <UberShiftProgress />
 
       {<PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 
