@@ -14,6 +14,7 @@ import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { UberShiftProgress } from "./map-engine/UberShiftProgress";
+import { UberShiftModal } from "./map-engine/UberShiftModal";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
 import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, getAreaViewActive, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, subscribeAreaView, toggleAreaView, vehicleScreenOffset } from "./map-engine/map-navigation";
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setAreaViewMode, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
@@ -70,6 +71,7 @@ export default function MapEngine() {
   const [follow, setFollow] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shiftOpen, setShiftOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [locationState, setLocationState] = useState<"idle" | "requesting" | "active" | "denied" | "unavailable">("idle");
   const [fix, setFix] = useState<VehicleFix | null>(null);
@@ -1074,7 +1076,8 @@ export default function MapEngine() {
 
       {pickupNotice && <div className="pickup-notice" role="status">{pickupNotice}</div>}
 
-      <UberShiftProgress />
+      <UberShiftProgress onOpen={() => setShiftOpen(true)} />
+      {shiftOpen && <UberShiftModal onClose={() => setShiftOpen(false)} />}
 
       {<PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 

@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { UBER_ENGINE_URL } from "./config";
-import { parseShiftProgress } from "../lib/shift-progress";
+import { parseShiftProgress, parseShiftState } from "../lib/shift-progress";
 
 function subscribeShiftProgress(callback: () => void) {
   const refresh = () => callback();
@@ -14,36 +13,42 @@ function subscribeShiftProgress(callback: () => void) {
   };
 }
 
-function getShiftProgressSnapshot(): number | null {
+function getShiftSnapshot(): number | null {
   if (typeof window === "undefined" || typeof window.localStorage === "undefined") return null;
   try {
-    return parseShiftProgress((key) => window.localStorage.getItem(key));
+    const read = (key: string) => window.localStorage.getItem(key);
+    const state = parseShiftState(read);
+    if (state) return state.shiftActive ? state.dailyProgress : null;
+    return parseShiftProgress(read);
   } catch {
     return null;
   }
 }
 
-function getShiftProgressServerSnapshot(): number | null {
+function getShiftServerSnapshot(): number | null {
   return null;
 }
 
-export function UberShiftProgress() {
-  const progress = useSyncExternalStore(subscribeShiftProgress, getShiftProgressSnapshot, getShiftProgressServerSnapshot);
-  if (progress === null) return null;
+export type UberShiftProgressProps = {
+  onOpen: () => void;
+};
 
-  const percent = Math.round(progress * 100);
-  const goal = percent >= 100;
+export function UberShiftProgress({ onOpen }: UberShiftProgressProps) {
+  const progress = useSyncExternalStore(subscribeShiftProgress, getShiftSnapshot, getShiftServerSnapshot);
+  const percent = progress === null ? 0 : Math.round(Math.min(1, Math.max(0, progress)) * 100);
+  const hasData = progress !== null;
+  const goal = hasData && percent >= 100;
 
   return (
     <button
       type="button"
-      className={`shift-progress${goal ? " goal" : ""}`}
-      onClick={() => { window.location.assign(UBER_ENGINE_URL); }}
-      aria-label="Open the Uber Engine dashboard"
+      className={`shift-progress${hasData ? " live" : ""}${goal ? " goal" : ""}`}
+      onClick={onOpen}
+      aria-label="Open today's Uber Engine shift dashboard"
       title="Uber Engine"
     >
       <span className="shift-track" aria-hidden="true">
-        <span className="shift-fill" style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} />
+        <span className="shift-fill" style={{ width: `${percent}%` }} />
         <i className="shift-tick" style={{ left: "50%" }} />
         <i className="shift-tick" style={{ left: "75%" }} />
         <i className="shift-goal" style={{ left: "100%" }} />
