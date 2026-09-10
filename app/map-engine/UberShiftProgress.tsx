@@ -6,10 +6,12 @@ function subscribeShiftProgress(callback: () => void) {
   window.addEventListener("storage", refresh);
   window.addEventListener("focus", refresh);
   document.addEventListener("visibilitychange", refresh);
+  window.addEventListener("uber-engine-shift-state-local", refresh);
   return () => {
     window.removeEventListener("storage", refresh);
     window.removeEventListener("focus", refresh);
     document.removeEventListener("visibilitychange", refresh);
+    window.removeEventListener("uber-engine-shift-state-local", refresh);
   };
 }
 

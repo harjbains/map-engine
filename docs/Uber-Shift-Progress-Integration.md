@@ -86,7 +86,8 @@ best-effort request key; it never touches Uber Engine's database schema:
 Uber Engine consumes this on load, on `storage` events, and on focus: it replaces
 today's authoritative day total (recalculating weekly figures), clears the request,
 and republishes the state. Map Engine also applies the entered total optimistically so
-the bar and modal update immediately without a reload. If the request is for a
+the bar and modal update immediately without a reload — including the first-ever sync
+when Uber Engine has not yet published a state. If the request is for a
 non-today date it is ignored.
 
 ## Example publish

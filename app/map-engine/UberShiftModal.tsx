@@ -6,10 +6,12 @@ function subscribeShift(callback: () => void) {
   window.addEventListener("storage", refresh);
   window.addEventListener("focus", refresh);
   document.addEventListener("visibilitychange", refresh);
+  window.addEventListener("uber-engine-shift-state-local", refresh);
   return () => {
     window.removeEventListener("storage", refresh);
     window.removeEventListener("focus", refresh);
     document.removeEventListener("visibilitychange", refresh);
+    window.removeEventListener("uber-engine-shift-state-local", refresh);
   };
 }
 
@@ -117,9 +119,9 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
     if (typeof window === "undefined" || typeof window.localStorage === "undefined") return;
     const total = Math.round(counterValue);
     const date = state?.date || todayIso;
+    const now = Date.now();
     try {
       window.localStorage.setItem(SHIFT_PROGRESS_KEYS.syncRequest, buildSyncRequest(date, total));
-      const now = Date.now();
       if (state) {
         const dailyTarget = state.dailyTarget;
         const activeMinutes = state.activeMinutes;
@@ -134,11 +136,29 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
         };
         window.localStorage.setItem(SHIFT_PROGRESS_KEYS.state, JSON.stringify(optimistic));
       } else {
-        window.localStorage.setItem(
-          SHIFT_PROGRESS_KEYS.progress,
-          String(0),
-        );
+        const optimistic: UberShiftState = {
+          version: 1,
+          date,
+          shiftActive: true,
+          paused: false,
+          dailyTarget: total,
+          todayEarnings: total,
+          dailyProgress: 1,
+          remaining: 0,
+          targetUnitsRemaining: 0,
+          activeMinutes: 0,
+          hourlyRate: 0,
+          targetRate: 0,
+          weeklyTarget: 0,
+          weeklyEarnings: 0,
+          weeklyProgress: 0,
+          weeklyMinutes: 0,
+          weeklyRemaining: 0,
+          updatedAt: now,
+        };
+        window.localStorage.setItem(SHIFT_PROGRESS_KEYS.state, JSON.stringify(optimistic));
       }
+      window.dispatchEvent(new Event("uber-engine-shift-state-local"));
     } catch {
       window.dispatchEvent(new Event("shift-sync-failed"));
     }
@@ -172,7 +192,7 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
               <strong className="shift-counter-total">{formatMoneyWhole(counterValue)}</strong>
               <button type="button" className="shift-counter-save" onClick={save}>SAVE &amp; UPDATE</button>
               <button type="button" className="shift-counter-cancel" onClick={() => setEditing(false)}>CANCEL</button>
-              {saved && <p className="shift-saved-note" role="status">Saved — the Uber Engine app applies it when it next opens.</p>}
+              {saved && <p className="shift-saved-note" role="status">Saved — today's total is synced to the Uber Engine app.</p>}
             </div>
           )}
         </section>
@@ -247,7 +267,7 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
                   <button type="button" className="shift-counter-save" onClick={save}>SAVE &amp; UPDATE</button>
                   <button type="button" className="shift-counter-cancel" onClick={() => setEditing(false)}>CANCEL</button>
                 </div>
-                {saved && <p className="shift-saved-note" role="status">Saved — the Uber Engine app applies it when it next opens.</p>}
+                {saved && <p className="shift-saved-note" role="status">Saved — today's total is synced to the Uber Engine app.</p>}
               </div>
             )}
           </div>
