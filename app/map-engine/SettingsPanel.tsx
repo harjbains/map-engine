@@ -52,6 +52,7 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
             <Toggle label="Show 3D buildings" checked={settings.showBuildings} onChange={(value) => onToggle("showBuildings", value)} />
             <Toggle label="Show parking and EV chargers" checked={settings.showDriverAmenities} onChange={(value) => onToggle("showDriverAmenities", value)} />
             <Toggle label="Show landmarks ahead" checked={settings.showLandmarks} onChange={(value) => onToggle("showLandmarks", value)} />
+            <Toggle label="Show recorded pickups" checked={settings.showPickups} onChange={(value) => onToggle("showPickups", value)} />
             <Toggle label="Live traffic congestion" checked={settings.liveTraffic} onChange={onLiveTraffic} />
             {settings.liveTraffic && trafficConfigured && <div className="traffic-legend" aria-label="Live traffic colour key"><span><i className="delay" />Delay</span><span><i className="heavy" />Heavy</span><span><i className="severe" />Severe</span><span><i className="incident" />Incident</span></div>}
             {settings.liveTraffic && !trafficConfigured && <p className="settings-note traffic-setup-note">Live traffic is ready for a TomTom connection. Add the traffic service key to activate it.</p>}

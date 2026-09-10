@@ -12,6 +12,7 @@ export type Settings = {
   showBuildings: boolean;
   showDriverAmenities: boolean;
   showLandmarks: boolean;
+  showPickups: boolean;
   liveTraffic: boolean;
   routeProfile: RouteProfile;
   pitch: number;
@@ -43,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showBuildings: true,
   showDriverAmenities: false,
   showLandmarks: true,
+  showPickups: true,
   liveTraffic: true,
   routeProfile: "fast",
   pitch: 55,
@@ -53,9 +55,10 @@ export const STORAGE_KEYS = {
   offlinePack: "map-engine-offline-pack-v1",
   destinationHistory: "map-engine-destination-history-v1",
   destinationFavourites: "map-engine-destination-favourites-v1",
+  pickupHistory: "map-engine-pickup-history-v1",
 } as const;
 
-export const APP_VERSION = "v2.10.75";
+export const APP_VERSION = "v2.10.76";
 export const ROUTE_TIMEOUT_MS = 18_000;
 export const DEFAULT_START = { longitude: -2.152557, latitude: 52.556476, zoom: 15.3 } as const;
 

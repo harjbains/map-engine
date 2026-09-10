@@ -19,11 +19,12 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.75/);
+  assert.match(html, /v2.10.76/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
   assert.match(html, /Your road, at a glance/);
+  assert.match(html, /RECORD PICKUP/);
   assert.match(html, /Start live position/);
   assert.match(html, /aria-label="Zoom in"/);
   assert.match(html, /aria-label="Zoom out"/);
@@ -113,8 +114,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.75"/);
-  assert.match(serviceWorker, /map-engine-shell-v1257/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.76"/);
+  assert.match(serviceWorker, /map-engine-shell-v1258/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -122,6 +123,12 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngineEntry, /import\("\.\/lib\/offline"\)/);
   assert.match(mapEngine, /ROAD_WIDTH_SCALE = 0\.75/);
   assert.match(mapEngine, /Show landmarks ahead/);
+  assert.match(mapEngine, /Show recorded pickups/);
+  assert.match(mapEngine, /map-engine-pickup-history-v1/);
+  assert.match(mapEngine, /ensurePickupLayers/);
+  assert.match(mapEngine, /recordPickupAt\(latest, new Date\(\)\)/);
+  assert.match(mapEngineCss, /\.record-pickup-button/);
+  assert.match(mapEngineCss, /\.pickup-notice/);
   assert.match(mapEngine, /setLandmarkChips/);
   assert.match(mapEngine, /clearLandmarkChips/);
   assert.match(mapEngine, /landmark-chip/);

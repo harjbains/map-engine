@@ -5,6 +5,8 @@ import maplibregl from "maplibre-gl";
 import { dynamicZoom, acceptsPositionUpdate, bindCompassHeading, plausibleGpsStep, smooth, smoothBearing, toMph, type Point } from "./lib/driving";
 import type { PostcodeGroupId } from "./lib/birmingham-postcodes";
 import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollection } from "./lib/safety";
+import { pickupFeatureCollection, readPickupHistory, recordPickupAt } from "./lib/pickup-history";
+import { ensurePickupLayers, setPickupData, setPickupVisibility } from "./map-engine/pickup-layers";
 import { CompassStrip } from "./map-engine/CompassStrip";
 import { DestinationSearch } from "./map-engine/DestinationSearch";
 import { MapHeader } from "./map-engine/MapHeader";
@@ -60,6 +62,7 @@ export default function MapEngine() {
   const deviatedSinceRef = useRef(0);
   const reroutingRef = useRef(false);
   const rerouteCooldownUntilRef = useRef(0);
+  const pickupNoticeTimerRef = useRef<number | null>(null);
   const areaActive = useSyncExternalStore(subscribeAreaView, getAreaViewActive, getAreaViewActive);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [is3d, setIs3d] = useState(true);
@@ -96,6 +99,8 @@ export default function MapEngine() {
   const routeOptionsRef = useRef<RouteOptionEntry[] | null>(null);
   const [routeDetailsOpen, setRouteDetailsOpen] = useState(false);
   const [openPostcodeGroup, setOpenPostcodeGroup] = useState<PostcodeGroupId | null>(null);
+  const [pickupNotice, setPickupNotice] = useState<string | null>(null);
+  const [pickupClock, setPickupClock] = useState(0);
 
   const traffic = useTraffic({ mapRef, latestFixRef, mapReady, enabled: settings.liveTraffic, online });
   const landmarks = useLandmarks({ fix, mapReady, enabled: settings.showLandmarks, online, route: activeRoute });
@@ -210,6 +215,20 @@ export default function MapEngine() {
       }
     }
   }, [settings, is3d, traffic.configured, online, mapReady]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setPickupClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    ensurePickupLayers(map);
+    setPickupData(map, pickupFeatureCollection(readPickupHistory(), new Date()));
+    setPickupVisibility(map, settings.showPickups && !areaActive);
+  }, [mapReady, settings.showPickups, areaActive, pickupClock]);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -369,6 +388,7 @@ export default function MapEngine() {
     destinationSearchAbortRef.current?.abort();
     routeAbortRef.current?.abort();
     destinationMarkerRef.current?.remove();
+    if (pickupNoticeTimerRef.current !== null) window.clearTimeout(pickupNoticeTimerRef.current);
   }, []);
 
   const resolveRoadAndLocality = useCallback((map: maplibregl.Map, point: Point) => {
@@ -621,6 +641,19 @@ export default function MapEngine() {
     } else {
       map.easeTo({ zoom: nextZoom, duration: 180, essential: true });
     }
+  };
+
+  const recordPickup = () => {
+    const latest = latestFixRef.current;
+    if (!latest) return;
+    recordPickupAt(latest, new Date());
+    setPickupClock(Date.now());
+    setPickupNotice("PICKUP RECORDED");
+    if (pickupNoticeTimerRef.current !== null) window.clearTimeout(pickupNoticeTimerRef.current);
+    pickupNoticeTimerRef.current = window.setTimeout(() => {
+      pickupNoticeTimerRef.current = null;
+      setPickupNotice(null);
+    }, 1_800);
   };
 
   const runDestinationSearch = async (queryValue: string) => {
@@ -1038,6 +1071,8 @@ export default function MapEngine() {
 
       {mapMessage && <div className="map-alert" role="status">{mapMessage}</div>}
 
+      {pickupNotice && <div className="pickup-notice" role="status">{pickupNotice}</div>}
+
       {<PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 
       <div className="zoom-controls" aria-label="Map zoom controls">
@@ -1054,6 +1089,10 @@ export default function MapEngine() {
             <span>mph{speedLimitMph !== null && <small> · {speedLimitMph} limit</small>}</span>
           </div>
         )}
+        <button className="record-pickup-button" type="button" onClick={recordPickup} disabled={!fix} aria-label="Record a pickup at the current vehicle position">
+          <span className="pickup-dot" aria-hidden="true" />
+          RECORD PICKUP
+        </button>
       </section>
 
       {locationState !== "active" && (
