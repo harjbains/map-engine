@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { parseShiftProgress, parseShiftState } from "../lib/shift-progress";
+import { parseShiftProgress, parseShiftStateCached } from "../lib/shift-progress";
 
 function subscribeShiftProgress(callback: () => void) {
   const refresh = () => callback();
@@ -19,7 +19,7 @@ function getShiftSnapshot(): number | null {
   if (typeof window === "undefined" || typeof window.localStorage === "undefined") return null;
   try {
     const read = (key: string) => window.localStorage.getItem(key);
-    const state = parseShiftState(read);
+    const state = parseShiftStateCached(read);
     if (state) return state.shiftActive ? state.dailyProgress : null;
     return parseShiftProgress(read);
   } catch {

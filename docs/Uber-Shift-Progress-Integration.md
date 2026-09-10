@@ -102,6 +102,12 @@ localStorage.setItem("uberEngine.shift.state", JSON.stringify(stateObject));
 Write all of them together on any shift update. Map Engine will pick the values up on
 its next `focus`/`visibility`/`storage` refresh — no polling is needed.
 
+Map Engine consumes the `state` key through a snapshot cached on the raw JSON so that
+`useSyncExternalStore` receives referentially stable objects between refreshes; this
+avoids the React "Maximum update depth exceeded" loop that an uncached re-parse
+object would cause. The modal subtree is also wrapped in an error boundary so a
+render failure closes the modal instead of blanking the dashboard.
+
 ## Failure behaviour
 
 Map Engine keeps working normally if Uber Engine has never run, no shift exists,

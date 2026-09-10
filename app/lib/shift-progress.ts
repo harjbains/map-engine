@@ -128,6 +128,25 @@ export function parseShiftState(
   };
 }
 
+let cachedRawShiftState: string | null | undefined;
+let cachedShiftState: UberShiftState | null = null;
+
+// React's useSyncExternalStore requires a snapshot that is referentially stable
+// between reads when the underlying value has not changed. parseShiftState builds
+// a fresh object every call, so memoize on the raw stored JSON: the same raw
+// string yields the same object identity, letting the modal's subscription
+// settle without "Maximum update depth exceeded" loops in React 19.
+export function parseShiftStateCached(
+  readValue: ShiftProgressReadValue,
+  now: number = Date.now(),
+): UberShiftState | null {
+  const raw = readValue(SHIFT_PROGRESS_KEYS.state);
+  if (raw === cachedRawShiftState) return cachedShiftState;
+  cachedRawShiftState = raw;
+  cachedShiftState = parseShiftState(readValue, now);
+  return cachedShiftState;
+}
+
 export function parseSyncRequest(
   readValue: ShiftProgressReadValue,
 ): { date: string; total: number; requestedAt: number } | null {

@@ -120,6 +120,21 @@ test("refuses stale rich state and clamps out-of-range progress fields", () => {
   assert.equal(parsed.remaining, 0, "remaining clamped to 0");
 });
 
+test("caches the rich state snapshot so useSyncExternalStore sees stable identity", () => {
+  const stored = values({ "uberEngine.shift.state": JSON.stringify(VALID_STATE) });
+  const first = shiftProgress.parseShiftStateCached(stored);
+  const second = shiftProgress.parseShiftStateCached(stored);
+  assert.ok(first);
+  assert.strictEqual(first, second, "same stored JSON yields the same object identity");
+  assert.equal(second.todayEarnings, 105);
+  const changed = { ...VALID_STATE, todayEarnings: 155, updatedAt: Date.now() };
+  const updated = shiftProgress.parseShiftStateCached(values({ "uberEngine.shift.state": JSON.stringify(changed) }));
+  assert.ok(updated);
+  assert.notStrictEqual(updated, first, "a new stored JSON yields a new object");
+  assert.strictEqual(shiftProgress.parseShiftStateCached(stored).todayEarnings, 105, "restoring the old JSON restores the cached object");
+  assert.strictEqual(shiftProgress.parseShiftStateCached(() => null), null, "missing state stays null and stable");
+});
+
 test("builds and parses the documented total sync request", () => {
   const raw = shiftProgress.buildSyncRequest("2026-09-10", 105);
   const parsed = shiftProgress.parseSyncRequest(values({ "uberEngine.shift.syncRequest": raw }));
@@ -132,9 +147,10 @@ test("builds and parses the documented total sync request", () => {
 });
 
 test("ships as an isolated component with a documented connection point and no financial wording", async () => {
-  const [mapEngineEntry, component, css, config, lib, contract] = await Promise.all([
+  const [mapEngineEntry, component, modal, css, config, lib, contract] = await Promise.all([
     readFile(new URL("../app/MapEngine.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/UberShiftProgress.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/map-engine/UberShiftModal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine.css", import.meta.url), "utf8"),
     readFile(new URL("../app/map-engine/config.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/shift-progress.ts", import.meta.url), "utf8"),
@@ -145,6 +161,9 @@ test("ships as an isolated component with a documented connection point and no f
   assert.doesNotMatch(component, /location\.assign/);
   assert.match(component, /onOpen/);
   assert.match(component, /aria-label="Open today's Uber Engine shift dashboard"/);
+  assert.match(modal, /parseShiftStateCached/, "the modal memoises its store snapshot");
+  assert.match(modal, /ShiftModalBoundary/, "the modal is guarded by an error boundary");
+  assert.match(mapEngineEntry, /ShiftModalBoundary/);
   assert.match(css, /\.shift-progress/);
   assert.match(css, /\.shift-fill/);
   assert.match(css, /\.shift-scrim/);

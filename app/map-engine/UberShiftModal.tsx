@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { buildSyncRequest, parseShiftState, SHIFT_PROGRESS_KEYS, type UberShiftState } from "../lib/shift-progress";
+import { Component, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { buildSyncRequest, parseShiftStateCached, SHIFT_PROGRESS_KEYS, type UberShiftState } from "../lib/shift-progress";
 
 function subscribeShift(callback: () => void) {
   const refresh = () => callback();
@@ -18,7 +18,7 @@ function subscribeShift(callback: () => void) {
 function getShiftSnapshot(): UberShiftState | null {
   if (typeof window === "undefined" || typeof window.localStorage === "undefined") return null;
   try {
-    return parseShiftState((key) => window.localStorage.getItem(key));
+    return parseShiftStateCached((key) => window.localStorage.getItem(key));
   } catch {
     return null;
   }
@@ -80,6 +80,32 @@ const COUNTER_STEPS: CounterStep[] = [
 export type UberShiftModalProps = {
   onClose: () => void;
 };
+
+// Guard rails: if the modal subtree ever throws, fall back to closing it rather
+// than letting React unmount the whole dashboard to a blank screen.
+type ShiftModalBoundaryProps = { onClose: () => void; children: ReactNode };
+type ShiftModalBoundaryState = { failed: boolean };
+
+export class ShiftModalBoundary extends Component<ShiftModalBoundaryProps, ShiftModalBoundaryState> {
+  state: ShiftModalBoundaryState = { failed: false };
+
+  static getDerivedStateFromError(): ShiftModalBoundaryState {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("Uber Shift modal crashed:", error);
+  }
+
+  componentDidUpdate(_prevProps: ShiftModalBoundaryProps, prevState: ShiftModalBoundaryState) {
+    if (this.state.failed && !prevState.failed) this.props.onClose();
+  }
+
+  render() {
+    if (this.state.failed) return null;
+    return this.props.children;
+  }
+}
 
 export function UberShiftModal({ onClose }: UberShiftModalProps) {
   const state = useSyncExternalStore(subscribeShift, getShiftSnapshot, getShiftServerSnapshot);
