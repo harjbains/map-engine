@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.81/);
+  assert.match(html, /v2.10.82/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -115,8 +115,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.81"/);
-  assert.match(serviceWorker, /map-engine-shell-v1263/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.82"/);
+  assert.match(serviceWorker, /map-engine-shell-v1264/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -134,6 +134,7 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /UBER_ENGINE_URL = "https:\/\/harjbains\.github\.io\/uber-engine\/"/);
   assert.match(mapEngineCss, /\.shift-progress \{/);
   assert.match(mapEngineCss, /\.shift-seg \{/);
+  assert.match(mapEngineCss, /\.shift-donut-fill\.inner/);
   assert.match(mapEngineCss, /\.drive-shell\.dark \.shift-progress/);
   assert.match(mapEngineCss, /\.drive-shell\.classic \.shift-progress/);
   assert.match(mapEngine, /setLandmarkChips/);

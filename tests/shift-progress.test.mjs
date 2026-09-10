@@ -73,7 +73,7 @@ const VALID_STATE = {
   todayEarnings: 105,
   dailyProgress: 0.7,
   remaining: 45,
-  targetUnitsRemaining: 9,
+  ridesRemaining: 9,
   activeMinutes: 288,
   hourlyRate: 21.88,
   targetRate: 20,
@@ -91,7 +91,7 @@ test("parses the rich shift state object the modal needs", () => {
   assert.equal(parsed.dailyTarget, 150);
   assert.equal(parsed.todayEarnings, 105);
   assert.equal(parsed.remaining, 45);
-  assert.equal(parsed.targetUnitsRemaining, 9);
+  assert.equal(parsed.ridesRemaining, 9);
   assert.equal(parsed.activeMinutes, 288);
   assert.equal(parsed.hourlyRate, 21.88);
   assert.equal(parsed.weeklyTarget, 900);
@@ -109,6 +109,17 @@ test("treats an inactive published state as hidden for the collapsed bar but par
   const parsed = shiftProgress.parseShiftState(stored);
   assert.ok(parsed);
   assert.equal(parsed.shiftActive, false);
+});
+
+test("reads ridesRemaining and still falls back to the legacy targetUnitsRemaining key", () => {
+  const legacy = { ...VALID_STATE, targetUnitsRemaining: 7, ridesRemaining: undefined, updatedAt: Date.now() };
+  delete legacy.ridesRemaining;
+  const parsedLegacy = shiftProgress.parseShiftState(values({ "uberEngine.shift.state": JSON.stringify(legacy) }));
+  assert.equal(parsedLegacy.ridesRemaining, 7, "legacy key keeps working while stale publishes linger");
+
+  const both = { ...VALID_STATE, targetUnitsRemaining: 7, updatedAt: Date.now() };
+  const parsedBoth = shiftProgress.parseShiftState(values({ "uberEngine.shift.state": JSON.stringify(both) }));
+  assert.equal(parsedBoth.ridesRemaining, 9, "the rides key takes precedence over the legacy key");
 });
 
 test("refuses stale rich state and clamps out-of-range progress fields", () => {
@@ -200,9 +211,15 @@ test("ships as an isolated component with a documented connection point and no f
   assert.match(mapEngineEntry, /ShiftModalBoundary/);
   assert.match(css, /\.shift-progress/);
   assert.match(css, /\.shift-track/);
-  assert.match(css, /\.shift-seg/, "the bottom bar is a full-width strip of £5 job segments");
+  assert.match(css, /\.shift-seg/, "the bottom bar is a full-width strip of ride segments");
   assert.match(css, /\.shift-end-box/, "ending a shift reveals the mileage entry box");
   assert.match(css, /\.shift-control-btn/, "shift control buttons are styled");
+  assert.match(css, /\.shift-donut-fill\.inner/, "a slimmer inner ring shows hours against the hours required to hit the target");
+  assert.match(css, /\.shift-donut-hrs/, "the hour ring has a readable caption");
+  assert.match(modal, /ridesRemaining/, "the modal tracks remaining rides");
+  assert.match(modal, /rides left/, "the remaining panel words the day target in rides");
+  assert.match(modal, /shift-donut-hrs/, "the donut caption shows worked hours of the hours required");
+  assert.match(modal, /to target/, "the donut hour lane labels the target");
   assert.match(css, /\.shift-scrim/);
   assert.match(css, /\.shift-modal/);
   assert.match(css, /\.drive-shell\.dark \.shift-progress/);

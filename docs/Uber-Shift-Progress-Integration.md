@@ -48,7 +48,7 @@ The overlay modal is driven by this JSON object:
   "todayEarnings": 105,
   "dailyProgress": 0.7,
   "remaining": 45,
-  "targetUnitsRemaining": 9,
+  "ridesRemaining": 9,
   "activeMinutes": 288,
   "hourlyRate": 21.88,
   "targetRate": 20,
@@ -69,8 +69,9 @@ Field notes:
   is true whenever a live shift is running, regardless of target, so the map's
   control row can show END SHIFT even on target-free days. `paused` reflects whether
   the live shift is currently paused.
-- `targetUnitsRemaining` is the remaining amount expressed as whole £5 units
-  (e.g. £45 remaining → `9`).
+- `ridesRemaining` is the remaining amount expressed as whole rides (each ride is
+  roughly £5, e.g. £45 remaining → `9`). Uber Engine publishes this key; for
+  compatibility Map Engine still accepts the legacy `targetUnitsRemaining` key.
 - `hourlyRate` is today's realised rate; `targetRate` is the planned per-hour rate.
 - Weekly fields mirror the day fields for the Week view.
 - `updatedAt` is epoch ms. If the object is older than 12 hours Map Engine treats it
@@ -146,12 +147,15 @@ unavailable`, and the map is unaffected.
 
 ## Tapping the bar
 
-A full-width bar at the very bottom of the map is built from £5 job segments: each cell
-is one £5 job towards today's target, filled in as the day's earnings come in, turning
+A full-width bar at the very bottom of the map is built from rides: each cell is one
+ride (roughly £5) towards today's target, filled in as the day's rides come in, turning
 green when the goal is reached — without ever revealing figures to passengers. Tapping
 it opens the Uber Engine dashboard overlay (DAY donut, remaining/worked/rate panels,
 the shift control row with START/PAUSE/RESUME/END and the end-of-shift mileage entry,
-WEEK view, SYNC TODAY'S TOTAL) directly above the live map. The overlay is sized
+WEEK view, SYNC TODAY'S TOTAL) directly above the live map. The DAY and WEEK donuts
+carry a second, slimmer inner ring (amber) showing hours worked against the hours
+needed to hit the target at the planned `targetRate` (e.g. `4h 48m of 7h 30m to
+target`), turning green once the hours target is reached. The overlay is sized
 compact so the whole dashboard fits a Tesla's landscape browser viewport. No
 navigation away from Map Engine happens, and a large close control returns instantly
 to the map.

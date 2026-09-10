@@ -34,7 +34,7 @@ export type UberShiftState = {
   todayEarnings: number;
   dailyProgress: number;
   remaining: number;
-  targetUnitsRemaining: number;
+  ridesRemaining: number;
   activeMinutes: number;
   hourlyRate: number;
   targetRate: number;
@@ -118,7 +118,7 @@ export function parseShiftState(
     todayEarnings,
     dailyProgress: Math.min(1, Math.max(0, finiteNumber(parsed.dailyProgress, dailyTarget > 0 ? todayEarnings / dailyTarget : 0))),
     remaining: Math.max(0, finiteNumber(parsed.remaining, Math.max(0, dailyTarget - todayEarnings))),
-    targetUnitsRemaining: Math.max(0, Math.round(finiteNumber(parsed.targetUnitsRemaining, 0))),
+    ridesRemaining: Math.max(0, Math.round(finiteNumber(parsed.ridesRemaining, finiteNumber(parsed.targetUnitsRemaining, 0)))),
     activeMinutes: Math.max(0, Math.round(finiteNumber(parsed.activeMinutes, 0))),
     hourlyRate: finiteNumber(parsed.hourlyRate, 0),
     targetRate: finiteNumber(parsed.targetRate, 0),

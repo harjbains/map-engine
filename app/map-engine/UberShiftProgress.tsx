@@ -32,11 +32,11 @@ export type UberShiftProgressProps = {
   onOpen: () => void;
 };
 
-// Each visible cell on the bottom jobs bar represents a fixed earnings block.
-// Cells count in five-pound jobs by default; very large daily targets are grouped
-// so the full width stays a count of roughly one job per cell without turning
-// into a hairline.
-const SEGMENT_POUNDS = 5;
+// Each visible cell on the bottom jobs bar represents a single ride (roughly
+// five pounds per ride). Cells count rides by default; very large daily targets
+// are grouped so the full width stays a count of roughly one ride per cell
+// without turning into a hairline.
+const POUNDS_PER_RIDE = 5;
 const MAX_VISIBLE_SEGMENTS = 60;
 
 function buildSegments(state: UberShiftState | null): Array<{ filled: boolean; fillPercent: number }> {
@@ -44,11 +44,11 @@ function buildSegments(state: UberShiftState | null): Array<{ filled: boolean; f
     return Array.from({ length: 20 }, () => ({ filled: false, fillPercent: 0 }));
   }
   const dailyTarget = Math.max(0, state.dailyTarget);
-  const units = Math.max(1, Math.ceil(dailyTarget / SEGMENT_POUNDS));
-  const group = Math.max(1, Math.ceil(units / MAX_VISIBLE_SEGMENTS));
-  const cells = Math.max(1, Math.ceil(units / group));
-  const earnedUnits = Math.max(0, state.todayEarnings) / SEGMENT_POUNDS;
-  const filledCells = earnedUnits / group;
+  const rides = Math.max(1, Math.ceil(dailyTarget / POUNDS_PER_RIDE));
+  const group = Math.max(1, Math.ceil(rides / MAX_VISIBLE_SEGMENTS));
+  const cells = Math.max(1, Math.ceil(rides / group));
+  const earnedRides = Math.max(0, state.todayEarnings) / POUNDS_PER_RIDE;
+  const filledCells = earnedRides / group;
   const full = Math.min(cells, Math.floor(filledCells));
   const fraction = Math.min(1, Math.max(0, filledCells - full));
   return Array.from({ length: cells }, (_, index) => {

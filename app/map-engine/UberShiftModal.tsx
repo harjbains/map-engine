@@ -41,11 +41,20 @@ function formatHoursMinutes(minutes: number): string {
   return `${hours}h ${mins}m`;
 }
 
-function Donut({ progress, earnedLabel, targetLabel }: { progress: number; earnedLabel: string; targetLabel: string }) {
+function requiredMinutesFor(target: number, targetRate: number): number | null {
+  if (target <= 0 || targetRate <= 0) return null;
+  return (target / targetRate) * 60;
+}
+
+function Donut({ progress, earnedLabel, targetLabel, hourProgress, hourLabel }: { progress: number; earnedLabel: string; targetLabel: string; hourProgress: number | null; hourLabel: string | null }) {
   const radius = 120;
+  const innerRadius = 86;
   const circumference = 2 * Math.PI * radius;
+  const innerCircumference = 2 * Math.PI * innerRadius;
   const clamped = Math.min(1, Math.max(0, progress));
   const dash = clamped * circumference;
+  const hourClamped = hourProgress === null ? 0 : Math.min(1, Math.max(0, hourProgress));
+  const hourDash = hourClamped * innerCircumference;
   return (
     <div className="shift-donut-wrap">
       <svg className="shift-donut" viewBox="0 0 280 280" role="img" aria-label={`${Math.round(clamped * 100)} percent of target`}>
@@ -59,11 +68,22 @@ function Donut({ progress, earnedLabel, targetLabel }: { progress: number; earne
           strokeDashoffset="0"
           transform="rotate(-90 140 140)"
         />
+        <circle className="shift-donut-track inner" cx="140" cy="140" r={innerRadius} />
+        <circle
+          className={hourClamped >= 1 ? "shift-donut-fill inner complete" : "shift-donut-fill inner"}
+          cx="140"
+          cy="140"
+          r={innerRadius}
+          strokeDasharray={`${hourDash} ${innerCircumference - hourDash}`}
+          strokeDashoffset="0"
+          transform="rotate(-90 140 140)"
+        />
       </svg>
       <div className="shift-donut-centre" aria-hidden="true">
         <strong>{earnedLabel}</strong>
         <span>of {targetLabel}</span>
         <em>{Math.round(clamped * 100)}%</em>
+        {hourLabel ? <small className="shift-donut-hrs">{hourLabel}</small> : null}
       </div>
     </div>
   );
@@ -191,7 +211,7 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
           todayEarnings: total,
           dailyProgress: Math.min(1, dailyTarget > 0 ? Math.max(0, total / dailyTarget) : 0),
           remaining: dailyTarget > 0 ? Math.max(0, Math.round(dailyTarget - total)) : 0,
-          targetUnitsRemaining: dailyTarget > 0 ? Math.max(0, Math.round(Math.max(0, dailyTarget - total) / 5)) : 0,
+          ridesRemaining: dailyTarget > 0 ? Math.max(0, Math.round(Math.max(0, dailyTarget - total) / 5)) : 0,
           hourlyRate: activeMinutes > 0 ? Math.round((total / (activeMinutes / 60)) * 100) / 100 : state.hourlyRate,
           updatedAt: now,
         };
@@ -207,7 +227,7 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
           todayEarnings: total,
           dailyProgress: 1,
           remaining: 0,
-          targetUnitsRemaining: 0,
+          ridesRemaining: 0,
           activeMinutes: 0,
           hourlyRate: 0,
           targetRate: 0,
@@ -273,6 +293,14 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
   const hourlyRate = state.hourlyRate;
   const targetRate = state.targetRate;
 
+  const dayRequiredMinutes = requiredMinutesFor(state.dailyTarget, targetRate);
+  const dayHourProgress = dayRequiredMinutes === null ? null : activeMinutes / dayRequiredMinutes;
+  const dayHourLabel = dayRequiredMinutes === null ? null : `${formatHoursMinutes(activeMinutes)} of ${formatHoursMinutes(dayRequiredMinutes)} to target`;
+
+  const weekRequiredMinutes = requiredMinutesFor(state.weeklyTarget, targetRate);
+  const weekHourProgress = weekRequiredMinutes === null ? null : state.weeklyMinutes / weekRequiredMinutes;
+  const weekHourLabel = weekRequiredMinutes === null ? null : `${formatHoursMinutes(state.weeklyMinutes)} of ${formatHoursMinutes(weekRequiredMinutes)} to target`;
+
   return (
     <div className="shift-scrim" role="presentation" onClick={onClose}>
       <section
@@ -324,13 +352,15 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
               progress={dailyProgress}
               earnedLabel={formatMoneyWhole(state.todayEarnings)}
               targetLabel={formatMoneyWhole(state.dailyTarget)}
+              hourProgress={dayHourProgress}
+              hourLabel={dayHourLabel}
             />
 
             <div className="shift-panels">
               <div className="shift-panel">
                 <span>Remaining</span>
                 <strong>{formatMoneyWhole(state.remaining)}</strong>
-                <em>{state.targetUnitsRemaining} × £5 units</em>
+                <em>{state.ridesRemaining} rides left</em>
               </div>
               <div className="shift-panel">
                 <span>Worked</span>
@@ -373,6 +403,8 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
               progress={weeklyProgress}
               earnedLabel={formatMoneyWhole(state.weeklyEarnings)}
               targetLabel={formatMoneyWhole(state.weeklyTarget)}
+              hourProgress={weekHourProgress}
+              hourLabel={weekHourLabel}
             />
 
             <div className="shift-panels">

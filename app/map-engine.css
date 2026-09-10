@@ -166,10 +166,14 @@
   .shift-donut-track { fill:none; stroke:rgba(139,168,182,.16); stroke-width:22; }
   .shift-donut-fill { fill:none; stroke:#3d86c9; stroke-width:22; stroke-linecap:round; transition:stroke-dasharray .5s ease; }
   .shift-progress.goal .shift-donut-fill, .shift-donut-fill.complete { stroke:#398957; }
+  .shift-donut-track.inner { stroke:rgba(226,169,59,.22); stroke-width:13; }
+  .shift-donut-fill.inner { stroke:#e2a93b; stroke-width:13; stroke-linecap:round; transition:stroke-dasharray .5s ease; }
+  .shift-donut-fill.inner.complete { stroke:#398957; }
   .shift-donut-centre { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; text-align:center; }
   .shift-donut-centre strong { font-size:34px; font-weight:950; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
   .shift-donut-centre span { color:#9eabb2; font-size:13px; font-weight:750; }
   .shift-donut-centre em { color:#8bc9ff; font-size:15px; font-style:normal; font-weight:900; }
+  .shift-donut-centre small.shift-donut-hrs { color:#e2a93b; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
   .shift-panels { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; width:100%; max-width:640px; }
   .shift-panel { min-height:96px; display:flex; flex-direction:column; justify-content:center; gap:3px; padding:14px 16px; border:1px solid rgba(139,168,182,.16); border-radius:16px; background:rgba(26,35,40,.5); text-align:center; }
   .shift-panel span { color:#9eabb2; font-size:10px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
@@ -405,6 +409,9 @@
 .drive-shell.dark .shift-donut-track { stroke:rgba(139,168,182,.2); }
 .drive-shell.dark .shift-donut-fill { stroke:#70b7ff; }
 .drive-shell.dark .shift-progress.goal .shift-donut-fill, .drive-shell.dark .shift-donut-fill.complete { stroke:#69c985; }
+.drive-shell.dark .shift-donut-track.inner { stroke:rgba(226,169,59,.26); }
+.drive-shell.dark .shift-donut-fill.inner { stroke:#e2a93b; }
+.drive-shell.dark .shift-donut-fill.inner.complete { stroke:#69c985; }
 .drive-shell.dark .shift-donut-centre span,
 .drive-shell.dark .shift-panel span,
 .drive-shell.dark .shift-week-note,
