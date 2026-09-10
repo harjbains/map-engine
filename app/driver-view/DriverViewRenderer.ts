@@ -6,6 +6,11 @@ const Z_FAR = 120;
 const CAM_H = 1.5;
 const ROAD_HALF = 3.6;
 
+export const ROAD_FIRST = {
+  worldObjects: false,
+  realBuildings: false,
+};
+
 const VERGE = ["#4c6b3d", "#5d7f4a", "#43593a", "#6a8a55"];
 const TREE = ["#35573a", "#45693f", "#2f4d36"];
 const VERGE_ROOF = "#334a2a";
@@ -92,11 +97,19 @@ export type SceneState = {
   rnd: () => number;
   world: WorldObject[];
   buildings: SceneFootprint[];
+  roundabouts: SceneRoundabout[];
   branches: RoadBranch[];
   centerline: Array<{ x: number; z: number }>;
   events: RouteEvent[];
   signals: Array<{ x: number; z: number }>;
   syntheticLights: boolean;
+};
+
+export type SceneRoundabout = {
+  ring: Array<{ x: number; z: number }>;
+  centre: { x: number; z: number };
+  radiusMetres: number;
+  exits: Array<{ join: { x: number; z: number }; outward: { x: number; z: number }; name: string | null }>;
 };
 
 function mulberry32(seed: number) {
@@ -172,7 +185,7 @@ export function buildScene(width: number, height: number): SceneState {
     width,
     height,
     cx: width / 2,
-    horizon: Math.round(height * 0.5),
+    horizon: Math.round(height * 0.45),
     focal: height * 0.9,
     tiltCur: 0,
     bend: 0,
@@ -180,6 +193,7 @@ export function buildScene(width: number, height: number): SceneState {
     rnd,
     world,
     buildings: [],
+    roundabouts: [],
     branches: [],
     centerline: [],
     events: [],
@@ -258,7 +272,7 @@ function clX(scene: SceneState, z: number): number {
 
 function project(scene: SceneState, x: number, z: number) {
   const zz = Math.max(Z_NEAR, z);
-  const falloff = Math.max(0, 1 - (z - Z_NEAR) / (Z_FAR - Z_NEAR));
+  const falloff = Math.min(1, Math.max(0, (zz - Z_NEAR) / (Z_FAR - Z_NEAR)));
   return { x: scene.cx + (scene.focal * x) / zz + scene.bend * falloff, y: scene.horizon + (scene.focal * CAM_H) / zz };
 }
 
@@ -269,7 +283,7 @@ function drawSky(ctx: CanvasRenderingContext2D, scene: SceneState) {
   gradient.addColorStop(1, "#dcebf5");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, scene.width, scene.horizon + 4);
-  const sunX = scene.width * 0.72;
+  const sunX = scene.width * 0.72 - scene.bend * 0.3;
   const sunY = scene.horizon * 0.32;
   const sunR = Math.max(14, scene.height * 0.065);
   ctx.fillStyle = "rgba(252,238,181,0.35)";
@@ -282,9 +296,9 @@ function drawSky(ctx: CanvasRenderingContext2D, scene: SceneState) {
   ctx.fill();
   ctx.fillStyle = "rgba(255,255,255,0.5)";
   ctx.beginPath();
-  ctx.ellipse(scene.width * 0.3 - scene.bend * 0.12, scene.horizon * 0.28, scene.width * 0.09, scene.height * 0.026, 0, 0, Math.PI * 2);
-  ctx.ellipse(scene.width * 0.44 - scene.bend * 0.12, scene.horizon * 0.55, scene.width * 0.12, scene.height * 0.028, 0, 0, Math.PI * 2);
-  ctx.ellipse(scene.width * 0.86 - scene.bend * 0.12, scene.horizon * 0.45, scene.width * 0.08, scene.height * 0.022, 0, 0, Math.PI * 2);
+  ctx.ellipse(scene.width * 0.3 - scene.bend * 0.35, scene.horizon * 0.28, scene.width * 0.09, scene.height * 0.026, 0, 0, Math.PI * 2);
+  ctx.ellipse(scene.width * 0.44 - scene.bend * 0.35, scene.horizon * 0.55, scene.width * 0.12, scene.height * 0.028, 0, 0, Math.PI * 2);
+  ctx.ellipse(scene.width * 0.86 - scene.bend * 0.35, scene.horizon * 0.45, scene.width * 0.08, scene.height * 0.022, 0, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -294,7 +308,7 @@ function drawHills(ctx: CanvasRenderingContext2D, scene: SceneState) {
   ctx.moveTo(0, scene.horizon + 8);
   for (let x = 0; x <= scene.width + 8; x += 8) {
     const n = Math.sin(x * 0.013) * 12 + Math.sin(x * 0.037 + 2) * 8;
-    ctx.lineTo(x - scene.bend * 0.25, scene.horizon + 2 - n);
+    ctx.lineTo(x - scene.bend * 0.55, scene.horizon + 2 - n);
   }
   ctx.lineTo(scene.width, scene.horizon + 4);
   ctx.lineTo(0, scene.horizon + 4);
@@ -381,6 +395,75 @@ function drawEdgeWithBreaks(ctx: CanvasRenderingContext2D, scene: SceneState, of
     }
   }
   strokeRun(ctx, run);
+}
+
+function drawRoundabouts(ctx: CanvasRenderingContext2D, scene: SceneState) {
+  for (const rb of scene.roundabouts) {
+    if (rb.centre.z < -12 || rb.centre.z > 320) continue;
+    const ringPts = rb.ring.map((point) => project(scene, point.x, point.z));
+    if (ringPts.length < 3) continue;
+    if (ringPts.some((point) => point.y > scene.height + 60)) continue;
+    ctx.fillStyle = "#20272c";
+    ctx.beginPath();
+    ctx.moveTo(ringPts[0].x, ringPts[0].y);
+    for (const point of ringPts.slice(1)) ctx.lineTo(point.x, point.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    const island = rb.ring.map((point) => {
+      const ix = rb.centre.x + (point.x - rb.centre.x) * 0.52;
+      const iz = rb.centre.z + (point.z - rb.centre.z) * 0.52;
+      return project(scene, ix, iz);
+    });
+    ctx.fillStyle = "#2e3a2c";
+    ctx.beginPath();
+    ctx.moveTo(island[0].x, island[0].y);
+    for (const point of island.slice(1)) ctx.lineTo(point.x, point.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.28)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    for (const exit of rb.exits) {
+      if (exit.join.z < Z_NEAR + 0.4 || exit.join.z > 240) continue;
+      const dirX = exit.outward.x - exit.join.x;
+      const dirZ = exit.outward.z - exit.join.z;
+      const dirLen = Math.hypot(dirX, dirZ);
+      if (dirLen < 1) continue;
+      const ux = dirX / dirLen;
+      const uz = dirZ / dirLen;
+      const px = -uz;
+      const pz = ux;
+      const sideP = ROAD_HALF + 0.4;
+      const legLen = Math.min(7, Math.max(3, rb.radiusMetres * 0.45));
+      const reach = Math.min(1, legLen / dirLen);
+      const a = project(scene, exit.join.x + px * sideP, exit.join.z + pz * sideP);
+      const b = project(scene, exit.join.x - px * sideP, exit.join.z - pz * sideP);
+      const c = project(scene, exit.join.x + ux * dirLen * reach - px * sideP, exit.join.z + uz * dirLen * reach - pz * sideP);
+      const d = project(scene, exit.join.x + ux * dirLen * reach + px * sideP, exit.join.z + uz * dirLen * reach + pz * sideP);
+      ctx.fillStyle = "#20272c";
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.lineTo(d.x, d.y);
+      ctx.closePath();
+      ctx.fill();
+      const gwA = project(scene, exit.join.x + ux * 1.6 + px * (sideP - 0.5), exit.join.z + uz * 1.6 + pz * (sideP - 0.5));
+      const gwB = project(scene, exit.join.x + ux * 1.6 - px * (sideP - 0.5), exit.join.z + uz * 1.6 - pz * (sideP - 0.5));
+      ctx.strokeStyle = "rgba(255,255,255,0.7)";
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([3, 2.4]);
+      ctx.beginPath();
+      ctx.moveTo(gwA.x, gwA.y);
+      ctx.lineTo(gwB.x, gwB.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (exit.name) drawSignboard(ctx, scene, exit.outward.x, exit.outward.z, exit.name, exit.name);
+    }
+  }
 }
 
 function drawJunctionMouths(ctx: CanvasRenderingContext2D, scene: SceneState) {
@@ -915,20 +998,25 @@ function drawJunctionOverlay(ctx: CanvasRenderingContext2D, scene: SceneState, e
   if (event.z < Z_NEAR || event.z > 200) return;
   if (event.kind === "roundabout") {
     const p = project(scene, event.x, event.z);
-    const scale = scene.focal / Math.max(Z_NEAR, event.z);
-    const outer = 11.5 * scale;
-    const inner = 6.4 * scale;
-    ctx.fillStyle = "#20272c";
-    ctx.beginPath();
-    ctx.ellipse(p.x, p.y, outer, outer * 0.3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#151b1f";
-    ctx.strokeStyle = "rgba(255,255,255,0.55)";
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.ellipse(p.x, p.y, inner, inner * 0.3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    const real = scene.roundabouts.some(
+      (rb) => Math.abs(rb.centre.z - event.z) < 16 && Math.abs(rb.centre.x - event.x) < 16,
+    );
+    if (!real) {
+      const scale = scene.focal / Math.max(Z_NEAR, event.z);
+      const outer = 11.5 * scale;
+      const inner = 6.4 * scale;
+      ctx.fillStyle = "#20272c";
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, outer, outer * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#151b1f";
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, inner, inner * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     drawSignboard(ctx, scene, event.x - 6.5, event.z, event.label, "ROUNDABOUT");
     if (scene.syntheticLights) drawTrafficLight(ctx, scene, event.x - ROAD_HALF - 1.6, event.z, Math.round(event.metres / 7));
     return;
@@ -1004,7 +1092,20 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   scene.signals = signals;
   scene.syntheticLights = syntheticLights;
   scene.buildings = [];
+  scene.roundabouts = [];
   scene.branches = [];
+  if (position && controls.roadContext) {
+    for (const rb of controls.roadContext.roundabouts) {
+      const ring = rb.ring.map(([lon, lat]) => localPoint(position, heading, lon, lat));
+      const centre = localPoint(position, heading, rb.centre[0], rb.centre[1]);
+      const exits = rb.exits.map((exit) => ({
+        join: localPoint(position, heading, exit.join[0], exit.join[1]),
+        outward: localPoint(position, heading, exit.outward[0], exit.outward[1]),
+        name: exit.name,
+      }));
+      scene.roundabouts.push({ ring, centre, radiusMetres: rb.radiusMetres, exits });
+    }
+  }
   for (const event of scene.events) {
     if (event.kind === "roundabout") continue;
     scene.branches.push({ z: event.z, side: event.side, kind: "corner", name: event.label, cross: false });
@@ -1027,35 +1128,37 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
       });
     }
   }
-  const realFootprints = position ? (controls.roadContext?.buildings ?? []) : [];
-  for (const footprint of realFootprints) {
-    const ring: Array<{ x: number; z: number }> = [];
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minZ = Infinity;
-    let maxZ = -Infinity;
-    for (const [lon, lat] of footprint.ring) {
-      const local = localPoint(position!, heading, lon, lat);
-      ring.push(local);
-      if (local.x < minX) minX = local.x;
-      if (local.x > maxX) maxX = local.x;
-      if (local.z < minZ) minZ = local.z;
-      if (local.z > maxZ) maxZ = local.z;
+  if (!ROAD_FIRST.realBuildings) {
+    const realFootprints = position ? (controls.roadContext?.buildings ?? []) : [];
+    for (const footprint of realFootprints) {
+      const ring: Array<{ x: number; z: number }> = [];
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      for (const [lon, lat] of footprint.ring) {
+        const local = localPoint(position!, heading, lon, lat);
+        ring.push(local);
+        if (local.x < minX) minX = local.x;
+        if (local.x > maxX) maxX = local.x;
+        if (local.z < minZ) minZ = local.z;
+        if (local.z > maxZ) maxZ = local.z;
+      }
+      if (ring.length < 3 || maxZ < -6 || minZ > 300) continue;
+      const cx = (minX + maxX) / 2;
+      const cz = Math.max(1.8, (minZ + maxZ) / 2);
+      const [base, roof] = BUILDING_COLOURS[footprint.kind] ?? BUILDING_COLOURS.other;
+      const seed = (Math.abs(cx * 97) + Math.abs(cz * 131) + Math.abs((footprint.height || 1) * 17)) >>> 0;
+      const height = footprint.height || DEFAULT_HEIGHTS[footprint.kind] || DEFAULT_HEIGHTS.other;
+      scene.buildings.push({
+        height,
+        kind: footprint.kind,
+        base,
+        roof,
+        seed,
+        ring,
+      });
     }
-    if (ring.length < 3 || maxZ < -6 || minZ > 300) continue;
-    const cx = (minX + maxX) / 2;
-    const cz = Math.max(1.8, (minZ + maxZ) / 2);
-    const [base, roof] = BUILDING_COLOURS[footprint.kind] ?? BUILDING_COLOURS.other;
-    const seed = (Math.abs(cx * 97) + Math.abs(cz * 131) + Math.abs((footprint.height || 1) * 17)) >>> 0;
-    const height = footprint.height || DEFAULT_HEIGHTS[footprint.kind] || DEFAULT_HEIGHTS.other;
-    scene.buildings.push({
-      height,
-      kind: footprint.kind,
-      base,
-      roof,
-      seed,
-      ring,
-    });
   }
   for (const object of scene.world) {
     object.z -= step;
@@ -1064,6 +1167,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   drawSky(ctx, scene);
   drawHills(ctx, scene);
   drawGround(ctx, scene);
+  drawRoundabouts(ctx, scene);
   drawRoad(ctx, scene);
   const approach = drawJunctions(ctx, scene);
   if (!scene.syntheticLights) drawRealSignals(ctx, scene);
@@ -1078,10 +1182,12 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
         z <= branch.z + 2.7 &&
         Math.abs(x - side * (ROAD_HALF + 4.5)) < 6,
     );
-  for (const object of scene.world
-    .filter((item) => !(hasRealBuildings && item.kind === "building"))
-    .filter((item) => !(item.kind !== "building" && inMouth(item.side, item.x, item.z)))
-    .sort((a, b) => b.z - a.z)) drawObject(ctx, scene, object);
+  if (ROAD_FIRST.worldObjects) {
+    for (const object of scene.world
+      .filter((item) => !(hasRealBuildings && item.kind === "building"))
+      .filter((item) => !(item.kind !== "building" && inMouth(item.side, item.x, item.z)))
+      .sort((a, b) => b.z - a.z)) drawObject(ctx, scene, object);
+  }
   drawBuildingWalls(ctx, scene);
   drawBranchLabels(ctx, scene);
   drawVignette(ctx, scene);

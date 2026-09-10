@@ -18,6 +18,19 @@ export type RoadJunction = {
   name: string | null;
 };
 
+export type RoundaboutExit = {
+  join: [number, number];
+  outward: [number, number];
+  name: string | null;
+};
+
+export type RoundaboutData = {
+  ring: Array<[number, number]>;
+  centre: [number, number];
+  radiusMetres: number;
+  exits: RoundaboutExit[];
+};
+
 export const BUILDING_KINDS = ["house", "apartments", "shop", "office", "industrial", "civic", "other"] as const;
 export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
@@ -27,6 +40,7 @@ export type RoadAhead = {
   signals: Array<[number, number]>;
   buildings: Array<{ ring: Array<[number, number]>; height: number; kind: BuildingKind }>;
   junctions: RoadJunction[];
+  roundabouts: RoundaboutData[];
   roadName: string | null;
 };
 
@@ -119,7 +133,7 @@ function buildCornerSteps(local: Array<{ x: number; z: number }>, wayAt: number[
     const dz = local[i].z - local[i - 1].z;
     metres += Math.hypot(dx, dz);
     if (Math.hypot(dx, dz) < 0.05) continue;
-    let current = Math.atan2(dx, dz);
+    const current = Math.atan2(dx, dz);
     if (heading === null) {
       heading = current;
       continue;
@@ -252,6 +266,57 @@ function collectBuildings(elements: RoadElement[], nodes: Map<number, GraphNode>
   return buildings;
 }
 
+function detectRoundabouts(ways: GraphWay[], nodes: Map<number, GraphNode>): RoundaboutData[] {
+  const roundabouts: RoundaboutData[] = [];
+  const waysByNode = new Map<number, GraphWay[]>();
+  for (const way of ways) {
+    for (const id of way.nodes) {
+      const list = waysByNode.get(id) ?? [];
+      list.push(way);
+      waysByNode.set(id, list);
+    }
+  }
+  for (const way of ways) {
+    if (way.tags?.junction !== "roundabout") continue;
+    const ring = ringFromNodes(way.nodes, nodes);
+    if (ring.length < 5) continue;
+    let lon = 0;
+    let lat = 0;
+    for (const [l, a] of ring) {
+      lon += l;
+      lat += a;
+    }
+    lon /= ring.length;
+    lat /= ring.length;
+    let radiusMetres = 0;
+    for (const [l, a] of ring) {
+      radiusMetres += distanceMetres({ latitude: lat, longitude: lon }, { latitude: a, longitude: l });
+    }
+    radiusMetres /= ring.length;
+    if (radiusMetres < 3 || radiusMetres > 80) continue;
+    const ringNodeIds = new Set(way.nodes);
+    const exits: RoundaboutExit[] = [];
+    for (const id of ringNodeIds) {
+      const hub = nodes.get(id);
+      if (!hub) continue;
+      for (const spoke of waysByNode.get(id) ?? []) {
+        if (spoke.id === way.id) continue;
+        if (!spoke.tags?.highway) continue;
+        const outwardId = spoke.nodes.find((nodeId) => !ringNodeIds.has(nodeId));
+        const outward = outwardId !== undefined ? nodes.get(outwardId) : undefined;
+        if (!outward) continue;
+        exits.push({
+          join: [hub.longitude, hub.latitude],
+          outward: [outward.longitude, outward.latitude],
+          name: spoke.tags?.name || spoke.tags?.ref || null,
+        });
+      }
+    }
+    roundabouts.push({ ring, centre: [lon, lat], radiusMetres, exits });
+  }
+  return roundabouts;
+}
+
 export function resolveRoadAhead(elements: RoadElement[], position: { lat: number; lon: number }, headingDegrees: number): RoadAhead | null {
   const nodes = new Map<number, GraphNode>();
   const ways: GraphWay[] = [];
@@ -333,6 +398,7 @@ export function resolveRoadAhead(elements: RoadElement[], position: { lat: numbe
     signals,
     buildings: collectBuildings(elements, nodes, coordinates),
     junctions: detectJunctions(graph, trace, nodes),
+    roundabouts: detectRoundabouts(ways, nodes),
     roadName: firstInfo?.name || firstInfo?.ref || null,
   };
 }

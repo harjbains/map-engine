@@ -46,9 +46,13 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(renderer, /export function buildScene/);
   assert.match(renderer, /export function renderScene/);
   assert.match(renderer, /const CAM_H = 1\.5/);
-  assert.match(renderer, /horizon: Math\.round\(height \* 0\.5\)/);
+  assert.match(renderer, /horizon: Math\.round\(height \* 0\.45\)/);
   assert.match(renderer, /BUILDING_COLOURS:/);
   assert.match(renderer, /footprint\.kind/);
+  assert.match(renderer, /export const ROAD_FIRST/);
+  assert.match(renderer, /function drawRoundabouts/);
+  assert.match(renderer, /\.roundabouts = \[\]/);
+  assert.match(renderer, /rb\.ring\.map\(\(point\) => project\(scene, point\.x, point\.z\)\)/);
   assert.match(renderer, /function drawJunctionMouths/);
   assert.match(renderer, /mouthHalf = 2\.6/);
   assert.match(renderer, /branch\.kind === "side"/);
@@ -74,6 +78,12 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(road, /RoadJunction/);
   assert.match(road, /junctions: RoadJunction\[\]/);
   assert.match(road, /detectJunctions/);
+  assert.match(road, /RoundaboutData/);
+  assert.match(road, /roundabouts: RoundaboutData\[\]/);
+  assert.match(road, /detectRoundabouts/);
+  assert.match(road, /junction !== "roundabout"/);
+  assert.match(road, /radiusMetres/);
+  assert.match(road, /roundabouts: detectRoundabouts/);
   assert.match(simulatorFile, /export class DriverViewSimulation/);
   assert.match(simulatorFile, /advance\(seconds: number, priorSpeedMph: number\)/);
   assert.match(simulatorFile, /positionAt\(metresAlong: number\)/);
@@ -169,6 +179,41 @@ test("resolveRoadAhead detects side roads branching left and right from the trac
   assert.equal(left.name, "Acacia Avenue");
   assert.ok(right, "Cross Lane branches to the right");
   assert.equal(right.name, "Cross Lane");
+});
+
+test("resolveRoadAhead extracts a real roundabout ring with its island radius and named exits", () => {
+  const ringLat = 51.0002;
+  const ringLon = -2.0;
+  const rLat = 0.00022;
+  const rLon = 0.0003;
+  const ringNodes = [
+    [ringLat + rLat, ringLon],
+    [ringLat + rLat / 2, ringLon + rLon * 0.87],
+    [ringLat - rLat / 2, ringLon + rLon * 0.87],
+    [ringLat - rLat, ringLon],
+    [ringLat - rLat / 2, ringLon - rLon * 0.87],
+    [ringLat + rLat / 2, ringLon - rLon * 0.87],
+  ];
+  const elements = [
+    { type: "node", id: 1, lat: 51.0, lon: -2.0 },
+    { type: "node", id: 2, lat: 51.0001, lon: -2.0 },
+    ...ringNodes.map(([lat, lon], index) => ({ type: "node", id: 11 + index, lat, lon })),
+    { type: "node", id: 21, lat: 51.00031, lon: -1.9995 },
+    { type: "way", id: 100, nodes: [1, 2, 11], tags: { highway: "residential", name: "Approach Road" } },
+    { type: "way", id: 200, nodes: [11, 12, 13, 14, 15, 16, 11], tags: { highway: "secondary", junction: "roundabout" } },
+    { type: "way", id: 300, nodes: [12, 21], tags: { highway: "tertiary", name: "Harborne Road" } },
+  ];
+  const resolved = roadAhead.resolveRoadAhead(elements, { lat: 51.0, lon: -2.0 }, 0);
+  assert.ok(resolved);
+  assert.equal(resolved.roundabouts.length, 1, "the roundabout way is extracted");
+  const rb = resolved.roundabouts[0];
+  assert.ok(rb.ring.length >= 5, "the ring is kept as a real polygon");
+  assert.ok(rb.radiusMetres > 10 && rb.radiusMetres < 40, `island radius ${rb.radiusMetres} matches the ring extent`);
+  assert.ok(Math.abs(rb.centre[0] - ringLon) < 0.0001 && Math.abs(rb.centre[1] - ringLat) < 0.0001, "the centre sits inside the ring");
+  const exit = rb.exits.find((e) => e.name === "Harborne Road");
+  assert.ok(exit, "the spoke road becomes a named exit");
+  assert.ok(Math.abs(exit.join[0] - (ringLon + rLon * 0.87)) < 0.0001, "the exit joins the ring at its shared node");
+  assert.ok(Math.abs(exit.outward[0] - -1.9995) < 0.0001 && Math.abs(exit.outward[1] - 51.00031) < 0.0001, "the exit points away from the ring");
 });
 
 test("a junction is recognisable from geometry alone even when its street name is hidden", async () => {
