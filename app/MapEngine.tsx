@@ -6,8 +6,6 @@ import { dynamicZoom, acceptsPositionUpdate, bindCompassHeading, plausibleGpsSte
 import type { PostcodeGroupId } from "./lib/birmingham-postcodes";
 import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollection } from "./lib/safety";
 import { CompassStrip } from "./map-engine/CompassStrip";
-import { DriverView } from "./driver-view";
-import { ENABLE_DRIVER_VIEW } from "./driver-view";
 import { DestinationSearch } from "./map-engine/DestinationSearch";
 import { MapHeader } from "./map-engine/MapHeader";
 import { MapLegend } from "./map-engine/MapLegend";
@@ -69,7 +67,6 @@ export default function MapEngine() {
   const [mapReady, setMapReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
-  const [driverView, setDriverView] = useState(false);
   const [locationState, setLocationState] = useState<"idle" | "requesting" | "active" | "denied" | "unavailable">("idle");
   const [fix, setFix] = useState<VehicleFix | null>(null);
   const [currentRoad, setCurrentRoad] = useState<string | null>(null);
@@ -1141,21 +1138,6 @@ export default function MapEngine() {
           onInstall={() => { void (async () => { if (!installPrompt) return; await installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); })(); }}
         />
       )}
-
-      <DriverView
-        enabled={ENABLE_DRIVER_VIEW}
-        active={driverView}
-        onToggle={() => setDriverView((current) => !current)}
-        fix={fix}
-        route={activeRoute}
-        currentRoad={currentRoad}
-        currentLocality={currentLocality}
-        speedLimitMph={speedLimitMph}
-        speedMph={currentSpeedMph}
-        remainingMiles={routeJourney?.remainingMiles ?? null}
-        remainingMinutes={routeJourney?.remainingMinutes ?? null}
-        arrivalTime={routeJourney?.arrivalTime ?? null}
-      />
     </main>
   );
 }
