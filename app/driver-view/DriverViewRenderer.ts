@@ -21,6 +21,16 @@ export const BUILDING_COLOURS: Record<BuildingKind, readonly [string, string]> =
   other: ["#a8abae", "#787b80"],
 };
 
+const DEFAULT_HEIGHTS: Record<BuildingKind, number> = {
+  house: 6.2,
+  apartments: 12.5,
+  shop: 6.0,
+  office: 16,
+  industrial: 9.5,
+  civic: 12,
+  other: 7.5,
+};
+
 const DEFAULT_BUILDINGS: ReadonlyArray<{ kind: BuildingKind; base: string; roof: string }> = [
   { kind: "house", base: "#c9886e", roof: "#7e4a3a" },
   { kind: "apartments", base: "#c2a574", roof: "#8a6a3f" },
@@ -129,7 +139,20 @@ function spawn(rnd: () => number, side: 1 | -1, z: number): WorldObject {
     return { kind: "tree", side, x: side * (9 + rnd() * 9), z, w: 1.1 + rnd() * 1.3, h: 2.6 + rnd() * 2.4, d: 1.1 + rnd() * 1.3, base: pick(rnd, TREE), roof: TREE_ROOF, seed };
   }
   const item = DEFAULT_BUILDINGS[Math.floor(rnd() * DEFAULT_BUILDINGS.length)];
-  return { kind: "building", side, x: side * (13 + rnd() * 16), z, w: 5 + rnd() * 7, h: 4.5 + rnd() * 7, d: 4 + rnd() * 5, base: item.base, roof: item.roof, seed };
+  const near = z < 70;
+  const heightScale = near ? 0.85 + rnd() * 0.5 : 0.7 + rnd() * 0.5;
+  return {
+    kind: "building",
+    side,
+    x: side * (13 + rnd() * 16),
+    z,
+    w: 5 + rnd() * 7,
+    h: (DEFAULT_HEIGHTS[item.kind] || 6) * heightScale,
+    d: 4 + rnd() * 5,
+    base: item.base,
+    roof: item.roof,
+    seed: Math.floor(rnd() * 4294967296),
+  };
 }
 
 function respawn(rnd: () => number, object: WorldObject) {
@@ -407,6 +430,42 @@ function drawJunctionMouths(ctx: CanvasRenderingContext2D, scene: SceneState) {
     ctx.lineTo(d2.x, d2.y);
     ctx.stroke();
     ctx.setLineDash([]);
+    const cornerR = 1.4 * (scene.focal / Math.max(Z_NEAR, branch.z));
+    ctx.fillStyle = "#272e34";
+    ctx.beginPath();
+    ctx.arc(n1.x, n1.y, Math.max(1.5, cornerR), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(n2.x, n2.y, Math.max(1.5, cornerR), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(n1.x, n1.y, Math.max(1.5, cornerR), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(n2.x, n2.y, Math.max(1.5, cornerR), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawPavements(ctx: CanvasRenderingContext2D, scene: SceneState) {
+  for (const side of [-1, 1] as const) {
+    const inner = roadPoints(scene, side * (ROAD_HALF + 0.1));
+    const outer = roadPoints(scene, side * (ROAD_HALF + 2.4));
+    ctx.fillStyle = "#2b3237";
+    ctx.beginPath();
+    ctx.moveTo(inner[0].x, inner[0].y);
+    for (const point of inner) ctx.lineTo(point.x, point.y);
+    for (let i = outer.length - 1; i >= 0; i -= 1) ctx.lineTo(outer[i].x, outer[i].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(214,219,222,0.4)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(inner[0].x, inner[0].y);
+    for (const point of inner) ctx.lineTo(point.x, point.y);
+    ctx.stroke();
   }
 }
 
@@ -421,6 +480,8 @@ function drawRoad(ctx: CanvasRenderingContext2D, scene: SceneState) {
   ctx.closePath();
   ctx.fill();
 
+  drawPavements(ctx, scene);
+
   drawJunctionMouths(ctx, scene);
 
   drawEdgeWithBreaks(ctx, scene, -(ROAD_HALF - 0.42), -1);
@@ -431,7 +492,11 @@ function drawRoad(ctx: CanvasRenderingContext2D, scene: SceneState) {
   for (let z = 2; z < 120; z += 9) {
     if (Math.floor((z - 2) / 9) % 2 === 0) dashes.push([z, Math.min(z + 4, 120)]);
   }
+  const mouthZs = scene.branches
+    .filter((branch) => branch.kind === "side")
+    .map((branch) => branch.z);
   for (const [a, b] of dashes) {
+    if (mouthZs.some((z) => z >= a - 2.6 && z <= b + 2.6)) continue;
     const start = project(scene, clX(scene, a), a);
     const end = project(scene, clX(scene, b), b);
     const width = Math.max(1.4, (end.y - start.y) * 0.11);
@@ -539,6 +604,7 @@ function drawBuildingWalls(ctx: CanvasRenderingContext2D, scene: SceneState) {
     kind: BuildingKind;
     seed: number;
     base: string;
+    height: number;
   }> = [];
   for (const building of scene.buildings) {
     const ring = building.ring;
@@ -586,6 +652,7 @@ function drawBuildingWalls(ctx: CanvasRenderingContext2D, scene: SceneState) {
         kind: building.kind,
         seed: building.seed,
         base: building.base,
+        height: building.height,
       });
     }
   }
@@ -605,9 +672,8 @@ function drawBuildingWalls(ctx: CanvasRenderingContext2D, scene: SceneState) {
   }
 }
 
-function drawBuildingWindows(ctx: CanvasRenderingContext2D, quad: { corners: Array<{ x: number; y: number }>; facing: number; kind: BuildingKind; seed: number; base: string; depth: number }) {
+function drawBuildingWindows(ctx: CanvasRenderingContext2D, quad: { corners: Array<{ x: number; y: number }>; facing: number; kind: BuildingKind; seed: number; base: string; depth: number; height: number }) {
   if (quad.facing < 0.72 || quad.depth < 2 || quad.depth > 55) return;
-  if (quad.kind === "industrial") return;
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -627,15 +693,69 @@ function drawBuildingWindows(ctx: CanvasRenderingContext2D, quad: { corners: Arr
   for (const corner of quad.corners.slice(1)) ctx.lineTo(corner.x, corner.y);
   ctx.closePath();
   ctx.clip();
-  const cols = Math.max(2, Math.min(6, Math.floor(width / 16)));
-  const rows = Math.max(2, Math.min(6, Math.floor(height / 16)));
+
+  const plinth = Math.min(height * 0.16, 12);
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.fillRect(minX, maxY - plinth, width, plinth);
+
+  if (quad.kind === "shop") {
+    const glassH = Math.min(height * 0.42, Math.max(12, height * 0.32));
+    ctx.fillStyle = "rgba(160,210,235,0.4)";
+    ctx.fillRect(minX, maxY - glassH, width, glassH);
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.fillRect(minX, maxY - glassH, width, 1.5);
+    const fasciaH = Math.min(height * 0.12, 9);
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.fillRect(minX, maxY - glassH - fasciaH, width, fasciaH);
+    ctx.fillStyle = "rgba(30,28,26,0.92)";
+    ctx.fillRect(minX + width * 0.06, maxY - glassH + 2, width * 0.13, glassH - 4);
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    const mullions = Math.max(2, Math.min(6, Math.floor(width / 24)));
+    const mullionW = width / mullions;
+    for (let c = 1; c < mullions; c += 1) {
+      ctx.fillRect(minX + c * mullionW - 0.75, maxY - glassH + 2, 1.5, glassH - 4);
+    }
+    ctx.restore();
+    return;
+  }
+
+  if (quad.kind === "industrial") {
+    const bands = Math.max(1, Math.min(4, Math.floor(height / 40)));
+    ctx.fillStyle = "rgba(0,0,0,0.14)";
+    for (let b = 1; b <= bands; b += 1) {
+      ctx.fillRect(minX, minY + (height * b) / (bands + 1) - 1, width, 2);
+    }
+    ctx.restore();
+    return;
+  }
+
+  const rows = Math.max(2, Math.min(6, Math.round(quad.height / 3)));
+  const cols = Math.max(2, Math.min(6, Math.round(width / 18)));
   const cellW = width / cols;
   const cellH = height / rows;
-  for (let c = 0; c < cols; c += 1) {
+  if (quad.kind === "office") {
+    const bandH = cellH * 0.34;
     for (let r = 0; r < rows; r += 1) {
-      if ((quad.seed >> (r * 3 + c)) & 1) continue;
-      ctx.fillStyle = "rgba(255,221,140,0.5)";
-      ctx.fillRect(minX + c * cellW + cellW * 0.18, minY + r * cellH + cellH * 0.18, cellW * 0.64, cellH * 0.64);
+      ctx.fillStyle = "rgba(185,210,228,0.3)";
+      ctx.fillRect(minX, minY + r * cellH + (cellH - bandH) / 2, width, bandH);
+    }
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    for (let c = 1; c < cols * 2; c += 1) {
+      ctx.fillRect(minX + (width / (cols * 2)) * c - 0.6, minY, 1.2, height);
+    }
+    ctx.restore();
+    return;
+  }
+  const rowsActual = quad.kind === "civic" ? Math.max(rows, 3) : rows;
+  const winW = cellW * 0.52;
+  const winH = cellH * (quad.kind === "civic" ? 0.5 : 0.42);
+  for (let r = 0; r < rowsActual; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      const lit = (quad.seed >> (r * 5 + c)) & 1;
+      ctx.fillStyle = lit ? "rgba(255,226,150,0.55)" : "rgba(28,26,24,0.55)";
+      const px = minX + c * cellW + (cellW - winW) / 2;
+      const py = minY + r * cellH + (cellH - winH) / 2;
+      ctx.fillRect(px, py, winW, winH);
     }
   }
   ctx.restore();
@@ -927,8 +1047,9 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
     const cz = Math.max(1.8, (minZ + maxZ) / 2);
     const [base, roof] = BUILDING_COLOURS[footprint.kind] ?? BUILDING_COLOURS.other;
     const seed = (Math.abs(cx * 97) + Math.abs(cz * 131) + Math.abs((footprint.height || 1) * 17)) >>> 0;
+    const height = footprint.height || DEFAULT_HEIGHTS[footprint.kind] || DEFAULT_HEIGHTS.other;
     scene.buildings.push({
-      height: footprint.height || 6.5,
+      height,
       kind: footprint.kind,
       base,
       roof,
@@ -948,10 +1069,21 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: SceneState, co
   if (!scene.syntheticLights) drawRealSignals(ctx, scene);
   drawBranchLabels(ctx, scene);
   const hasRealBuildings = scene.buildings.length > 0;
+  const inMouth = (side: 1 | -1, x: number, z: number) =>
+    scene.branches.some(
+      (branch) =>
+        branch.kind === "side" &&
+        branch.side === side &&
+        z >= branch.z - 2.7 &&
+        z <= branch.z + 2.7 &&
+        Math.abs(x - side * (ROAD_HALF + 4.5)) < 6,
+    );
   for (const object of scene.world
     .filter((item) => !(hasRealBuildings && item.kind === "building"))
+    .filter((item) => !(item.kind !== "building" && inMouth(item.side, item.x, item.z)))
     .sort((a, b) => b.z - a.z)) drawObject(ctx, scene, object);
   drawBuildingWalls(ctx, scene);
+  drawBranchLabels(ctx, scene);
   drawVignette(ctx, scene);
   return approach;
 }

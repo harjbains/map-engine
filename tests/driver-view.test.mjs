@@ -53,6 +53,12 @@ test("Driver View ships as an isolated, feature-flagged module", async () => {
   assert.match(renderer, /mouthHalf = 2\.6/);
   assert.match(renderer, /branch\.kind === "side"/);
   assert.match(renderer, /edgeBreaks/);
+  assert.match(renderer, /DEFAULT_HEIGHTS/);
+  assert.match(renderer, /function drawPavements/);
+  assert.match(renderer, /quad\.kind === "shop"/);
+  assert.match(renderer, /quad\.kind === "office"/);
+  assert.match(renderer, /quad\.kind === "civic"/);
+  assert.match(renderer, /function drawBranchLabels/);
   assert.match(adapter, /SceneControls = \{/);
   assert.match(adapter, /position: \{ lat: number; lon: number; bearing: number \} \| null/);
   assert.match(adapter, /route: Array<\[number, number\]>/);
