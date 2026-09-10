@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { parseShiftProgress, parseShiftStateCached } from "../lib/shift-progress";
+import { parseShiftStateCached, type UberShiftState } from "../lib/shift-progress";
 
 function subscribeShiftProgress(callback: () => void) {
   const refresh = () => callback();
@@ -15,19 +15,16 @@ function subscribeShiftProgress(callback: () => void) {
   };
 }
 
-function getShiftSnapshot(): number | null {
+function getShiftSnapshot(): UberShiftState | null {
   if (typeof window === "undefined" || typeof window.localStorage === "undefined") return null;
   try {
-    const read = (key: string) => window.localStorage.getItem(key);
-    const state = parseShiftStateCached(read);
-    if (state) return state.shiftActive ? state.dailyProgress : null;
-    return parseShiftProgress(read);
+    return parseShiftStateCached((key) => window.localStorage.getItem(key));
   } catch {
     return null;
   }
 }
 
-function getShiftServerSnapshot(): number | null {
+function getShiftServerSnapshot(): UberShiftState | null {
   return null;
 }
 
@@ -35,11 +32,37 @@ export type UberShiftProgressProps = {
   onOpen: () => void;
 };
 
+// Each visible cell on the bottom jobs bar represents a fixed earnings block.
+// Cells count in five-pound jobs by default; very large daily targets are grouped
+// so the full width stays a count of roughly one job per cell without turning
+// into a hairline.
+const SEGMENT_POUNDS = 5;
+const MAX_VISIBLE_SEGMENTS = 60;
+
+function buildSegments(state: UberShiftState | null): Array<{ filled: boolean; fillPercent: number }> {
+  if (!state) {
+    return Array.from({ length: 20 }, () => ({ filled: false, fillPercent: 0 }));
+  }
+  const dailyTarget = Math.max(0, state.dailyTarget);
+  const units = Math.max(1, Math.ceil(dailyTarget / SEGMENT_POUNDS));
+  const group = Math.max(1, Math.ceil(units / MAX_VISIBLE_SEGMENTS));
+  const cells = Math.max(1, Math.ceil(units / group));
+  const earnedUnits = Math.max(0, state.todayEarnings) / SEGMENT_POUNDS;
+  const filledCells = earnedUnits / group;
+  const full = Math.min(cells, Math.floor(filledCells));
+  const fraction = Math.min(1, Math.max(0, filledCells - full));
+  return Array.from({ length: cells }, (_, index) => {
+    if (index < full) return { filled: true, fillPercent: 100 };
+    if (index === full) return { filled: false, fillPercent: fraction * 100 };
+    return { filled: false, fillPercent: 0 };
+  });
+}
+
 export function UberShiftProgress({ onOpen }: UberShiftProgressProps) {
-  const progress = useSyncExternalStore(subscribeShiftProgress, getShiftSnapshot, getShiftServerSnapshot);
-  const percent = progress === null ? 0 : Math.round(Math.min(1, Math.max(0, progress)) * 100);
-  const hasData = progress !== null;
-  const goal = hasData && percent >= 100;
+  const state = useSyncExternalStore(subscribeShiftProgress, getShiftSnapshot, getShiftServerSnapshot);
+  const segments = buildSegments(state);
+  const hasData = state !== null;
+  const goal = hasData && state.dailyTarget > 0 && state.dailyProgress >= 1;
 
   return (
     <button
@@ -50,10 +73,17 @@ export function UberShiftProgress({ onOpen }: UberShiftProgressProps) {
       title="Uber Engine"
     >
       <span className="shift-track" aria-hidden="true">
-        <span className="shift-fill" style={{ width: `${percent}%` }} />
-        <i className="shift-tick" style={{ left: "50%" }} />
-        <i className="shift-tick" style={{ left: "75%" }} />
-        <i className="shift-goal" style={{ left: "100%" }} />
+        {segments.map((segment, index) =>
+          segment.filled ? (
+            <span className="shift-seg filled" key={index} />
+          ) : segment.fillPercent > 0 ? (
+            <span className="shift-seg partial" key={index}>
+              <span className="shift-seg-fill" style={{ width: `${segment.fillPercent}%` }} />
+            </span>
+          ) : (
+            <span className="shift-seg" key={index} />
+          ),
+        )}
       </span>
     </button>
   );

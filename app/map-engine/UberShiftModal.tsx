@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { buildSyncRequest, parseShiftStateCached, SHIFT_PROGRESS_KEYS, type UberShiftState } from "../lib/shift-progress";
+import { buildControlRequest, buildSyncRequest, parseShiftStateCached, SHIFT_PROGRESS_KEYS, type UberShiftState } from "../lib/shift-progress";
 
 function subscribeShift(callback: () => void) {
   const refresh = () => callback();
@@ -114,6 +114,9 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
   const [editing, setEditing] = useState(false);
   const [counterValue, setCounterValue] = useState(() => Math.round(getShiftSnapshot()?.todayEarnings ?? 0));
   const [saved, setSaved] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [endMiles, setEndMiles] = useState("");
+  const [controlNote, setControlNote] = useState(false);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -141,6 +144,38 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
     setCounterValue((current) => Math.max(0, current + step * delta));
   }, []);
 
+  const sendControl = useCallback((action: "start" | "pause" | "resume" | "end", options: { miles?: number } = {}) => {
+    if (typeof window === "undefined" || typeof window.localStorage === "undefined") return;
+    try {
+      window.localStorage.setItem(SHIFT_PROGRESS_KEYS.controlRequest, buildControlRequest(action, options));
+      if (state) {
+        const optimistic: UberShiftState = {
+          ...state,
+          shiftActive: action === "start" || action === "resume",
+          paused: action === "pause",
+          hasActiveShift: action !== "end",
+          updatedAt: Date.now(),
+        };
+        window.localStorage.setItem(SHIFT_PROGRESS_KEYS.state, JSON.stringify(optimistic));
+      }
+      window.dispatchEvent(new Event("uber-engine-shift-state-local"));
+      setControlNote(true);
+      window.setTimeout(() => setControlNote(false), 3000);
+    } catch {
+      // Best effort: the Uber Engine app will pick the request up only if it lands.
+    }
+  }, [state]);
+
+  const endShift = useCallback(() => {
+    const miles = Number(endMiles);
+    if (!Number.isFinite(miles) || miles < 0) return;
+    sendControl("end", { miles });
+    setEnding(false);
+    setEndMiles("");
+  }, [endMiles, sendControl]);
+
+  const milesValid = endMiles.trim() !== "" && Number.isFinite(Number(endMiles)) && Number(endMiles) >= 0;
+
   const save = useCallback(() => {
     if (typeof window === "undefined" || typeof window.localStorage === "undefined") return;
     const total = Math.round(counterValue);
@@ -167,6 +202,7 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
           date,
           shiftActive: true,
           paused: false,
+          hasActiveShift: false,
           dailyTarget: total,
           todayEarnings: total,
           dailyProgress: 1,
@@ -201,6 +237,11 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
           <p className="shift-unavailable-eyebrow">UBER ENGINE</p>
           <h2 className="shift-unavailable-title">Shift data unavailable</h2>
           <p className="shift-unavailable-note">Open the Uber Engine app once so it can publish today's shift, or sync today's running total below.</p>
+          <div className="shift-controls">
+            <button type="button" className="shift-control-btn" onClick={() => sendControl("start")}>START SHIFT</button>
+            <span className="shift-control-status"><i className="dot off" aria-hidden="true" />No shift data</span>
+          </div>
+          {controlNote && <p className="shift-end-note" role="status">Shift command sent to the Uber Engine app.</p>}
           {!editing ? (
             <button type="button" className="shift-counter-open" onClick={() => { setCounterValue(0); setEditing(true); }}>SYNC TODAY'S TOTAL</button>
           ) : (
@@ -247,6 +288,35 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
           <button type="button" role="tab" aria-selected={view === "day"} className={view === "day" ? "active" : ""} onClick={() => setView("day")}>DAY</button>
           <button type="button" role="tab" aria-selected={view === "week"} className={view === "week" ? "active" : ""} onClick={() => setView("week")}>WEEK</button>
         </div>
+
+        {view === "day" ? (
+          <>
+            {ending ? (
+              <div className="shift-end-box">
+                <label htmlFor="shift-end-miles">Today's business miles</label>
+                <input id="shift-end-miles" type="number" min="0" step="any" inputMode="decimal" placeholder="0" value={endMiles} autoFocus onChange={(event) => setEndMiles(event.target.value)} />
+                <button type="button" className="shift-control-btn end" onClick={endShift} disabled={!milesValid}>END SHIFT</button>
+                <button type="button" className="shift-control-btn" onClick={() => { setEnding(false); setEndMiles(""); }}>CANCEL</button>
+              </div>
+            ) : (
+              <div className="shift-controls">
+                {!state.hasActiveShift ? (
+                  <button type="button" className="shift-control-btn" onClick={() => sendControl("start")}>START SHIFT</button>
+                ) : (
+                  <>
+                    <button type="button" className="shift-control-btn" onClick={() => sendControl(state.paused ? "resume" : "pause")}>{state.paused ? "RESUME" : "PAUSE"}</button>
+                    <button type="button" className="shift-control-btn end" onClick={() => setEnding(true)}>END SHIFT</button>
+                  </>
+                )}
+                <span className="shift-control-status">
+                  <i className={`dot${state.hasActiveShift ? (state.paused ? " paused" : "") : " off"}`} aria-hidden="true" />
+                  {state.hasActiveShift ? (state.paused ? "Paused" : "Shift live") : "Shift off"}
+                </span>
+              </div>
+            )}
+            {controlNote && <p className="shift-end-note" role="status">Shift command sent to the Uber Engine app.</p>}
+          </>
+        ) : null}
 
         {view === "day" ? (
           <div className="shift-modal-body">

@@ -8,7 +8,7 @@ directly above the live map — Map Engine does **not** navigate away from the m
 Map Engine **consumes** this contract. Uber Engine **publishes** it. Map Engine never
 reads any other Uber Engine storage, and Uber Engine never touches Map Engine's map or
 UI. All detailed earnings, hours and target figures stay inside Uber Engine with the
-single documented exception below (the total-sync write-back).
+two documented write-backs below (the total-sync and the shift-control request).
 
 ## Origin note
 
@@ -43,6 +43,7 @@ The overlay modal is driven by this JSON object:
   "date": "2026-09-10",
   "shiftActive": true,
   "paused": false,
+  "hasActiveShift": true,
   "dailyTarget": 150,
   "todayEarnings": 105,
   "dailyProgress": 0.7,
@@ -64,6 +65,10 @@ Field notes:
 
 - `dailyTarget` is today's target **rounded to £5 increments** so the dashboard stays
   clean and motivational. `remaining` is `max(0, dailyTarget − todayEarnings)`.
+- `shiftActive` is true only when a today target exists and is positive. `hasActiveShift`
+  is true whenever a live shift is running, regardless of target, so the map's
+  control row can show END SHIFT even on target-free days. `paused` reflects whether
+  the live shift is currently paused.
 - `targetUnitsRemaining` is the remaining amount expressed as whole £5 units
   (e.g. £45 remaining → `9`).
 - `hourlyRate` is today's realised rate; `targetRate` is the planned per-hour rate.
@@ -89,6 +94,30 @@ and republishes the state. Map Engine also applies the entered total optimistica
 the bar and modal update immediately without a reload — including the first-ever sync
 when Uber Engine has not yet published a state. If the request is for a
 non-today date it is ignored.
+
+## Shift control write-back (`uberEngine.shift.controlRequest`)
+
+Map Engine's **START / PAUSE / RESUME / END** control row lets the driver run the
+live shift from the car without switching apps. Map Engine writes a single
+best-effort request key; Uber Engine owns the live-shift lifecycle:
+
+| Key                            | Value | Meaning |
+| ------------------------------ | ----- | ------- |
+| `uberEngine.shift.controlRequest` | JSON | `{ "action": "start" \| "pause" \| "resume" \| "end", "miles": 64.3 (end only), "requestedAt": 1757513600000 }` |
+
+Uber Engine consumes this on load and on `storage` events: `start`/`pause`/`resume`
+map straight onto the live-shift handlers, and `end` finishes the shift fully —
+finalising today's day row with the driver's total business miles (a cumulative
+"today so far" total, matching the live-shift checkpoint semantics) while preserving
+saved earnings and trips, best-effort syncing the Google Sheets day row, then
+archiving and clearing the live shift. Map Engine applies the resulting
+`hasActiveShift`/`paused` flags optimistically so the control row flips state
+immediately even when Uber Engine is closed; Uber Engine's next publish is
+authoritative.
+
+Guards: `miles` must be a finite number when provided (a malformed request is
+ignored), the request is cleared after handling regardless of outcome, and ending a
+shift never writes a lower gross than the day row already holds.
 
 ## Example publish
 
@@ -117,7 +146,12 @@ unavailable`, and the map is unaffected.
 
 ## Tapping the bar
 
-Tapping the bar opens the Uber Engine dashboard overlay (DAY donut, remaining and
-worked-time panels, WEEK view, SYNC TODAY'S TOTAL) directly above the live map. No
+A full-width bar at the very bottom of the map is built from £5 job segments: each cell
+is one £5 job towards today's target, filled in as the day's earnings come in, turning
+green when the goal is reached — without ever revealing figures to passengers. Tapping
+it opens the Uber Engine dashboard overlay (DAY donut, remaining/worked/rate panels,
+the shift control row with START/PAUSE/RESUME/END and the end-of-shift mileage entry,
+WEEK view, SYNC TODAY'S TOTAL) directly above the live map. The overlay is sized
+compact so the whole dashboard fits a Tesla's landscape browser viewport. No
 navigation away from Map Engine happens, and a large close control returns instantly
 to the map.

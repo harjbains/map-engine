@@ -13,6 +13,7 @@ test("publishes the documented integration keys under the uberEngine namespace",
     updatedAt: "uberEngine.shift.updatedAt",
     state: "uberEngine.shift.state",
     syncRequest: "uberEngine.shift.syncRequest",
+    controlRequest: "uberEngine.shift.controlRequest",
   });
   assert.ok(shiftProgress.SHIFT_PROGRESS_MAX_AGE_MS > 0);
   assert.ok(shiftProgress.SHIFT_PROGRESS_MAX_AGE_MS <= 24 * 60 * 60 * 1000);
@@ -67,6 +68,7 @@ const VALID_STATE = {
   date: "2026-09-10",
   shiftActive: true,
   paused: false,
+  hasActiveShift: true,
   dailyTarget: 150,
   todayEarnings: 105,
   dailyProgress: 0.7,
@@ -97,6 +99,8 @@ test("parses the rich shift state object the modal needs", () => {
   assert.equal(parsed.dailyProgress, 0.7);
   assert.equal(parsed.weeklyProgress, 0.68);
   assert.equal(parsed.shiftActive, true);
+  assert.equal(parsed.hasActiveShift, true);
+  assert.equal(parsed.paused, false);
 });
 
 test("treats an inactive published state as hidden for the collapsed bar but parsable for the modal", () => {
@@ -146,6 +150,30 @@ test("builds and parses the documented total sync request", () => {
   }
 });
 
+test("builds and parses the shift control request channel", () => {
+  const start = shiftProgress.buildControlRequest("start");
+  const parsedStart = shiftProgress.parseControlRequest(values({ "uberEngine.shift.controlRequest": start }));
+  assert.ok(parsedStart);
+  assert.equal(parsedStart.action, "start");
+  assert.equal(parsedStart.miles, null);
+  assert.ok(parsedStart.requestedAt > 0);
+
+  const end = shiftProgress.buildControlRequest("end", { miles: 64.3 });
+  const parsedEnd = shiftProgress.parseControlRequest(values({ "uberEngine.shift.controlRequest": end }));
+  assert.ok(parsedEnd);
+  assert.equal(parsedEnd.action, "end");
+  assert.equal(parsedEnd.miles, 64.3);
+
+  const negative = shiftProgress.parseControlRequest(values({ "uberEngine.shift.controlRequest": shiftProgress.buildControlRequest("end", { miles: -5 }) }));
+  assert.ok(negative);
+  assert.equal(negative.miles, 0, "negative miles are clamped to zero");
+
+  assert.equal(shiftProgress.parseControlRequest(() => null), null);
+  for (const value of ["", "abc", "null", "{}", '{"action":"bogus"}', '{"action":"end","miles":"abc"}']) {
+    assert.equal(shiftProgress.parseControlRequest(values({ "uberEngine.shift.controlRequest": value })), null, value);
+  }
+});
+
 test("ships as an isolated component with a documented connection point and no financial wording", async () => {
   const [mapEngineEntry, component, modal, css, config, lib, contract] = await Promise.all([
     readFile(new URL("../app/MapEngine.tsx", import.meta.url), "utf8"),
@@ -163,9 +191,18 @@ test("ships as an isolated component with a documented connection point and no f
   assert.match(component, /aria-label="Open today's Uber Engine shift dashboard"/);
   assert.match(modal, /parseShiftStateCached/, "the modal memoises its store snapshot");
   assert.match(modal, /ShiftModalBoundary/, "the modal is guarded by an error boundary");
+  assert.match(modal, /buildControlRequest/, "the modal drives the shared shift control channel");
+  assert.match(modal, /START SHIFT/, "day view can start a shift");
+  assert.match(modal, /RESUME|PAUSE/, "day view can pause and resume a running shift");
+  assert.match(modal, /END SHIFT/, "day view can end a running shift");
+  assert.match(modal, /hasActiveShift/, "the modal tracks a running shift independently of the today target");
+  assert.match(modal, /Today's business miles/, "ending a shift asks for today's total business miles");
   assert.match(mapEngineEntry, /ShiftModalBoundary/);
   assert.match(css, /\.shift-progress/);
-  assert.match(css, /\.shift-fill/);
+  assert.match(css, /\.shift-track/);
+  assert.match(css, /\.shift-seg/, "the bottom bar is a full-width strip of £5 job segments");
+  assert.match(css, /\.shift-end-box/, "ending a shift reveals the mileage entry box");
+  assert.match(css, /\.shift-control-btn/, "shift control buttons are styled");
   assert.match(css, /\.shift-scrim/);
   assert.match(css, /\.shift-modal/);
   assert.match(css, /\.drive-shell\.dark \.shift-progress/);
@@ -174,11 +211,13 @@ test("ships as an isolated component with a documented connection point and no f
   assert.match(lib, /uberEngine\.shift\.updatedAt/);
   assert.match(lib, /uberEngine\.shift\.state/);
   assert.match(lib, /uberEngine\.shift\.syncRequest/);
+  assert.match(lib, /uberEngine\.shift\.controlRequest/);
   assert.match(contract, /harjbains\.github\.io\/map-engine/);
   assert.match(contract, /harjbains\.github\.io\/uber-engine/);
   assert.match(contract, /uberEngine\.shift\.progress/);
   assert.match(contract, /uberEngine\.shift\.syncRequest/);
+  assert.match(contract, /uberEngine\.shift\.controlRequest/);
   assert.doesNotMatch(css, /£|Earnings|Income/);
-  assert.doesNotMatch(component, /£|Earnings|Income/);
+  assert.doesNotMatch(component, /£/, "the collapsed bar never renders a currency figure (segments only)");
   assert.doesNotMatch(mapEngineEntry.slice(mapEngineEntry.indexOf("UberShiftProgress")), /£|Earnings|Income/);
 });

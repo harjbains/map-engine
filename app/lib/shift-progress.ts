@@ -17,6 +17,7 @@ export const SHIFT_PROGRESS_KEYS = {
   updatedAt: "uberEngine.shift.updatedAt",
   state: "uberEngine.shift.state",
   syncRequest: "uberEngine.shift.syncRequest",
+  controlRequest: "uberEngine.shift.controlRequest",
 } as const;
 
 export const SHIFT_PROGRESS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -28,6 +29,7 @@ export type UberShiftState = {
   date: string;
   shiftActive: boolean;
   paused: boolean;
+  hasActiveShift: boolean;
   dailyTarget: number;
   todayEarnings: number;
   dailyProgress: number;
@@ -111,6 +113,7 @@ export function parseShiftState(
     date: String(parsed.date || ""),
     shiftActive: parsed.shiftActive === true,
     paused: parsed.paused === true,
+    hasActiveShift: parsed.hasActiveShift === true,
     dailyTarget,
     todayEarnings,
     dailyProgress: Math.min(1, Math.max(0, finiteNumber(parsed.dailyProgress, dailyTarget > 0 ? todayEarnings / dailyTarget : 0))),
@@ -167,4 +170,37 @@ export function parseSyncRequest(
 
 export function buildSyncRequest(date: string, total: number, now: number = Date.now()): string {
   return JSON.stringify({ date, total, requestedAt: now });
+}
+
+export function buildControlRequest(
+  action: "start" | "pause" | "resume" | "end",
+  options: { miles?: number } = {},
+  now: number = Date.now(),
+): string {
+  const request: Record<string, unknown> = { action, requestedAt: now };
+  if (options.miles !== undefined && options.miles !== null) {
+    request.miles = Math.max(0, Number(options.miles) || 0);
+  }
+  return JSON.stringify(request);
+}
+
+export function parseControlRequest(
+  readValue: ShiftProgressReadValue,
+): { action: "start" | "pause" | "resume" | "end"; miles: number | null; requestedAt: number } | null {
+  const raw = readValue(SHIFT_PROGRESS_KEYS.controlRequest);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    const action = String(parsed?.action || "");
+    if (action !== "start" && action !== "pause" && action !== "resume" && action !== "end") return null;
+    const miles = parsed.miles;
+    if (miles !== undefined && miles !== null && miles !== "" && !Number.isFinite(Number(miles))) return null;
+    return {
+      action,
+      miles: miles === undefined || miles === null || miles === "" ? null : Number(miles),
+      requestedAt: Number(parsed.requestedAt) || Date.now(),
+    };
+  } catch {
+    return null;
+  }
 }
