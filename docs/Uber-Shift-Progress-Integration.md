@@ -178,6 +178,34 @@ state, total-sync and mileage requests republish under today's date. When a new 
 begins and Uber Engine has already published for it, that newer state simply takes
 precedence as usual.
 
+## £25 progress cycle
+
+The collapsed bar is derived from a fixed repeating £25 block (`SHIFT_CYCLE_POUNDS`):
+the daily running total modulo 25 is split across five equal £5 segments
+(`SHIFT_SEGMENT_POUNDS`), with partial segments rendered proportionally and any
+overflow rolling into the next cycle. The component stamping `data-cycle` counts how
+many complete £25 blocks have been earned today; `data-completed` marks the exact
+boundary case where the modulo is zero (the bar flashes green via `.shift-cycle-flash`
+before the next five-segment cycle begins). The bar and its CSS never contain any
+currency symbol, the word "Earnings" or "Income" — this is enforced by the isolation
+test — so passengers see a small progress strip while the real daily target and
+financial figures remain hidden inside the modal donuts.
+
+## Persistence hardening
+
+Uber Engine's published state (`uberEngine.shift.state`) stays authoritative, but
+Map Engine now keeps its own mirror (`map-engine-shift-mirror-v1`) as a fallback for
+today only: every validated snapshot is mirrored, and when the published key is
+missing on a page load or refresh (tab closed before a flush, browser storage eviction,
+an engine restart), the snapshot restores from the mirror before falling back to
+defaults. The mirror is date-stamped and never resurrects data from a different day.
+Shift start time (`shiftStartedAt`) and completed ride count (`ridesCompleted`) are
+persisted inside the published state, rolled over to zero when the day changes, and
+shown in the modal header as "Started HH:MM" so the driver can see how long the
+current session has been open. These additional fields, together with the mirror, mean
+a page refresh, connectivity loss or tab navigation never resets an active day's
+progress.
+
 ## Failure behaviour
 
 Map Engine keeps working normally if Uber Engine has never run, no shift exists,
@@ -187,12 +215,16 @@ unavailable`, and the map is unaffected.
 
 ## Tapping the bar
 
-A full-width bar at the very bottom of the map is built from rides: the bar is scaled
-dynamically to today's target plus a ten-ride tail, each cell is one ride (roughly £5),
-filled in as the day's rides come in, turning green when the goal is reached — without
-ever revealing figures to passengers. Anonymous bold white count tokens sit inside the
-segments themselves at intervals of five (1, 5, 10, ...) so the driver can read off
-progress without any money showing on screen. Tapping the bar opens the Uber
+A full-width bar at the very bottom of the map repeats a £25 motivational cycle: five
+£5 segments per cycle, filled from the persisted running total (`todayEarnings` modulo
+25) so every visibly-sized fare advances the bar. Partial segments render as a
+proportional fill, overflow carries into the next cycle, and when a cycle completes
+exactly (£25, £50, ...) the bar flashes green briefly before resetting to the next
+five-segment cycle — the actual daily and weekly totals and the Uber Engine donut
+remain the authoritative figures, and the repeated cycle gives the driver a short-term
+goal that moves at the pace of real fares. Count tokens 1–5 sit inside the segments so
+the driver can read off where they are in the cycle — never any money showing on
+screen. Tapping the bar opens the Uber
 Engine lean dashboard directly above the live map: a header stamps `Uber Engine · Shift
 Dashboard` with a live shift-status pill, and the body answers the four questions
 without scrolling on a Tesla's landscape screen — two equal earnings donuts (TODAY and

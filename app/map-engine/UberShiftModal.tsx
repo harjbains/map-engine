@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { buildControlRequest, buildMileageRequest, buildSyncRequest, parseShiftStateCached, SHIFT_PROGRESS_KEYS, type UberShiftState } from "../lib/shift-progress";
+import { buildControlRequest, buildMileageRequest, buildSyncRequest, snapshotShiftState, SHIFT_PROGRESS_KEYS, type UberShiftState } from "../lib/shift-progress";
 import { isoOf, readBusinessMiles, readShiftDays, rememberDay, setTodaysMiles, weekDays, weekMiles } from "../lib/business-miles";
 
 function subscribeShift(callback: () => void) {
@@ -19,7 +19,10 @@ function subscribeShift(callback: () => void) {
 function getShiftSnapshot(): UberShiftState | null {
   if (typeof window === "undefined" || typeof window.localStorage === "undefined") return null;
   try {
-    return parseShiftStateCached((key) => window.localStorage.getItem(key));
+    return snapshotShiftState(
+      (key) => window.localStorage.getItem(key),
+      (key, value) => window.localStorage.setItem(key, value),
+    );
   } catch {
     return null;
   }
@@ -172,6 +175,7 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
           shiftActive: action === "start" || action === "resume",
           paused: action === "pause",
           hasActiveShift: action !== "end",
+          shiftStartedAt: action === "end" ? 0 : action === "start" ? (state.shiftStartedAt || Date.now()) : state.shiftStartedAt,
           updatedAt: Date.now(),
         };
         window.localStorage.setItem(SHIFT_PROGRESS_KEYS.state, JSON.stringify(optimistic));
@@ -385,6 +389,7 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
               <h2>{phase === "week" ? "Week" : "Shift Dashboard"}</h2>
             </div>
             <div className="shift-head-meta">
+              <span className="shift-head-date">{state?.shiftStartedAt ? `Started ${new Date(state.shiftStartedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
               <span className="shift-control-status">
                 <i className={`dot${!state ? " off" : state.hasActiveShift ? (state.paused ? " paused" : "") : " off"}`} aria-hidden="true" />
                 {statusText}

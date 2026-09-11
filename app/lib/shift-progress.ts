@@ -21,6 +21,7 @@ export const SHIFT_PROGRESS_KEYS = {
   syncRequest: "uberEngine.shift.syncRequest",
   controlRequest: "uberEngine.shift.controlRequest",
   mileageRequest: "uberEngine.shift.mileageRequest",
+  mirror: "map-engine-shift-mirror-v1",
 } as const;
 
 export const SHIFT_PROGRESS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -48,8 +49,27 @@ export type UberShiftState = {
   weeklyRemaining: number;
   businessMilesToday: number;
   businessMilesWeek: number;
+  shiftStartedAt: number;
+  ridesCompleted: number;
   updatedAt: number;
 };
+
+// Motivating cycle for the collapsed bar: 25 pounds of cumulative earnings laid
+// out as five five-pound segments. Everything is derived from today's persisted
+// running total (earnings % 25) so the visual bar can never drift from the
+// authoritative earnings figure. Overflow carries into the next cycle and the
+// daily/weekly totals above stay untouched.
+export const SHIFT_CYCLE_POUNDS = 25;
+export const SHIFT_SEGMENT_POUNDS = 5;
+export const SHIFT_CYCLE_SEGMENTS = SHIFT_CYCLE_POUNDS / SHIFT_SEGMENT_POUNDS;
+
+export type ShiftCycle = { cycle: number; cycled: number; completed: boolean };
+
+export function shiftCycle(earnings: number): ShiftCycle {
+  const e = Math.max(0, Math.round(earnings * 100) / 100);
+  const cycled = e % SHIFT_CYCLE_POUNDS;
+  return { cycle: Math.floor(e / SHIFT_CYCLE_POUNDS), cycled, completed: e > 0 && cycled === 0 };
+}
 
 export function parseProgressValue(value: string | null): number | null {
   if (typeof value !== "string") return null;
@@ -94,7 +114,14 @@ export function parseShiftState(
   now: number = Date.now(),
   maxAgeMs = SHIFT_PROGRESS_MAX_AGE_MS,
 ): UberShiftState | null {
-  const raw = readValue(SHIFT_PROGRESS_KEYS.state);
+  return parseShiftStateFromRaw(readValue(SHIFT_PROGRESS_KEYS.state), now, maxAgeMs);
+}
+
+function parseShiftStateFromRaw(
+  raw: string | null,
+  now: number,
+  maxAgeMs = SHIFT_PROGRESS_MAX_AGE_MS,
+): UberShiftState | null {
   if (!raw) return null;
   let parsed: Record<string, unknown>;
   try {
@@ -134,13 +161,11 @@ export function parseShiftState(
     weeklyRemaining: Math.max(0, finiteNumber(parsed.weeklyRemaining, Math.max(0, weeklyTarget - weeklyEarnings))),
     businessMilesToday: Math.max(0, finiteNumber(parsed.businessMilesToday, 0)),
     businessMilesWeek: Math.max(0, finiteNumber(parsed.businessMilesWeek, 0)),
+    shiftStartedAt: Math.round(finiteNumber(parsed.shiftStartedAt, 0)),
+    ridesCompleted: Math.max(0, Math.round(finiteNumber(parsed.ridesCompleted, 0))),
     updatedAt,
   };
 }
-
-let cachedRawShiftState: string | null | undefined;
-let cachedShiftState: UberShiftState | null = null;
-let cachedShiftDayKey = "";
 
 // A published state describes the day it was published for. If that date is not
 // today, the shift figures belong to an earlier day: Map Engine rolls the view
@@ -178,28 +203,84 @@ export function rolloverShiftState(state: UberShiftState, now: number = Date.now
     weeklyRemaining: sameWeek ? state.weeklyRemaining : weeklyTarget,
     businessMilesToday: 0,
     businessMilesWeek: sameWeek ? state.businessMilesWeek : 0,
+    shiftStartedAt: 0,
+    ridesCompleted: 0,
   };
 }
 
 // React's useSyncExternalStore requires a snapshot that is referentially stable
 // between reads when the underlying value has not changed. parseShiftState builds
-// a fresh object every call, so memoize on the raw stored JSON plus the local
+// a fresh object every call, so memoize on the resolved raw JSON plus the local
 // day: the same raw string on the same day yields the same object identity,
 // letting the modal's subscription settle without "Maximum update depth
 // exceeded" loops in React 19. Rollover keeps daily-bound figures pinned to the
 // current day so a stale publish never leaks yesterday's numbers onto the map.
+let cachedRawShiftState: string | null | undefined;
+let cachedShiftState: UberShiftState | null = null;
+let cachedShiftDayKey = "";
+
 export function parseShiftStateCached(
   readValue: ShiftProgressReadValue,
   now: number = Date.now(),
 ): UberShiftState | null {
-  const raw = readValue(SHIFT_PROGRESS_KEYS.state);
+  return parseShiftStateCachedResolved(readValue(SHIFT_PROGRESS_KEYS.state), now);
+}
+
+function parseShiftStateCachedResolved(raw: string | null, now: number): UberShiftState | null {
   const dayKey = isoOf(now);
   if (raw === cachedRawShiftState && dayKey === cachedShiftDayKey) return cachedShiftState;
   cachedRawShiftState = raw;
   cachedShiftDayKey = dayKey;
-  const parsed = parseShiftState(readValue, now);
+  const parsed = raw === null ? null : parseShiftStateFromRaw(raw, now);
   cachedShiftState = parsed === null ? null : rolloverShiftState(parsed, now);
   return cachedShiftState;
+}
+
+// Map Engine keeps its own best-effort mirror of the latest validated shift
+// publish under its own key. Uber Engine stays authoritative: the mirror is only
+// ever consulted when today's published state is missing, so a mid-day loss of
+// that single key (browser eviction, an engine restart that rewrites shared
+// storage, a tab closed before a flush) does not reset an active day's data.
+// The snapshot reads the mirror BEFORE defaults come into play, and re-mirrors
+// every validated read so the copy stays current.
+let lastMirrorWritten: string | null = null;
+
+export function resolveShiftRaw(
+  engineRaw: string | null,
+  readValue: ShiftProgressReadValue,
+  now: number = Date.now(),
+): string | null {
+  if (typeof engineRaw === "string" && engineRaw.trim() !== "") return engineRaw;
+  const mirrorRaw = readValue(SHIFT_PROGRESS_KEYS.mirror);
+  if (typeof mirrorRaw !== "string" || mirrorRaw.trim() === "") return null;
+  try {
+    const mirror = JSON.parse(mirrorRaw) as Record<string, unknown>;
+    if (mirror && typeof mirror === "object" && String(mirror.date) === isoOf(now)) return mirrorRaw;
+  } catch {
+    // A corrupt mirror is never trusted over an absent published state.
+  }
+  return null;
+}
+
+export function writeShiftMirror(setValue: (key: string, value: string) => void, raw: string): void {
+  if (raw === lastMirrorWritten) return;
+  lastMirrorWritten = raw;
+  try {
+    setValue(SHIFT_PROGRESS_KEYS.mirror, raw);
+  } catch {
+    // Best effort: the shared published key is still authoritative.
+  }
+}
+
+export function snapshotShiftState(
+  readValue: ShiftProgressReadValue,
+  setValue: (key: string, value: string) => void,
+  now: number = Date.now(),
+): UberShiftState | null {
+  const engineRaw = readValue(SHIFT_PROGRESS_KEYS.state);
+  const raw = resolveShiftRaw(engineRaw, readValue, now);
+  if (raw !== null) writeShiftMirror(setValue, raw);
+  return parseShiftStateCachedResolved(raw, now);
 }
 
 export function parseSyncRequest(

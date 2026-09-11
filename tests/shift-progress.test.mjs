@@ -16,6 +16,7 @@ test("publishes the documented integration keys under the uberEngine namespace",
     syncRequest: "uberEngine.shift.syncRequest",
     controlRequest: "uberEngine.shift.controlRequest",
     mileageRequest: "uberEngine.shift.mileageRequest",
+    mirror: "map-engine-shift-mirror-v1",
   });
   assert.ok(shiftProgress.SHIFT_PROGRESS_MAX_AGE_MS > 0);
   assert.ok(shiftProgress.SHIFT_PROGRESS_MAX_AGE_MS <= 24 * 60 * 60 * 1000);
@@ -107,6 +108,8 @@ test("parses the rich shift state object the modal needs", () => {
   assert.equal(parsed.paused, false);
   assert.equal(parsed.businessMilesToday, 47);
   assert.equal(parsed.businessMilesWeek, 214);
+  assert.equal(parsed.shiftStartedAt, 0, "absent shift start time defaults to no stamp");
+  assert.equal(parsed.ridesCompleted, 0, "absent ride count defaults to zero");
 });
 
 test("treats an inactive published state as hidden for the collapsed bar but parsable for the modal", () => {
@@ -209,6 +212,58 @@ test("builds and parses the business mileage request channel", () => {
   }
 });
 
+test("shiftCycle derives the repeating 25-pound bar position from cumulative earnings", () => {
+  assert.equal(shiftProgress.SHIFT_CYCLE_POUNDS, 25);
+  assert.equal(shiftProgress.SHIFT_SEGMENT_POUNDS, 5);
+  assert.equal(shiftProgress.SHIFT_CYCLE_SEGMENTS, 5);
+  assert.deepEqual(shiftProgress.shiftCycle(0), { cycle: 0, cycled: 0, completed: false });
+  assert.deepEqual(shiftProgress.shiftCycle(5), { cycle: 0, cycled: 5, completed: false });
+  assert.deepEqual(shiftProgress.shiftCycle(7.5), { cycle: 0, cycled: 7.5, completed: false }, "partial segments use the actual monetary amount");
+  assert.deepEqual(shiftProgress.shiftCycle(20), { cycle: 0, cycled: 20, completed: false });
+  assert.deepEqual(shiftProgress.shiftCycle(25), { cycle: 1, cycled: 0, completed: true }, "a full cycle closes at 25");
+  assert.deepEqual(shiftProgress.shiftCycle(32), { cycle: 1, cycled: 7, completed: false }, "overflow carries into the next cycle");
+  assert.deepEqual(shiftProgress.shiftCycle(105), { cycle: 4, cycled: 5, completed: false });
+  assert.deepEqual(shiftProgress.shiftCycle(340), { cycle: 13, cycled: 15, completed: false });
+});
+
+test("parses shift start time and ride count and resets them on a new day", () => {
+  const stamped = { ...VALID_STATE, shiftStartedAt: Date.parse("2026-09-11T08:00:00"), ridesCompleted: 27, updatedAt: Date.now() };
+  const parsed = shiftProgress.parseShiftState(values({ "uberEngine.shift.state": JSON.stringify(stamped) }));
+  assert.equal(parsed.shiftStartedAt, Date.parse("2026-09-11T08:00:00"));
+  assert.equal(parsed.ridesCompleted, 27);
+
+  const nowMs = Date.parse("2026-09-11T12:00:00");
+  const prev = { ...VALID_STATE, date: "2026-09-10", shiftStartedAt: Date.parse("2026-09-10T08:00:00"), ridesCompleted: 27, updatedAt: nowMs };
+  const rolled = shiftProgress.rolloverShiftState(shiftProgress.parseShiftState(values({ "uberEngine.shift.state": JSON.stringify(prev) })), nowMs);
+  assert.equal(rolled.shiftStartedAt, 0, "a fresh day has no inherited start time");
+  assert.equal(rolled.ridesCompleted, 0, "a fresh day has no inherited ride count");
+});
+
+test("snapshotShiftState mirrors the publish and restores it when today's key is lost", () => {
+  const nowMs = Date.parse("2026-09-11T12:00:00");
+  const published = JSON.stringify({ ...VALID_STATE, date: "2026-09-11", todayEarnings: 106, updatedAt: nowMs });
+  const store = { "uberEngine.shift.state": published };
+  const setValue = (key, value) => { store[key] = value; };
+  const read = (key) => store[key] ?? null;
+
+  const first = shiftProgress.snapshotShiftState(read, setValue, nowMs);
+  assert.equal(first.todayEarnings, 106, "the published state is read first");
+  assert.equal(store[shiftProgress.SHIFT_PROGRESS_KEYS.mirror], published, "every validated publish is mirrored");
+
+  const second = shiftProgress.snapshotShiftState(read, setValue, nowMs);
+  assert.strictEqual(second, first, "same raw plus same day yields stable identity");
+
+  delete store["uberEngine.shift.state"];
+  const restored = shiftProgress.snapshotShiftState(read, setValue, nowMs);
+  assert.equal(restored.todayEarnings, 106, "the mirror restores today's shift after the published key is lost mid-day");
+  assert.strictEqual(restored, first, "the restored snapshot also keeps identity");
+
+  const yesterday = JSON.stringify({ ...VALID_STATE, date: "2026-09-10", updatedAt: nowMs });
+  store[shiftProgress.SHIFT_PROGRESS_KEYS.mirror] = yesterday;
+  const nextMorning = shiftProgress.snapshotShiftState((key) => (key === shiftProgress.SHIFT_PROGRESS_KEYS.mirror ? yesterday : null), setValue, Date.parse("2026-09-12T09:00:00"));
+  assert.equal(nextMorning, null, "a mirror for a different day is never resurrected onto a new day");
+});
+
 test("rolloverShiftState resets the daily view for a previous-day publish", () => {
   const nowMs = Date.parse("2026-09-11T12:00:00");
   const prev = { ...VALID_STATE, date: "2026-09-10", updatedAt: nowMs };
@@ -275,7 +330,7 @@ test("ships as an isolated component with a documented connection point and no f
   assert.doesNotMatch(component, /location\.assign/);
   assert.match(component, /onOpen/);
   assert.match(component, /aria-label="Open today's Uber Engine shift dashboard"/);
-  assert.match(modal, /parseShiftStateCached/, "the modal memoises its store snapshot");
+  assert.match(modal, /snapshotShiftState/, "the modal memoises its store snapshot");
   assert.match(modal, /ShiftModalBoundary/, "the modal is guarded by an error boundary");
   assert.match(modal, /buildControlRequest/, "the modal drives the shared shift control channel");
   assert.match(modal, /START SHIFT/, "day view can start a shift");
@@ -306,10 +361,16 @@ test("ships as an isolated component with a documented connection point and no f
   assert.match(modal, /ADJUST TOTAL AGAIN/, "the confirmation lets the total be adjusted again");
   assert.doesNotMatch(modal, /WEEK VIEW/, "a separate week-view toggle is no longer needed - both targets are on one screen");
   assert.match(component, /<b>\{label\}<\/b>/, "the collapsed bar draws the ride counts inside the segments");
-  assert.match(component, /% 5 === 0/, "bar counts land on intervals of five");
-  assert.match(component, /rides \+ 10/, "the bar is sized to the day target plus a ten-ride tail");
+  assert.match(component, /shiftCycle\(state\.todayEarnings\)/, "the repeating bar is derived from the persisted running total");
+  assert.match(component, /SHIFT_CYCLE_POUNDS/, "the bar cycles against the fixed 25-pound block");
+  assert.match(component, /fillPercent: fraction \* 100/, "partial segments render the fractional earnings within a cycle");
+  assert.match(component, /data-cycle=\{bar\.cycle\}/, "the bar stamps the completed cycle count for the reset flash");
+  assert.match(component, /shift-cycle-flash/, "a completed cycle briefly flashes green before resetting");
+  assert.match(component, /snapshotShiftState/, "the bar restores today's mirrored shift before defaulting to zero");
   assert.match(css, /\.shift-seg b/, "in-segment ride counts are styled");
-  assert.match(css, /font-size:clamp\(12px, calc\(\(100vw - 22px\) \/ var\(--cells, 60\) \* 1\.05\), 28px\)/, "segment count labels scale up 2-3x to fit wider cells");
+  assert.match(css, /font-size:clamp\(16px, 2\.4vw, 30px\)/, "segment count labels scale with the five wide £25-cycle cells");
+  assert.match(css, /\.shift-cycle-flash/, "the completed-cycle flash overlay is styled");
+  assert.match(css, /@keyframes shift-cycle-pop/, "the flash resets after a brief completed state");
   assert.match(css, /\.active-route-panel \{ position:absolute; bottom:104px;/, "the route details panel sits clear of the shift bar");
   assert.match(css, /\.shift-dash/, "the modal body zones the lean dashboard");
   assert.match(css, /\.shift-targets/, "today and week targets sit side by side");
