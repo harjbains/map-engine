@@ -39,9 +39,13 @@ export type UberShiftProgressProps = {
 const POUNDS_PER_RIDE = 5;
 const MAX_VISIBLE_SEGMENTS = 60;
 
-function buildSegments(state: UberShiftState | null): Array<{ filled: boolean; fillPercent: number }> {
+function buildBar(state: UberShiftState | null): {
+  segments: Array<{ filled: boolean; fillPercent: number }>;
+  group: number;
+  cells: number;
+} {
   if (!state) {
-    return Array.from({ length: 20 }, () => ({ filled: false, fillPercent: 0 }));
+    return { segments: Array.from({ length: 20 }, () => ({ filled: false, fillPercent: 0 })), group: 1, cells: 20 };
   }
   const dailyTarget = Math.max(0, state.dailyTarget);
   const rides = Math.max(1, Math.ceil(dailyTarget / POUNDS_PER_RIDE));
@@ -51,16 +55,17 @@ function buildSegments(state: UberShiftState | null): Array<{ filled: boolean; f
   const filledCells = earnedRides / group;
   const full = Math.min(cells, Math.floor(filledCells));
   const fraction = Math.min(1, Math.max(0, filledCells - full));
-  return Array.from({ length: cells }, (_, index) => {
+  const segments = Array.from({ length: cells }, (_, index) => {
     if (index < full) return { filled: true, fillPercent: 100 };
     if (index === full) return { filled: false, fillPercent: fraction * 100 };
     return { filled: false, fillPercent: 0 };
   });
+  return { segments, group, cells };
 }
 
 export function UberShiftProgress({ onOpen }: UberShiftProgressProps) {
   const state = useSyncExternalStore(subscribeShiftProgress, getShiftSnapshot, getShiftServerSnapshot);
-  const segments = buildSegments(state);
+  const bar = buildBar(state);
   const hasData = state !== null;
   const goal = hasData && state.dailyTarget > 0 && state.dailyProgress >= 1;
 
@@ -73,7 +78,7 @@ export function UberShiftProgress({ onOpen }: UberShiftProgressProps) {
       title="Uber Engine"
     >
       <span className="shift-track" aria-hidden="true">
-        {segments.map((segment, index) =>
+        {bar.segments.map((segment, index) =>
           segment.filled ? (
             <span className="shift-seg filled" key={index} />
           ) : segment.fillPercent > 0 ? (
@@ -85,6 +90,14 @@ export function UberShiftProgress({ onOpen }: UberShiftProgressProps) {
           ),
         )}
       </span>
+      {hasData && (
+        <span className="shift-marks" aria-hidden="true">
+          {Array.from({ length: bar.cells }, (_, index) => {
+            const marked = index + 1 === 1 || (index + 1) % 5 === 0;
+            return <i key={index}>{marked ? <span>{(index + 1) * bar.group}</span> : null}</i>;
+          })}
+        </span>
+      )}
     </button>
   );
 }

@@ -81,8 +81,8 @@ Field notes:
 
 ## Total-sync write-back (`uberEngine.shift.syncRequest`)
 
-The modal's **SYNC TODAY'S TOTAL / UPDATE TODAY'S TOTAL** flow lets the driver set
-today's running total from the Uber Driver app. Map Engine writes a single
+The modal's **UPDATE EARNINGS** flow lets the driver set an absolute cumulative
+running total for today from the Uber Driver app. Map Engine writes a single
 best-effort request key; it never touches Uber Engine's database schema:
 
 | Key                          | Value    | Meaning                              |
@@ -149,13 +149,20 @@ unavailable`, and the map is unaffected.
 
 A full-width bar at the very bottom of the map is built from rides: each cell is one
 ride (roughly £5) towards today's target, filled in as the day's rides come in, turning
-green when the goal is reached — without ever revealing figures to passengers. Tapping
-it opens the Uber Engine dashboard overlay (DAY donut, remaining/worked/rate panels,
-the shift control row with START/PAUSE/RESUME/END and the end-of-shift mileage entry,
-WEEK view, SYNC TODAY'S TOTAL) directly above the live map. The DAY and WEEK donuts
-carry a second, slimmer inner ring (amber) showing hours worked against the hours
-needed to hit the target at the planned `targetRate` (e.g. `4h 48m of 7h 30m to
-target`), turning green once the hours target is reached. The overlay is sized
-compact so the whole dashboard fits a Tesla's landscape browser viewport. No
-navigation away from Map Engine happens, and a large close control returns instantly
-to the map.
+green when the goal is reached — without ever revealing figures to passengers. Anonymous
+count tokens sit below the strip at intervals of five (1, 5, 10, ...) so the driver can
+read off progress without any money showing on screen. Tapping the bar opens the Uber
+Engine dashboard overlay directly above the live map: a header stamps `Uber Engine ·
+Shift Progress` with the date/time and a live shift-status pill, and the body is a
+landscape two-column layout with the earnings donut (plus its slimmer amber inner ring
+showing hours worked against the hours needed to reach the planned `targetRate`, e.g.
+`4h 48m of 10h to target`) on the left and a 2×3 grid of statistic tiles on the right
+(remaining, rides left with a large blue figure, worked, estimated time remaining at the
+current rate, your hourly rate, and the target rate; a WEEK view swaps in the weekly
+figures). A single bottom control row carries PAUSE/RESUME, UPDATE EARNINGS, END SHIFT
+and WEEK VIEW/DAY VIEW; ending a shift reveals the end-of-shift mileage entry, and
+UPDATE EARNINGS opens a smaller modal with the current running total, three +/− steppers
+(£100/£10/£1), a SAVE & UPDATE action, and a confirmation screen that either returns to
+the dashboard or lets the driver adjust the total again. The overlay is sized compact so
+the whole dashboard fits a Tesla's landscape browser viewport; navigating away from Map
+Engine never happens, and a large close control returns instantly to the map.

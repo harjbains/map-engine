@@ -220,6 +220,17 @@ test("ships as an isolated component with a documented connection point and no f
   assert.match(modal, /rides left/, "the remaining panel words the day target in rides");
   assert.match(modal, /shift-donut-hrs/, "the donut caption shows worked hours of the hours required");
   assert.match(modal, /to target/, "the donut hour lane labels the target");
+  assert.match(modal, /UPDATE EARNINGS/, "the control row opens the running-total editor");
+  assert.match(modal, /SAVE &amp; UPDATE/, "the editor saves the synced total");
+  assert.match(modal, /BACK TO DASHBOARD/, "the confirmation returns to the dashboard");
+  assert.match(modal, /ADJUST TOTAL AGAIN/, "the confirmation lets the total be adjusted again");
+  assert.match(modal, /WEEK VIEW|DAY VIEW/, "the control row toggles the weekly dashboard");
+  assert.match(component, /shift-marks/, "the collapsed bar draws interval-of-5 ride counts");
+  assert.match(component, /% 5 === 0/, "bar counts land on intervals of five");
+  assert.match(css, /\.shift-marks/, "interval marks are styled");
+  assert.match(css, /\.shift-dash/, "the modal body is a two-column dashboard");
+  assert.match(css, /\.shift-tiles/, "the statistics sit in a tile grid");
+  assert.match(css, /\.shift-panel\.rides em/, "the rides-left figure renders large and blue");
   assert.match(css, /\.shift-scrim/);
   assert.match(css, /\.shift-modal/);
   assert.match(css, /\.drive-shell\.dark \.shift-progress/);
