@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, type CSSProperties } from "react";
 import { parseShiftStateCached, type UberShiftState } from "../lib/shift-progress";
 
 function subscribeShiftProgress(callback: () => void) {
@@ -33,9 +33,10 @@ export type UberShiftProgressProps = {
 };
 
 // Each visible cell on the bottom jobs bar represents a single ride (roughly
-// five pounds per ride). Cells count rides by default; very large daily targets
-// are grouped so the full width stays a count of roughly one ride per cell
-// without turning into a hairline.
+// five pounds per ride). The bar is scaled dynamically to the daily target
+// plus a ten-ride tail so the goal never sits flush against the edge: cells
+// count rides by default and only very large daily targets are grouped so the
+// full width never turns into a hairline.
 const POUNDS_PER_RIDE = 5;
 const MAX_VISIBLE_SEGMENTS = 60;
 
@@ -49,8 +50,9 @@ function buildBar(state: UberShiftState | null): {
   }
   const dailyTarget = Math.max(0, state.dailyTarget);
   const rides = Math.max(1, Math.ceil(dailyTarget / POUNDS_PER_RIDE));
-  const group = Math.max(1, Math.ceil(rides / MAX_VISIBLE_SEGMENTS));
-  const cells = Math.max(1, Math.ceil(rides / group));
+  const scale = rides + 10;
+  const group = Math.max(1, Math.ceil(scale / MAX_VISIBLE_SEGMENTS));
+  const cells = Math.max(1, Math.ceil(scale / group));
   const earnedRides = Math.max(0, state.todayEarnings) / POUNDS_PER_RIDE;
   const filledCells = earnedRides / group;
   const full = Math.min(cells, Math.floor(filledCells));
@@ -76,28 +78,33 @@ export function UberShiftProgress({ onOpen }: UberShiftProgressProps) {
       onClick={onOpen}
       aria-label="Open today's Uber Engine shift dashboard"
       title="Uber Engine"
+      style={{ "--cells": bar.cells } as CSSProperties}
     >
       <span className="shift-track" aria-hidden="true">
-        {bar.segments.map((segment, index) =>
-          segment.filled ? (
-            <span className="shift-seg filled" key={index} />
-          ) : segment.fillPercent > 0 ? (
-            <span className="shift-seg partial" key={index}>
-              <span className="shift-seg-fill" style={{ width: `${segment.fillPercent}%` }} />
+        {bar.segments.map((segment, index) => {
+          const label = hasData && (index + 1 === 1 || (index + 1) % 5 === 0) ? (index + 1) * bar.group : null;
+          if (segment.filled) {
+            return (
+              <span className="shift-seg filled" key={index}>
+                {label !== null && <b>{label}</b>}
+              </span>
+            );
+          }
+          if (segment.fillPercent > 0) {
+            return (
+              <span className="shift-seg partial" key={index}>
+                <span className="shift-seg-fill" style={{ width: `${segment.fillPercent}%` }} />
+                {label !== null && <b>{label}</b>}
+              </span>
+            );
+          }
+          return (
+            <span className="shift-seg" key={index}>
+              {label !== null && <b>{label}</b>}
             </span>
-          ) : (
-            <span className="shift-seg" key={index} />
-          ),
-        )}
+          );
+        })}
       </span>
-      {hasData && (
-        <span className="shift-marks" aria-hidden="true">
-          {Array.from({ length: bar.cells }, (_, index) => {
-            const marked = index + 1 === 1 || (index + 1) % 5 === 0;
-            return <i key={index}>{marked ? <span>{(index + 1) * bar.group}</span> : null}</i>;
-          })}
-        </span>
-      )}
     </button>
   );
 }

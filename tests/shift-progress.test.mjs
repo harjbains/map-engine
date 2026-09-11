@@ -225,9 +225,10 @@ test("ships as an isolated component with a documented connection point and no f
   assert.match(modal, /BACK TO DASHBOARD/, "the confirmation returns to the dashboard");
   assert.match(modal, /ADJUST TOTAL AGAIN/, "the confirmation lets the total be adjusted again");
   assert.match(modal, /WEEK VIEW|DAY VIEW/, "the control row toggles the weekly dashboard");
-  assert.match(component, /shift-marks/, "the collapsed bar draws interval-of-5 ride counts");
+  assert.match(component, /<b>\{label\}<\/b>/, "the collapsed bar draws the ride counts inside the segments");
   assert.match(component, /% 5 === 0/, "bar counts land on intervals of five");
-  assert.match(css, /\.shift-marks/, "interval marks are styled");
+  assert.match(component, /rides \+ 10/, "the bar is sized to the day target plus a ten-ride tail");
+  assert.match(css, /\.shift-seg b/, "in-segment ride counts are styled");
   assert.match(css, /\.shift-dash/, "the modal body is a two-column dashboard");
   assert.match(css, /\.shift-tiles/, "the statistics sit in a tile grid");
   assert.match(css, /\.shift-panel\.rides em/, "the rides-left figure renders large and blue");

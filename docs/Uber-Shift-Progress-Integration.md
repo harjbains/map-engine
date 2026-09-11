@@ -147,11 +147,12 @@ unavailable`, and the map is unaffected.
 
 ## Tapping the bar
 
-A full-width bar at the very bottom of the map is built from rides: each cell is one
-ride (roughly £5) towards today's target, filled in as the day's rides come in, turning
-green when the goal is reached — without ever revealing figures to passengers. Anonymous
-count tokens sit below the strip at intervals of five (1, 5, 10, ...) so the driver can
-read off progress without any money showing on screen. Tapping the bar opens the Uber
+A full-width bar at the very bottom of the map is built from rides: the bar is scaled
+dynamically to today's target plus a ten-ride tail, each cell is one ride (roughly £5),
+filled in as the day's rides come in, turning green when the goal is reached — without
+ever revealing figures to passengers. Anonymous bold white count tokens sit inside the
+segments themselves at intervals of five (1, 5, 10, ...) so the driver can read off
+progress without any money showing on screen. Tapping the bar opens the Uber
 Engine dashboard overlay directly above the live map: a header stamps `Uber Engine ·
 Shift Progress` with the date/time and a live shift-status pill, and the body is a
 landscape two-column layout with the earnings donut (plus its slimmer amber inner ring
