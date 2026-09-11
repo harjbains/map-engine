@@ -110,6 +110,7 @@ test("pickup history ships as an additive two-colour layer module", async () => 
   assert.match(layers, /"pickup-current"/);
   assert.match(layers, /\["==", \["get", "matchesWindow"\], false\]/);
   assert.match(layers, /\["==", \["get", "matchesWindow"\], true\]/);
+  assert.doesNotMatch(layers, /minzoom/, "pickup dots stay visible at every zoom rather than fading on zoom-out");
   const read = await import("../app/lib/pickup-time-matcher.ts");
   assert.equal(read.CURRENT_TIME_WINDOW_MINUTES, 60);
 });

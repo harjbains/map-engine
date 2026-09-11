@@ -229,6 +229,8 @@ test("ships as an isolated component with a documented connection point and no f
   assert.match(component, /% 5 === 0/, "bar counts land on intervals of five");
   assert.match(component, /rides \+ 10/, "the bar is sized to the day target plus a ten-ride tail");
   assert.match(css, /\.shift-seg b/, "in-segment ride counts are styled");
+  assert.match(css, /font-size:clamp\(12px, calc\(\(100vw - 22px\) \/ var\(--cells, 60\) \* 1\.05\), 28px\)/, "segment count labels scale up 2-3x to fit wider cells");
+  assert.match(css, /\.active-route-panel \{ position:absolute; bottom:104px;/, "the route details panel sits clear of the shift bar");
   assert.match(css, /\.shift-dash/, "the modal body is a two-column dashboard");
   assert.match(css, /\.shift-tiles/, "the statistics sit in a tile grid");
   assert.match(css, /\.shift-panel\.rides em/, "the rides-left figure renders large and blue");

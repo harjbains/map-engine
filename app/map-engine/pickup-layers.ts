@@ -18,7 +18,6 @@ export function ensurePickupLayers(map: maplibregl.Map) {
     id: "pickup-historic",
     type: "circle",
     source: PICKUP_SOURCE,
-    minzoom: 13,
     filter: ["==", ["get", "matchesWindow"], false],
     paint: {
       "circle-pitch-alignment": "map",
@@ -33,7 +32,6 @@ export function ensurePickupLayers(map: maplibregl.Map) {
     id: "pickup-current",
     type: "circle",
     source: PICKUP_SOURCE,
-    minzoom: 13,
     filter: ["==", ["get", "matchesWindow"], true],
     paint: {
       "circle-pitch-alignment": "map",

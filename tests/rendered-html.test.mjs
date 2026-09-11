@@ -19,7 +19,7 @@ test("renders the Map Engine application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Map Engine — Offline Road Map<\/title>/i);
   assert.match(html, /MAP ENGINE/);
-  assert.match(html, /v2.10.84/);
+  assert.match(html, /v2.10.85/);
   assert.doesNotMatch(html, /Following vehicle/);
   assert.doesNotMatch(html, />CURRENT ROAD</);
   assert.doesNotMatch(html, /Switch to Classic UK map style/);
@@ -115,8 +115,8 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.doesNotMatch(mapEngine, />Modern</);
   assert.doesNotMatch(mapEngine, />Classic UK</);
   assert.doesNotMatch(mapEngine, /quick-style-toggle/);
-  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.84"/);
-  assert.match(serviceWorker, /map-engine-shell-v1266/);
+  assert.match(mapEngine, /const APP_VERSION = "v2\.10\.85"/);
+  assert.match(serviceWorker, /map-engine-shell-v1267/);
   assert.ok(mapEngineEntry.split(/\r?\n/).length < 1250, "MapEngine should remain a coordinator rather than regain extracted implementation details");
   assert.doesNotMatch(mapEngineEntry, /function applyMapTheme|function ensureSafetyLayers|function nearestNamedRoad/);
   assert.match(mapEngineEntry, /import\("\.\/lib\/geocoding"\)/);
@@ -246,6 +246,7 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngineCss, /\.zoom-controls \{[^}]+right:18px[^}]+bottom:84px[^}]+flex-direction:row/);
   assert.match(mapEngineCss, /\.zoom-controls button \{[^}]+width:56px[^}]+height:56px[^}]+border:2px solid #3179b9[^}]+border-radius:50%/);
   assert.match(globalsCss, /\.location-card \{[^}]+width:min\(330px/);
+  assert.match(globalsCss, /\.location-card \{ position:absolute; left:20px; bottom:70px;/, "the current-road capsule sits above the shift bar");
   assert.doesNotMatch(globalsCss, /\.location-card span \{/);
   assert.match(globalsCss, /\.location-card strong \{[^}]+font-size:18px/);
   assert.match(globalsCss, /\.location-card small \{[^}]+font-size:12px/);
@@ -285,7 +286,7 @@ test("ships PWA and custom UK map configuration", async () => {
   assert.match(mapEngine, /journey-destination/);
   assert.match(mapEngine, /routeDetailsOpen/);
   assert.match(mapEngine, /route-details-toggle/);
-  assert.match(mapEngineCss, /\.active-route-panel \{[^}]+bottom:72px/);
+  assert.match(mapEngineCss, /\.active-route-panel \{[^}]+bottom:104px/);
   assert.match(mapEngineCss, /\.active-route-panel \{[^}]+width:min\(340px,calc\(100vw - 166px\)\)/);
   assert.match(mapEngineCss, /\.active-route-panel > button:not\(\.route-panel-close\)/);
   assert.match(mapEngine, /active-route-casing/);
