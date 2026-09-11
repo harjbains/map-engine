@@ -184,12 +184,15 @@ The collapsed bar is derived from a fixed repeating £25 block (`SHIFT_CYCLE_POU
 the daily running total modulo 25 is split across five equal £5 segments
 (`SHIFT_SEGMENT_POUNDS`), with partial segments rendered proportionally and any
 overflow rolling into the next cycle. The component stamping `data-cycle` counts how
-many complete £25 blocks have been earned today; `data-completed` marks the exact
-boundary case where the modulo is zero (the bar flashes green via `.shift-cycle-flash`
-before the next five-segment cycle begins). The bar and its CSS never contain any
-currency symbol, the word "Earnings" or "Income" — this is enforced by the isolation
-test — so passengers see a small progress strip while the real daily target and
-financial figures remain hidden inside the modal donuts.
+many complete £25 blocks have been earned today. The five cells are plain visual
+blocks — no numbered ride tokens, stages or levels — and the bar never displays any
+currency symbol, the word "Earnings" or "Income" (enforced by the isolation test), so
+passengers see a small progress strip while the real daily target and financial
+figures remain hidden inside the modal donuts. When a live earnings update crosses a
+£25 boundary, the old bar is first shown at 100% with a green pulse
+(`.shift-cycle-flash`, around 1.1s) before the visual bar resets to the next
+five-segment cycle carrying the remainder; a fresh page load at the boundary lands
+silently on the next cycle without replaying the flash.
 
 ## Persistence hardening
 
@@ -218,13 +221,13 @@ unavailable`, and the map is unaffected.
 A full-width bar at the very bottom of the map repeats a £25 motivational cycle: five
 £5 segments per cycle, filled from the persisted running total (`todayEarnings` modulo
 25) so every visibly-sized fare advances the bar. Partial segments render as a
-proportional fill, overflow carries into the next cycle, and when a cycle completes
-exactly (£25, £50, ...) the bar flashes green briefly before resetting to the next
-five-segment cycle — the actual daily and weekly totals and the Uber Engine donut
-remain the authoritative figures, and the repeated cycle gives the driver a short-term
-goal that moves at the pace of real fares. Count tokens 1–5 sit inside the segments so
-the driver can read off where they are in the cycle — never any money showing on
-screen. Tapping the bar opens the Uber
+proportional fill, overflow carries into the next cycle, and a live earnings update
+that crosses a £25 boundary first shows the old bar at 100% with a brief green pulse
+before resetting to the next five-segment cycle carrying the remainder — the actual
+daily and weekly totals and the Uber Engine donut remain the authoritative figures,
+and the repeated cycle gives the driver a short-term goal that moves at the pace of
+real fares. The cells are plain visual blocks with no numbered tokens, levels or
+currency symbols on screen. Tapping the bar opens the Uber
 Engine lean dashboard directly above the live map: a header stamps `Uber Engine · Shift
 Dashboard` with a live shift-status pill, and the body answers the four questions
 without scrolling on a Tesla's landscape screen — two equal earnings donuts (TODAY and

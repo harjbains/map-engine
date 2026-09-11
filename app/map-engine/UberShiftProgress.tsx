@@ -1,5 +1,7 @@
-import { useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { SHIFT_CYCLE_POUNDS, SHIFT_CYCLE_SEGMENTS, shiftCycle, snapshotShiftState, type UberShiftState } from "../lib/shift-progress";
+
+const CYCLE_FLASH_MS = 1100;
 
 function subscribeShiftProgress(callback: () => void) {
   const refresh = () => callback();
@@ -35,21 +37,24 @@ export type UberShiftProgressProps = {
   onOpen: () => void;
 };
 
-// The collapsed bar is a motivational cycle: five segments of five pounds each
-// repeat. It answers "what is the short amount I am building toward right now"
-// rather than scaling to a whole day's target, so every visibly-sized fare
-// advances the cycle. The position is derived from the persisted running total
-// (todayEarnings modulo the 25-pound cycle) with partial segments allowed, so
-// the bar can never drift from the authoritative daily figure. The daily and
-// weekly totals and the Uber Engine donut remain the real targets.
+// The collapsed bar is a motivational 25-pound block split into five equal 5-pound
+// cells. It answers "how close am I to finishing the next twenty-five pounds" rather
+// than scaling to a whole day's target, so every visibly-sized fare advances the bar.
+// The fill is derived from the persisted running total (todayEarnings modulo 25)
+// with partial cells allowed, so the bar can never drift from the authoritative
+// daily figure. Cells are plain visual blocks - no stage numbers, levels or ride
+// counts - and the daily and weekly totals and the Uber Engine donut remain the
+// real targets.
 function buildCycleBar(state: UberShiftState | null): {
   cycle: number;
+  cycled: number;
   completed: boolean;
   segments: Array<{ filled: boolean; fillPercent: number }>;
 } {
   if (!state) {
     return {
       cycle: 0,
+      cycled: 0,
       completed: false,
       segments: Array.from({ length: SHIFT_CYCLE_SEGMENTS }, () => ({ filled: false, fillPercent: 0 })),
     };
@@ -63,52 +68,71 @@ function buildCycleBar(state: UberShiftState | null): {
     if (index === full) return { filled: false, fillPercent: fraction * 100 };
     return { filled: false, fillPercent: 0 };
   });
-  return { cycle, completed, segments };
+  return { cycle, cycled, completed, segments };
 }
 
 export function UberShiftProgress({ onOpen }: UberShiftProgressProps) {
   const state = useSyncExternalStore(subscribeShiftProgress, getShiftSnapshot, getShiftServerSnapshot);
   const bar = buildCycleBar(state);
   const hasData = state !== null;
-  const goal = hasData && bar.completed;
+
+  // The flash is change-driven, not mount-driven: a fresh load at 32 lands
+  // silently on the next cycle, but a live update that crosses a 25-pound boundary
+  // first shows the completed old bar at 100% with a green pulse, then swaps to
+  // the new cycle carrying the remainder. displayedCycle lags the derived cycle
+  // by the flash duration so the boundary is acknowledged before the reset.
+  const [displayedCycle, setDisplayedCycle] = useState(() => bar.cycle);
+  const [celebrating, setCelebrating] = useState(false);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      setDisplayedCycle(bar.cycle);
+      return;
+    }
+    if (bar.cycle === displayedCycle) return;
+    if (bar.cycle > displayedCycle) setCelebrating(true);
+    setDisplayedCycle(bar.cycle);
+  }, [bar.cycle, displayedCycle]);
+
+  useEffect(() => {
+    if (!celebrating) return;
+    const timer = setTimeout(() => setCelebrating(false), CYCLE_FLASH_MS);
+    return () => clearTimeout(timer);
+  }, [celebrating]);
+
+  const segments = celebrating
+    ? Array.from({ length: SHIFT_CYCLE_SEGMENTS }, () => ({ filled: true, fillPercent: 100 }))
+    : bar.segments;
 
   return (
     <button
       type="button"
-      className={`shift-progress${hasData ? " live" : ""}${goal ? " goal" : ""}`}
+      className={`shift-progress${hasData ? " live" : ""}${celebrating ? " goal" : ""}`}
       onClick={onOpen}
       aria-label="Open today's Uber Engine shift dashboard"
       title="Uber Engine"
-      data-cycle={bar.cycle}
-      data-completed={bar.completed ? "1" : "0"}
+      data-cycle={displayedCycle}
+      data-completed={celebrating ? "1" : "0"}
       style={{ "--cells": SHIFT_CYCLE_SEGMENTS } as CSSProperties}
     >
       <span className="shift-track" aria-hidden="true">
-        {bar.segments.map((segment, index) => {
-          const label = hasData ? index + 1 : null;
+        {segments.map((segment, index) => {
           if (segment.filled) {
-            return (
-              <span className="shift-seg filled" key={index}>
-                {label !== null && <b>{label}</b>}
-              </span>
-            );
+            return <span className="shift-seg filled" key={index} />;
           }
           if (segment.fillPercent > 0) {
             return (
               <span className="shift-seg partial" key={index}>
                 <span className="shift-seg-fill" style={{ width: `${segment.fillPercent}%` }} />
-                {label !== null && <b>{label}</b>}
               </span>
             );
           }
-          return (
-            <span className="shift-seg" key={index}>
-              {label !== null && <b>{label}</b>}
-            </span>
-          );
+          return <span className="shift-seg" key={index} />;
         })}
       </span>
-      {bar.cycle > 0 && <span className="shift-cycle-flash" key={bar.cycle} aria-hidden="true" />}
+      {celebrating && <span className="shift-cycle-flash" key={displayedCycle} aria-hidden="true" />}
     </button>
   );
 }
