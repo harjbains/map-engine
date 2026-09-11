@@ -1,5 +1,6 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { buildControlRequest, buildSyncRequest, parseShiftStateCached, SHIFT_PROGRESS_KEYS, type UberShiftState } from "../lib/shift-progress";
+import { buildControlRequest, buildMileageRequest, buildSyncRequest, parseShiftStateCached, SHIFT_PROGRESS_KEYS, type UberShiftState } from "../lib/shift-progress";
+import { isoOf, readBusinessMiles, readShiftDays, rememberDay, setTodaysMiles, weekDays, weekMiles } from "../lib/business-miles";
 
 function subscribeShift(callback: () => void) {
   const refresh = () => callback();
@@ -41,33 +42,35 @@ function formatHoursMinutes(minutes: number): string {
   return `${hours}h ${mins}m`;
 }
 
-function formatClockNow(): string {
-  const d = new Date();
-  const date = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
-  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  return `${date} · ${time}`;
-}
+// TESLA UI:
+// The following analytical helpers are intentionally NOT rendered. The lean
+// dashboard answers only four questions (daily target, weekly target, actual
+// gross £/productive hour, recorded business mileage). The estimation logic is
+// preserved below for possible future restoration.
+//
+// function requiredMinutesFor(target: number, targetRate: number): number | null {
+//   if (target <= 0 || targetRate <= 0) return null;
+//   return (target / targetRate) * 60;
+// }
+//
+// Projections that were previously derived and are now hidden:
+//   - estimated minutes remaining today (dayEstMinutes)
+//   - estimated minutes to weekly target (weekEstMinutes)
+//   - rides remaining this week (weekRides)
+//   - worked-vs-required hour ring (dayHourProgress / weekHourProgress)
 
-function requiredMinutesFor(target: number, targetRate: number): number | null {
-  if (target <= 0 || targetRate <= 0) return null;
-  return (target / targetRate) * 60;
-}
-
-function Donut({ progress, earnedLabel, targetLabel, hourProgress, hourLabel }: { progress: number; earnedLabel: string; targetLabel: string; hourProgress: number | null; hourLabel: string | null }) {
+function Donut({ pct, earnedLabel, targetLabel }: { pct: number; earnedLabel: string; targetLabel: string }) {
   const radius = 120;
-  const innerRadius = 86;
   const circumference = 2 * Math.PI * radius;
-  const innerCircumference = 2 * Math.PI * innerRadius;
-  const clamped = Math.min(1, Math.max(0, progress));
+  const clamped = Math.min(1, Math.max(0, pct));
   const dash = clamped * circumference;
-  const hourClamped = hourProgress === null ? 0 : Math.min(1, Math.max(0, hourProgress));
-  const hourDash = hourClamped * innerCircumference;
+  const over = pct > 1;
   return (
     <div className="shift-donut-wrap">
-      <svg className="shift-donut" viewBox="0 0 280 280" role="img" aria-label={`${Math.round(clamped * 100)} percent of target`}>
+      <svg className="shift-donut" viewBox="0 0 280 280" role="img" aria-label={`${Math.round(pct * 100)} percent of target`}>
         <circle className="shift-donut-track" cx="140" cy="140" r={radius} />
         <circle
-          className="shift-donut-fill"
+          className={`shift-donut-fill${over ? " over" : ""}${clamped >= 1 ? " complete" : ""}`}
           cx="140"
           cy="140"
           r={radius}
@@ -75,22 +78,11 @@ function Donut({ progress, earnedLabel, targetLabel, hourProgress, hourLabel }: 
           strokeDashoffset="0"
           transform="rotate(-90 140 140)"
         />
-        <circle className="shift-donut-track inner" cx="140" cy="140" r={innerRadius} />
-        <circle
-          className={hourClamped >= 1 ? "shift-donut-fill inner complete" : "shift-donut-fill inner"}
-          cx="140"
-          cy="140"
-          r={innerRadius}
-          strokeDasharray={`${hourDash} ${innerCircumference - hourDash}`}
-          strokeDashoffset="0"
-          transform="rotate(-90 140 140)"
-        />
       </svg>
       <div className="shift-donut-centre" aria-hidden="true">
         <strong>{earnedLabel}</strong>
         <span>of {targetLabel}</span>
-        <em>{Math.round(clamped * 100)}%</em>
-        {hourLabel ? <small className="shift-donut-hrs">{hourLabel}</small> : null}
+        <em className={over ? "over" : ""}>{Math.round(pct * 100)}%</em>
       </div>
     </div>
   );
@@ -137,9 +129,9 @@ export class ShiftModalBoundary extends Component<ShiftModalBoundaryProps, Shift
 export function UberShiftModal({ onClose }: UberShiftModalProps) {
   const state = useSyncExternalStore(subscribeShift, getShiftSnapshot, getShiftServerSnapshot);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [view, setView] = useState<"day" | "week">("day");
-  const [phase, setPhase] = useState<"dash" | "edit" | "confirm">("dash");
+  const [phase, setPhase] = useState<"dash" | "week" | "edit" | "confirm" | "miles" | "mile-confirm">("dash");
   const [counterValue, setCounterValue] = useState(() => Math.round(getShiftSnapshot()?.todayEarnings ?? 0));
+  const [milesValue, setMilesValue] = useState(0);
   const [ending, setEnding] = useState(false);
   const [endMiles, setEndMiles] = useState("");
   const [controlNote, setControlNote] = useState(false);
@@ -155,19 +147,19 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
 
   useEffect(() => {
     if (phase === "edit" && state) setCounterValue(Math.round(state.todayEarnings));
-    // Only seed the counter when the user opens it, not on every published update.
+    if (phase === "miles" && state) setMilesValue(Math.round(businessMiles().today));
+    // Only seed the editors when the user opens them, not on every published update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  const todayIso = useMemo(() => {
-    const d = new Date();
-    const offset = d.getTimezoneOffset();
-    const local = new Date(d.getTime() - offset * 60 * 1000);
-    return local.toISOString().slice(0, 10);
-  }, []);
+  const todayIso = useMemo(() => isoOf(Date.now()), []);
 
   const adjust = useCallback((step: number, delta: 1 | -1) => {
     setCounterValue((current) => Math.max(0, current + step * delta));
+  }, []);
+
+  const adjustMiles = useCallback((delta: number) => {
+    setMilesValue((current) => Math.max(0, current + delta));
   }, []);
 
   const sendControl = useCallback((action: "start" | "pause" | "resume" | "end", options: { miles?: number } = {}) => {
@@ -196,9 +188,32 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
     const miles = Number(endMiles);
     if (!Number.isFinite(miles) || miles < 0) return;
     sendControl("end", { miles });
+    // Record the end-of-shift business miles against today and the week too, so
+    // the lean dashboard keeps its own record even before Uber Engine republishes.
+    const date = state?.date || todayIso;
+    const { week } = setTodaysMiles(miles);
+    try {
+      window.localStorage.setItem(SHIFT_PROGRESS_KEYS.mileageRequest, buildMileageRequest(date, miles));
+      if (state) {
+        const currentWeek = state.businessMilesWeek > 0 || state.businessMilesToday > 0 ? state.businessMilesWeek - state.businessMilesToday + miles : week;
+        const optimistic: UberShiftState = {
+          ...state,
+          shiftActive: false,
+          paused: false,
+          hasActiveShift: false,
+          businessMilesToday: miles,
+          businessMilesWeek: currentWeek,
+          updatedAt: Date.now(),
+        };
+        window.localStorage.setItem(SHIFT_PROGRESS_KEYS.state, JSON.stringify(optimistic));
+        window.dispatchEvent(new Event("uber-engine-shift-state-local"));
+      }
+    } catch {
+      // Best effort.
+    }
     setEnding(false);
     setEndMiles("");
-  }, [endMiles, sendControl]);
+  }, [endMiles, sendControl, state, todayIso]);
 
   const milesValid = endMiles.trim() !== "" && Number.isFinite(Number(endMiles)) && Number(endMiles) >= 0;
 
@@ -242,6 +257,8 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
           weeklyProgress: 0,
           weeklyMinutes: 0,
           weeklyRemaining: 0,
+          businessMilesToday: 0,
+          businessMilesWeek: 0,
           updatedAt: now,
         };
         window.localStorage.setItem(SHIFT_PROGRESS_KEYS.state, JSON.stringify(optimistic));
@@ -253,23 +270,69 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
     setPhase("confirm");
   }, [counterValue, state, todayIso]);
 
-  const dailyProgress = state?.dailyProgress ?? 0;
-  const weeklyProgress = state?.weeklyProgress ?? 0;
-  const activeMinutes = state?.activeMinutes ?? 0;
-  const hourlyRate = state?.hourlyRate ?? 0;
-  const targetRate = state?.targetRate ?? 0;
+  const saveMiles = useCallback(() => {
+    if (typeof window === "undefined" || typeof window.localStorage === "undefined") return;
+    const miles = Number(milesValue);
+    if (!Number.isFinite(miles) || miles < 0) return;
+    const date = state?.date || todayIso;
+    const now = Date.now();
+    // Keep the driver's own per-date record current, and ask Uber Engine to stay
+    // authoritative through the dedicated mileage request channel.
+    const { week } = setTodaysMiles(miles);
+    try {
+      window.localStorage.setItem(SHIFT_PROGRESS_KEYS.mileageRequest, buildMileageRequest(date, miles, now));
+      if (state) {
+        const currentWeek = state.businessMilesWeek > 0 || state.businessMilesToday > 0 ? state.businessMilesWeek - state.businessMilesToday + miles : week;
+        const optimistic: UberShiftState = {
+          ...state,
+          businessMilesToday: miles,
+          businessMilesWeek: currentWeek,
+          updatedAt: now,
+        };
+        window.localStorage.setItem(SHIFT_PROGRESS_KEYS.state, JSON.stringify(optimistic));
+      }
+      window.dispatchEvent(new Event("uber-engine-shift-state-local"));
+    } catch {
+      // Best effort: the per-date store still holds the entry.
+    }
+    setPhase("mile-confirm");
+  }, [milesValue, state, todayIso]);
 
-  const dayRequiredMinutes = state ? requiredMinutesFor(state.dailyTarget, targetRate) : null;
-  const dayHourProgress = dayRequiredMinutes === null ? null : activeMinutes / dayRequiredMinutes;
-  const dayHourLabel = dayRequiredMinutes === null ? null : `${formatHoursMinutes(activeMinutes)} of ${formatHoursMinutes(dayRequiredMinutes)} to target`;
+  // Keep the local journal in step with whatever the published state reports, so
+  // the week strip and mileage figures have continuity across sessions.
+  useEffect(() => {
+    if (!state) return;
+    const dayKey = state.date || todayIso;
+    if (state.todayEarnings > 0) rememberDay(dayKey, state.todayEarnings, state.activeMinutes);
+    if (state.businessMilesToday > 0) {
+      const store = readBusinessMiles();
+      if ((store[dayKey] ?? 0) < state.businessMilesToday) {
+        store[dayKey] = state.businessMilesToday;
+        try {
+          window.localStorage.setItem("map-engine-business-miles-v1", JSON.stringify(store));
+        } catch {
+          // Best effort.
+        }
+      }
+    }
+  }, [state, todayIso]);
 
-  const weekRequiredMinutes = state ? requiredMinutesFor(state.weeklyTarget, targetRate) : null;
-  const weekHourProgress = weekRequiredMinutes === null ? null : state.weeklyMinutes / weekRequiredMinutes;
-  const weekHourLabel = weekRequiredMinutes === null ? null : `${formatHoursMinutes(state.weeklyMinutes)} of ${formatHoursMinutes(weekRequiredMinutes)} to target`;
+  const businessMiles = useCallback(() => {
+    const store = readBusinessMiles();
+    const dayKey = state?.date || isoOf(Date.now());
+    const publishedToday = state?.businessMilesToday ?? 0;
+    const publishedWeek = state?.businessMilesWeek ?? 0;
+    const today = publishedToday > 0 ? publishedToday : store[dayKey] ?? 0;
+    const week = publishedWeek > 0 ? publishedWeek : weekMiles(store, Date.now());
+    return { today, week };
+  }, [state]);
 
-  const dayEstMinutes = hourlyRate > 0 ? Math.ceil((state?.remaining ?? 0) / hourlyRate * 60) : null;
-  const weekEstMinutes = hourlyRate > 0 ? Math.ceil((state?.weeklyRemaining ?? 0) / hourlyRate * 60) : null;
-  const weekRides = state ? Math.round(Math.max(0, state.weeklyRemaining) / 5) : 0;
+  const miles = businessMiles();
+
+  const weekStrip = useMemo(() => (state ? weekDays(readShiftDays(), Date.now()) : []), [state]);
+
+  const dailyPct = state && state.dailyTarget > 0 ? state.todayEarnings / state.dailyTarget : 0;
+  const weeklyPct = state && state.weeklyTarget > 0 ? state.weeklyEarnings / state.weeklyTarget : 0;
 
   const statusText = !state ? "No shift data" : state.hasActiveShift ? (state.paused ? "Paused" : "Shift live") : "Shift off";
 
@@ -279,9 +342,34 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
     setPhase("edit");
   };
 
+  const updateMilesView = () => {
+    if (state) setMilesValue(Math.round(miles.today));
+    else setMilesValue(0);
+    setPhase("miles");
+  };
+
+  const dashboardControls = (
+    <div className="shift-controls">
+      {!state?.hasActiveShift ? (
+        <>
+          <button type="button" className="shift-control-btn" onClick={() => sendControl("start")}>START SHIFT</button>
+          <button type="button" className="shift-control-btn update" onClick={updateTotalView}>UPDATE EARNINGS</button>
+          <button type="button" className="shift-control-btn update" onClick={updateMilesView}>UPDATE MILEAGE</button>
+        </>
+      ) : (
+        <>
+          <button type="button" className="shift-control-btn pause" onClick={() => sendControl(state.paused ? "resume" : "pause")}>{state.paused ? "RESUME" : "PAUSE"}</button>
+          <button type="button" className="shift-control-btn update" onClick={updateTotalView}>UPDATE EARNINGS</button>
+          <button type="button" className="shift-control-btn update" onClick={updateMilesView}>UPDATE MILEAGE</button>
+          <button type="button" className="shift-control-btn end" onClick={() => setEnding(true)}>END SHIFT</button>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="shift-scrim" role="presentation" onClick={onClose}>
-      {phase === "dash" ? (
+      {phase === "dash" || phase === "week" ? (
         <section
           className="shift-modal"
           role="dialog"
@@ -294,10 +382,9 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
           <header className="shift-head">
             <div className="shift-head-title">
               <span className="shift-eyebrow">UBER ENGINE</span>
-              <h2>Shift Progress</h2>
+              <h2>{phase === "week" ? "Week" : "Shift Dashboard"}</h2>
             </div>
             <div className="shift-head-meta">
-              <span className="shift-head-date">{formatClockNow()}</span>
               <span className="shift-control-status">
                 <i className={`dot${!state ? " off" : state.hasActiveShift ? (state.paused ? " paused" : "") : " off"}`} aria-hidden="true" />
                 {statusText}
@@ -305,92 +392,83 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
             </div>
           </header>
 
-          <div className="shift-modal-body">
+          <div className="shift-modal-body shift-modal-body-main">
             {state === null ? (
               <>
                 <p className="shift-unavailable-eyebrow">NO SHIFT DATA</p>
                 <p className="shift-unavailable-title">Shift data unavailable</p>
                 <p className="shift-unavailable-note">Open the Uber Engine app once so it can publish today's shift, or sync today's running total below.</p>
               </>
-            ) : view === "day" ? (
-              <div className="shift-dash">
-                <Donut
-                  progress={dailyProgress}
-                  earnedLabel={formatMoneyWhole(state.todayEarnings)}
-                  targetLabel={formatMoneyWhole(state.dailyTarget)}
-                  hourProgress={dayHourProgress}
-                  hourLabel={dayHourLabel}
-                />
-                <div className="shift-tiles">
-                  <div className="shift-panel">
-                    <span>Remaining</span>
-                    <strong>{formatMoneyWhole(state.remaining)}</strong>
-                    <em>today</em>
+            ) : phase === "week" ? (
+              <div className="shift-week">
+                <div className="shift-week-head">
+                  <div className="shift-week-hero">
+                    <span className="shift-target-label">WEEK</span>
+                    <strong>{formatMoneyWhole(state.weeklyEarnings)}</strong>
+                    <span>of {formatMoneyWhole(state.weeklyTarget)}</span>
+                    <em className={weeklyPct > 1 ? "over" : ""}>{Math.round(weeklyPct * 100)}%</em>
                   </div>
-                  <div className="shift-panel rides">
-                    <span>To target</span>
-                    <em>{state.ridesRemaining} rides left</em>
-                  </div>
-                  <div className="shift-panel">
-                    <span>Worked</span>
-                    <strong>{formatHoursMinutes(activeMinutes)}</strong>
-                    <em>today</em>
-                  </div>
-                  <div className="shift-panel">
-                    <span>Est. remaining</span>
-                    <strong>{dayEstMinutes === null ? "—" : formatHoursMinutes(dayEstMinutes)}</strong>
-                    <em>at your rate</em>
-                  </div>
-                  <div className="shift-panel">
-                    <span>Your rate</span>
-                    <strong>{hourlyRate > 0 ? `£${hourlyRate.toFixed(2)}/h` : "—"}</strong>
-                    <em>now</em>
-                  </div>
-                  <div className="shift-panel">
-                    <span>Target rate</span>
-                    <strong>{targetRate > 0 ? `£${targetRate.toFixed(2)}/h` : "—"}</strong>
-                    <em>to hit target</em>
+                  <div className="shift-week-key">
+                    <div className="shift-week-stat tall">
+                      <span>Total hours</span>
+                      <strong>{formatHoursMinutes(state.weeklyMinutes)}</strong>
+                    </div>
+                    <div className="shift-week-stat tall">
+                      <span>Rate</span>
+                      <strong>{state.hourlyRate > 0 ? `£${state.hourlyRate.toFixed(2)}/hr` : "—"}</strong>
+                    </div>
+                    <div className="shift-week-stat">
+                      <span>Business mileage</span>
+                      <strong>{Math.round(miles.week)} mi</strong>
+                      <button type="button" className="shift-mile-inline" onClick={updateMilesView}>UPDATE</button>
+                    </div>
                   </div>
                 </div>
+                <div className="shift-week-strip" aria-label="Daily earnings this week">
+                  {weekStrip.map((day) => (
+                    <div key={day.date} className={`shift-week-day${day.earnings <= 0 ? " empty" : ""}`}>
+                      <span>{day.label}</span>
+                      <strong>{day.earnings > 0 ? formatMoneyWhole(day.earnings) : "—"}</strong>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="shift-week-back" onClick={() => setPhase("dash")}>BACK TO DASHBOARD</button>
               </div>
             ) : (
+              // TESLA UI:
+              // The previous analytical tile grid (Remaining, rides remaining,
+              // worked hours, estimated time remaining, current rate, target
+              // rate) is intentionally removed from the lean dashboard. The
+              // closing-<DashboardBody/> logic below is the only active body.
               <div className="shift-dash">
-                <Donut
-                  progress={weeklyProgress}
-                  earnedLabel={formatMoneyWhole(state.weeklyEarnings)}
-                  targetLabel={formatMoneyWhole(state.weeklyTarget)}
-                  hourProgress={weekHourProgress}
-                  hourLabel={weekHourLabel}
-                />
-                <div className="shift-tiles">
-                  <div className="shift-panel">
-                    <span>Remaining</span>
-                    <strong>{formatMoneyWhole(state.weeklyRemaining)}</strong>
-                    <em>this week</em>
+                <div className="shift-targets">
+                  <div className="shift-target-block">
+                    <span className="shift-target-label">TODAY</span>
+                    <Donut pct={dailyPct} earnedLabel={formatMoneyWhole(state.todayEarnings)} targetLabel={formatMoneyWhole(state.dailyTarget)} />
                   </div>
-                  <div className="shift-panel rides">
-                    <span>To target</span>
-                    <em>{weekRides} rides left</em>
+                  <div
+                    className="shift-target-block tappable"
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Open the weekly breakdown"
+                    onClick={() => setPhase("week")}
+                    onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setPhase("week"); } }}
+                  >
+                    <span className="shift-target-label">WEEK</span>
+                    <Donut pct={weeklyPct} earnedLabel={formatMoneyWhole(state.weeklyEarnings)} targetLabel={formatMoneyWhole(state.weeklyTarget)} />
                   </div>
-                  <div className="shift-panel">
-                    <span>Worked</span>
-                    <strong>{formatHoursMinutes(state.weeklyMinutes)}</strong>
-                    <em>this week</em>
+                </div>
+                <div className="shift-metrics">
+                  <div className="shift-metric rate">
+                    <span className="shift-metric-value">{state.hourlyRate > 0 ? `£${state.hourlyRate.toFixed(2)}` : "—"}<small>/hr</small></span>
+                    <span className="shift-metric-label">CURRENT £ / HOUR</span>
                   </div>
-                  <div className="shift-panel">
-                    <span>Est. to target</span>
-                    <strong>{weekEstMinutes === null ? "—" : formatHoursMinutes(weekEstMinutes)}</strong>
-                    <em>at your rate</em>
-                  </div>
-                  <div className="shift-panel">
-                    <span>Your rate</span>
-                    <strong>{hourlyRate > 0 ? `£${hourlyRate.toFixed(2)}/h` : "—"}</strong>
-                    <em>now</em>
-                  </div>
-                  <div className="shift-panel">
-                    <span>Target rate</span>
-                    <strong>{targetRate > 0 ? `£${targetRate.toFixed(2)}/h` : "—"}</strong>
-                    <em>to hit target</em>
+                  <div className="shift-metric miles">
+                    <div className="shift-mile-cols">
+                      <div><strong>{Math.round(miles.today)}</strong><small> mi</small><em>TODAY</em></div>
+                      <div><strong>{Math.round(miles.week)}</strong><small> mi</small><em>WEEK</em></div>
+                    </div>
+                    <span className="shift-metric-label">BUSINESS MILEAGE</span>
                   </div>
                 </div>
               </div>
@@ -406,27 +484,12 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
                 <button type="button" className="shift-control-btn views" onClick={() => { setEnding(false); setEndMiles(""); }}>CANCEL</button>
               </div>
             ) : (
-              <div className="shift-controls">
-                {!state?.hasActiveShift ? (
-                  <>
-                    <button type="button" className="shift-control-btn" onClick={() => sendControl("start")}>START SHIFT</button>
-                    <button type="button" className="shift-control-btn update" onClick={updateTotalView}>UPDATE EARNINGS</button>
-                    <button type="button" className="shift-control-btn views" onClick={() => setView(view === "day" ? "week" : "day")}>{view === "day" ? "WEEK VIEW" : "DAY VIEW"}</button>
-                  </>
-                ) : (
-                  <>
-                    <button type="button" className="shift-control-btn pause" onClick={() => sendControl(state.paused ? "resume" : "pause")}>{state.paused ? "RESUME" : "PAUSE"}</button>
-                    <button type="button" className="shift-control-btn update" onClick={updateTotalView}>UPDATE EARNINGS</button>
-                    <button type="button" className="shift-control-btn end" onClick={() => setEnding(true)}>END SHIFT</button>
-                    <button type="button" className="shift-control-btn views" onClick={() => setView(view === "day" ? "week" : "day")}>{view === "day" ? "WEEK VIEW" : "DAY VIEW"}</button>
-                  </>
-                )}
-              </div>
+              dashboardControls
             )}
           </div>
           {controlNote && <p className="shift-end-note" role="status">Shift command sent to the Uber Engine app.</p>}
         </section>
-      ) : (
+      ) : phase === "edit" || phase === "confirm" ? (
         <section
           className="shift-modal small"
           role="dialog"
@@ -470,7 +533,49 @@ export function UberShiftModal({ onClose }: UberShiftModalProps) {
             </div>
           )}
         </section>
-      )}
+      ) : phase === "miles" || phase === "mile-confirm" ? (
+        <section
+          className="shift-modal small"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Update business mileage"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button ref={closeRef} type="button" className="shift-modal-close" onClick={onClose} aria-label="Close">×</button>
+          {phase === "miles" ? (
+            <div className="shift-update">
+              <p className="shift-update-eyebrow">UPDATE BUSINESS MILEAGE</p>
+              <h2>Today's business miles</h2>
+              <div className="shift-update-total">
+                <span>Today's total</span>
+                <strong>{Math.round(milesValue)} <em className="shift-miles-unit">mi</em></strong>
+              </div>
+              <div className="shift-mile-steppers" aria-label="Today's mileage counter">
+                <button type="button" onClick={() => adjustMiles(-10)} aria-label="Subtract 10 miles">−10</button>
+                <button type="button" onClick={() => adjustMiles(-1)} aria-label="Subtract 1 mile">−1</button>
+                <button type="button" onClick={() => adjustMiles(1)} aria-label="Add 1 mile">+1</button>
+                <button type="button" onClick={() => adjustMiles(10)} aria-label="Add 10 miles">+10</button>
+              </div>
+              <div className="shift-mile-context"><span>This week</span><strong>{Math.round(miles.week)} mi</strong></div>
+              <div className="shift-update-actions">
+                <button type="button" className="shift-counter-save" onClick={saveMiles}>✓ SAVE MILEAGE</button>
+                <button type="button" className="shift-counter-cancel" onClick={() => setPhase("dash")}>CANCEL</button>
+              </div>
+            </div>
+          ) : (
+            <div className="shift-confirm">
+              <span className="shift-confirm-tick" aria-hidden="true">✓</span>
+              <p className="shift-update-eyebrow">MILES RECORDED</p>
+              <strong className="shift-confirm-total">{Math.round(milesValue)} mi</strong>
+              <span className="shift-confirm-note">Business miles for today</span>
+              <div className="shift-confirm-actions">
+                <button type="button" className="shift-counter-save" onClick={() => setPhase("dash")}>BACK TO DASHBOARD</button>
+                <button type="button" className="shift-counter-cancel" onClick={() => setPhase("miles")}>ADJUST MILES AGAIN</button>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -14,6 +14,7 @@ test("publishes the documented integration keys under the uberEngine namespace",
     state: "uberEngine.shift.state",
     syncRequest: "uberEngine.shift.syncRequest",
     controlRequest: "uberEngine.shift.controlRequest",
+    mileageRequest: "uberEngine.shift.mileageRequest",
   });
   assert.ok(shiftProgress.SHIFT_PROGRESS_MAX_AGE_MS > 0);
   assert.ok(shiftProgress.SHIFT_PROGRESS_MAX_AGE_MS <= 24 * 60 * 60 * 1000);
@@ -82,6 +83,8 @@ const VALID_STATE = {
   weeklyProgress: 0.68,
   weeklyMinutes: 960,
   weeklyRemaining: 287.5,
+  businessMilesToday: 47,
+  businessMilesWeek: 214,
   updatedAt: Date.now(),
 };
 
@@ -101,6 +104,8 @@ test("parses the rich shift state object the modal needs", () => {
   assert.equal(parsed.shiftActive, true);
   assert.equal(parsed.hasActiveShift, true);
   assert.equal(parsed.paused, false);
+  assert.equal(parsed.businessMilesToday, 47);
+  assert.equal(parsed.businessMilesWeek, 214);
 });
 
 test("treats an inactive published state as hidden for the collapsed bar but parsable for the modal", () => {
@@ -185,6 +190,24 @@ test("builds and parses the shift control request channel", () => {
   }
 });
 
+test("builds and parses the business mileage request channel", () => {
+  const raw = shiftProgress.buildMileageRequest("2026-09-11", 56);
+  const parsed = shiftProgress.parseMileageRequest(values({ "uberEngine.shift.mileageRequest": raw }));
+  assert.ok(parsed);
+  assert.equal(parsed.date, "2026-09-11");
+  assert.equal(parsed.miles, 56);
+  assert.ok(parsed.requestedAt > 0);
+
+  const clamped = shiftProgress.parseMileageRequest(values({ "uberEngine.shift.mileageRequest": shiftProgress.buildMileageRequest("2026-09-11", -4) }));
+  assert.ok(clamped);
+  assert.equal(clamped.miles, 0, "negative miles are clamped to zero");
+
+  assert.equal(shiftProgress.parseMileageRequest(() => null), null);
+  for (const value of ["", "abc", "null", "{}", '{"miles":"abc"}', '{"date":"2026-09-11"}']) {
+    assert.equal(shiftProgress.parseMileageRequest(values({ "uberEngine.shift.mileageRequest": value })), null, value);
+  }
+});
+
 test("ships as an isolated component with a documented connection point and no financial wording", async () => {
   const [mapEngineEntry, component, modal, css, config, lib, contract] = await Promise.all([
     readFile(new URL("../app/MapEngine.tsx", import.meta.url), "utf8"),
@@ -214,25 +237,34 @@ test("ships as an isolated component with a documented connection point and no f
   assert.match(css, /\.shift-seg/, "the bottom bar is a full-width strip of ride segments");
   assert.match(css, /\.shift-end-box/, "ending a shift reveals the mileage entry box");
   assert.match(css, /\.shift-control-btn/, "shift control buttons are styled");
-  assert.match(css, /\.shift-donut-fill\.inner/, "a slimmer inner ring shows hours against the hours required to hit the target");
-  assert.match(css, /\.shift-donut-hrs/, "the hour ring has a readable caption");
-  assert.match(modal, /ridesRemaining/, "the modal tracks remaining rides");
-  assert.match(modal, /rides left/, "the remaining panel words the day target in rides");
-  assert.match(modal, /shift-donut-hrs/, "the donut caption shows worked hours of the hours required");
-  assert.match(modal, /to target/, "the donut hour lane labels the target");
+  assert.match(css, /\.shift-donut-fill\.inner/, "the inner hour ring styles are preserved for a possible analytical return");
+  assert.match(css, /\.shift-donut-hrs/, "the hour ring caption styles are preserved");
+  assert.match(modal, /ridesRemaining/, "the modal still tracks remaining rides when optimistic state is rebuilt");
+  assert.doesNotMatch(modal, /rides left/, "the rides-left panel is removed from the lean dashboard");
+  assert.doesNotMatch(modal, /shift-donut-hrs/, "the hour ring and its caption are not rendered while driving");
+  assert.doesNotMatch(modal, /to target/, "no hours/time-to-target wording is shown in the lean dashboard");
+  assert.match(modal, /UPDATE MILEAGE/, "the control row opens the mileage editor");
+  assert.match(modal, /SAVE MILEAGE/, "the mileage editor saves the driver's total");
+  assert.match(modal, /businessMilesToday/, "the modal tracks today's recorded business miles");
+  assert.match(modal, /setPhase\("week"\)/, "tapping the WEEK target opens the weekly sheet");
+  assert.match(modal, /TESLA UI/, "removed analytics are documented as intentionally disabled");
   assert.match(modal, /UPDATE EARNINGS/, "the control row opens the running-total editor");
   assert.match(modal, /SAVE &amp; UPDATE/, "the editor saves the synced total");
   assert.match(modal, /BACK TO DASHBOARD/, "the confirmation returns to the dashboard");
   assert.match(modal, /ADJUST TOTAL AGAIN/, "the confirmation lets the total be adjusted again");
-  assert.match(modal, /WEEK VIEW|DAY VIEW/, "the control row toggles the weekly dashboard");
+  assert.doesNotMatch(modal, /WEEK VIEW/, "a separate week-view toggle is no longer needed - both targets are on one screen");
   assert.match(component, /<b>\{label\}<\/b>/, "the collapsed bar draws the ride counts inside the segments");
   assert.match(component, /% 5 === 0/, "bar counts land on intervals of five");
   assert.match(component, /rides \+ 10/, "the bar is sized to the day target plus a ten-ride tail");
   assert.match(css, /\.shift-seg b/, "in-segment ride counts are styled");
   assert.match(css, /font-size:clamp\(12px, calc\(\(100vw - 22px\) \/ var\(--cells, 60\) \* 1\.05\), 28px\)/, "segment count labels scale up 2-3x to fit wider cells");
   assert.match(css, /\.active-route-panel \{ position:absolute; bottom:104px;/, "the route details panel sits clear of the shift bar");
-  assert.match(css, /\.shift-dash/, "the modal body is a two-column dashboard");
-  assert.match(css, /\.shift-tiles/, "the statistics sit in a tile grid");
+  assert.match(css, /\.shift-dash/, "the modal body zones the lean dashboard");
+  assert.match(css, /\.shift-targets/, "today and week targets sit side by side");
+  assert.match(css, /\.shift-metrics/, "the rate and mileage metrics sit in a row");
+  assert.match(css, /\.shift-week-day/, "the weekly sheet renders the seven-day strip");
+  assert.match(css, /\.shift-mile-steppers/, "the mileage editor uses large stepper controls");
+  assert.match(css, /\.shift-tiles/, "the statistics tile styles are preserved under the TESLA UI comment");
   assert.match(css, /\.shift-panel\.rides em/, "the rides-left figure renders large and blue");
   assert.match(css, /\.shift-scrim/);
   assert.match(css, /\.shift-modal/);

@@ -150,9 +150,9 @@
   .shift-seg b { position:absolute; inset:0; z-index:1; display:flex; align-items:center; justify-content:center; overflow:hidden; font-family:inherit; font-weight:800; font-style:normal; font-size:clamp(12px, calc((100vw - 22px) / var(--cells, 60) * 1.05), 28px); line-height:1; white-space:nowrap; letter-spacing:0; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.55); font-variant-numeric:tabular-nums; }
 
   /* Uber Engine shift modal and sync counter */
-  .shift-scrim { position:absolute; inset:0; z-index:21; border:0; background:rgba(2,7,10,.24); display:grid; place-items:center; cursor:default; animation:shift-scrim-in .16s ease-out; }
+  .shift-scrim { position:fixed; inset:0; z-index:21; border:0; background:rgba(2,7,10,.24); display:grid; place-items:center; cursor:default; animation:shift-scrim-in .16s ease-out; }
   @keyframes shift-scrim-in { from { opacity:0; } to { opacity:1; } }
-  .shift-modal { position:relative; width:min(52vw,860px); max-height:88dvh; display:flex; flex-direction:column; padding:24px 28px 20px; border:1px solid rgba(139,168,182,.2); border-radius:24px; background:#10161a; color:#eef4f7; box-shadow:0 30px 90px rgba(0,0,0,.48); overflow:hidden; animation:shift-modal-in .18s cubic-bezier(.2,.8,.3,1); }
+  .shift-modal { position:relative; width:min(74vw,980px); max-height:94dvh; display:flex; flex-direction:column; padding:18px 24px 16px; border:1px solid rgba(139,168,182,.2); border-radius:22px; background:#10161a; color:#eef4f7; box-shadow:0 30px 90px rgba(0,0,0,.48); overflow:hidden; animation:shift-modal-in .18s cubic-bezier(.2,.8,.3,1); }
   .shift-modal.small { width:min(36vw,520px); }
   @keyframes shift-modal-in { from { transform:scale(.965) translateY(10px); opacity:0; } to { transform:scale(1) translateY(0); opacity:1; } }
   .shift-modal-close { position:absolute; top:18px; right:18px; z-index:3; width:48px; height:48px; border:1px solid rgba(139,168,182,.24); border-radius:50%; background:#1a2328; color:#eef4f7; font-size:30px; line-height:1; cursor:pointer; }
@@ -164,9 +164,9 @@
   .shift-head-meta { display:flex; flex-direction:column; align-items:flex-end; gap:7px; }
   .shift-head-date { color:#9eabb2; font-size:11px; font-weight:800; letter-spacing:.02em; white-space:nowrap; font-variant-numeric:tabular-nums; }
   .shift-head-meta .shift-control-status { margin-left:0; font-size:10.5px; }
-  .shift-modal-body { flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; overflow-y:auto; }
-  .shift-dash { width:100%; display:grid; grid-template-columns:minmax(170px,40%) minmax(0,60%); gap:20px; align-items:center; }
-  .shift-donut-wrap { position:relative; width:min(230px,42vh); height:min(230px,42vh); flex:0 0 auto; justify-self:center; }
+  .shift-modal-body { flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; overflow-y:auto; }
+  .shift-dash { width:100%; display:flex; flex-direction:column; gap:12px; align-items:center; }
+  .shift-donut-wrap { position:relative; width:min(200px,36vh); height:min(200px,36vh); flex:0 0 auto; justify-self:center; }
   .shift-donut { width:100%; height:100%; }
   .shift-donut-track { fill:none; stroke:rgba(139,168,182,.16); stroke-width:22; }
   .shift-donut-fill { fill:none; stroke:#3d86c9; stroke-width:22; stroke-linecap:round; transition:stroke-dasharray .5s ease; }
@@ -179,6 +179,55 @@
   .shift-donut-centre span { color:#9eabb2; font-size:12.5px; font-weight:750; }
   .shift-donut-centre em { color:#8bc9ff; font-size:14px; font-style:normal; font-weight:900; }
   .shift-donut-centre small.shift-donut-hrs { color:#e2a93b; font-size:10.5px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .shift-donut-fill.over, .shift-donut-fill.inner.complete.over { stroke:#69c985; }
+  .shift-donut-centre em.over { color:#69c985; }
+  .shift-targets { width:100%; display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:10px; }
+  .shift-target-block { min-width:0; display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .shift-target-block.tappable { cursor:pointer; padding:6px; border-radius:18px; }
+  .shift-target-block.tappable:hover { background:rgba(139,168,182,.08); }
+  .shift-target-block.tappable:focus-visible { outline:2px solid #70b7ff; outline-offset:2px; }
+  .shift-target-label { color:#8bc9ff; font-size:11px; font-weight:900; letter-spacing:.22em; }
+  .shift-metrics { width:100%; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .shift-metric { min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:10px 14px; border:1px solid rgba(139,168,182,.16); border-radius:16px; background:rgba(26,35,40,.5); }
+  .shift-metric-value { font-size:29px; font-weight:950; letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.05; }
+  .shift-metric-value small { color:#9eabb2; font-size:16px; font-weight:850; font-variant-numeric:tabular-nums; }
+  .shift-metric.miles .shift-mile-cols { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .shift-mile-cols > div { display:flex; flex-direction:column; align-items:center; gap:1px; }
+  .shift-mile-cols strong { font-size:23px; font-weight:950; font-variant-numeric:tabular-nums; line-height:1.05; }
+  .shift-mile-cols small { color:#9eabb2; font-size:12px; font-weight:850; }
+  .shift-mile-cols em { color:#8bc9ff; font-size:9px; font-style:normal; font-weight:900; letter-spacing:.14em; }
+  .shift-metric-label { color:#9eabb2; font-size:9px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
+  .shift-miles-unit { color:#9eabb2; font-size:20px; font-style:normal; font-weight:850; }
+  .shift-mile-steppers { display:flex; justify-content:center; gap:10px; width:100%; }
+  .shift-mile-steppers button { min-width:64px; min-height:62px; padding:0 6px; border:2px solid rgba(139,168,182,.2); border-radius:16px; background:#1a2328; color:#eef4f7; font-size:21px; font-weight:900; line-height:1; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .shift-mile-steppers button:hover { border-color:#70b7ff; background:#253038; color:#cfe8ff; }
+  .shift-mile-steppers button:focus-visible { outline:2px solid #70b7ff; outline-offset:3px; }
+  .shift-mile-context { display:flex; align-items:baseline; gap:8px; color:#9eabb2; font-size:11px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
+  .shift-mile-context strong { color:#eef4f7; font-size:18px; font-variant-numeric:tabular-nums; }
+  .shift-mile-inline { align-self:center; min-height:26px; padding:0 10px; border:1px solid rgba(112,183,255,.4); border-radius:8px; background:#1b4a6b; color:#cfe8ff; font-size:9.5px; font-weight:900; letter-spacing:.1em; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .shift-mile-inline:hover { background:#21587f; }
+  .shift-week { width:100%; display:flex; flex-direction:column; gap:12px; }
+  .shift-week-head { width:100%; display:flex; gap:14px; align-items:stretch; }
+  .shift-week-hero { flex:0 1 200px; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:12px 16px; border:1px solid rgba(139,168,182,.16); border-radius:18px; background:rgba(26,35,40,.5); }
+  .shift-week-hero strong { font-size:30px; font-weight:950; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .shift-week-hero span { color:#9eabb2; font-size:12px; font-weight:800; }
+  .shift-week-hero em { color:#8bc9ff; font-size:15px; font-style:normal; font-weight:900; }
+  .shift-week-hero em.over { color:#69c985; }
+  .shift-week-key { flex:1 1 auto; min-width:0; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .shift-week-stat { min-width:0; display:flex; flex-direction:column; justify-content:center; gap:2px; padding:10px 14px; border:1px solid rgba(139,168,182,.16); border-radius:14px; background:rgba(26,35,40,.5); }
+  .shift-week-stat.tall { justify-content:center; }
+  .shift-week-stat span { color:#9eabb2; font-size:9px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+  .shift-week-stat strong { font-size:19px; font-weight:950; font-variant-numeric:tabular-nums; line-height:1.15; }
+  .shift-week-strip { width:100%; display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .shift-week-day { min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:8px 2px; border:1px solid rgba(139,168,182,.16); border-radius:12px; background:rgba(26,35,40,.5); }
+  .shift-week-day span { color:#9eabb2; font-size:9px; font-weight:900; letter-spacing:.1em; }
+  .shift-week-day strong { font-size:13.5px; font-weight:900; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .shift-week-day.empty { opacity:.5; }
+  .shift-week-back { align-self:center; min-height:42px; padding:0 20px; border:2px solid rgba(139,168,182,.24); border-radius:12px; background:transparent; color:#cfd9dd; font-size:11.5px; font-weight:900; letter-spacing:.12em; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .shift-week-back:hover { border-color:#70b7ff; background:rgba(112,183,255,.1); color:#cfe8ff; }
+  /* TESLA UI: the following analytical tile styles are preserved for a possible
+     future return to a fully analytical dashboard. The lean Tesla view no
+     longer renders .shift-tiles / .shift-panel. */
   .shift-tiles { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:stretch; }
   .shift-panel { min-height:64px; display:flex; flex-direction:column; justify-content:center; gap:2px; padding:9px 14px; border:1px solid rgba(139,168,182,.16); border-radius:14px; background:rgba(26,35,40,.5); text-align:center; }
   .shift-panel span { color:#9eabb2; font-size:9px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
@@ -339,14 +388,14 @@
 }
 @media (max-width:700px) and (orientation:portrait) { .status-icon { display:none; } .top-bar { inset:12px; } .brand-lockup { width:145px; gap:6px; padding:6px 14px 6px 8px; } .brand-lockup strong { font-size:13px; } .brand-version { font-size:9px; } .brand-lockup span:not(.brand-mark) { font-size:10px; } .header-actions { gap:6px; } .icon-button { width:46px; height:46px; } .zoom-controls { top:auto; right:12px; bottom:84px; } .postcode-dock { width:auto; display:flex; flex-wrap:nowrap; justify-content:flex-start; gap:6px; padding:6px 8px; overflow-x:auto; -webkit-overflow-scrolling:touch; } .postcode-dock button { width:auto; min-width:58px; height:44px; flex:0 0 auto; } .postcode-dock button .postcode-range-label { font-size:15px; } .postcode-lookup-panel { bottom:180px; width:auto; } .postcode-lookup-panel p { display:none; } .map-alert { top:124px; width:calc(100% - 32px); } .camera-alert { top:176px; } .compass-strip { top:128px; left:50%; right:auto; width:calc(100vw - 110px); transform:translateX(-50%); } .destination-search-toggle { top:126px; left:12px; } .destination-search-panel { top:126px; left:12px; width:calc(100vw - 24px); } .location-card.with-route, .active-route-panel { left:12px; width:calc(100vw - 88px); } .active-route-panel { bottom:198px; } }
 @media (max-width:700px) and (orientation:portrait) { .pickup-notice { top:176px; width:calc(100% - 32px); } }
-@media (max-width:700px) and (orientation:portrait) { .shift-progress { height:42px; } .shift-modal { width:94vw; max-height:88dvh; padding:18px 16px 16px; } .shift-modal.small { width:94vw; } .shift-head { margin:0 48px 12px 0; } .shift-head-date { font-size:9.5px; } .shift-head-title h2 { font-size:22px; } .shift-dash { grid-template-columns:1fr; gap:12px; } .shift-donut-wrap { width:min(200px,36vh); height:min(200px,36vh); } .shift-donut-centre strong { font-size:26px; } .shift-tiles { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; } .shift-panel { min-height:58px; padding:7px 8px; border-radius:11px; } .shift-panel strong { font-size:17px; } .shift-panel em { font-size:9px; } .shift-panel.rides em { font-size:18px; } .shift-controls { flex-wrap:wrap; gap:8px; } .shift-control-btn { min-height:48px; padding:0 12px; font-size:11.5px; } .shift-end-box { flex-wrap:wrap; padding:10px 12px; } .shift-end-box label { flex:1 1 100%; } .shift-end-box input { height:46px; } .shift-counter-row { gap:8px; } .shift-counter-block { max-width:104px; } .shift-counter-block button { height:56px; font-size:26px; } .shift-update-total strong { font-size:42px; } .shift-confirm-total { font-size:46px; } .shift-modal-close { top:12px; right:12px; width:44px; height:44px; } }
+@media (max-width:700px) and (orientation:portrait) { .shift-progress { height:42px; } .shift-modal { width:94vw; max-height:88dvh; padding:18px 16px 16px; } .shift-modal.small { width:94vw; } .shift-head { margin:0 48px 12px 0; } .shift-head-date { font-size:9.5px; } .shift-head-title h2 { font-size:22px; } .shift-dash { flex-direction:column; gap:12px; } .shift-targets { grid-template-columns:1fr; gap:8px; } .shift-donut-wrap { width:min(190px,34vh); height:min(190px,34vh); } .shift-donut-centre strong { font-size:26px; } .shift-metrics { grid-template-columns:1fr; gap:8px; } .shift-week-head { flex-direction:column; } .shift-week-hero { flex:0 0 auto; } .shift-mile-steppers button { min-width:56px; } .shift-donut-wrap { width:min(200px,36vh); height:min(200px,36vh); } .shift-donut-centre strong { font-size:26px; } .shift-tiles { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; } .shift-panel { min-height:58px; padding:7px 8px; border-radius:11px; } .shift-panel strong { font-size:17px; } .shift-panel em { font-size:9px; } .shift-panel.rides em { font-size:18px; } .shift-controls { flex-wrap:wrap; gap:8px; } .shift-control-btn { min-height:48px; padding:0 12px; font-size:11.5px; } .shift-end-box { flex-wrap:wrap; padding:10px 12px; } .shift-end-box label { flex:1 1 100%; } .shift-end-box input { height:46px; } .shift-counter-row { gap:8px; } .shift-counter-block { max-width:104px; } .shift-counter-block button { height:56px; font-size:26px; } .shift-update-total strong { font-size:42px; } .shift-confirm-total { font-size:46px; } .shift-modal-close { top:12px; right:12px; width:44px; height:44px; } }
 @media (max-height:920px) {
   .shift-modal { padding:16px 24px 16px; border-radius:18px; }
   .shift-modal-close { top:12px; right:12px; width:40px; height:40px; font-size:24px; }
   .shift-head { margin-bottom:12px; }
   .shift-head-title h2 { font-size:23px; }
   .shift-modal-body { gap:12px; }
-  .shift-donut-wrap { width:min(205px,42vh); height:min(205px,42vh); }
+  .shift-donut-wrap { width:min(205px,36vh); height:min(205px,36vh); }
   .shift-donut-centre strong { font-size:27px; }
   .shift-donut-centre span { font-size:11.5px; }
   .shift-donut-centre em { font-size:13px; }
@@ -580,6 +629,16 @@
   .drive-shell.classic .shift-modal { border-color:rgba(48,64,72,.2); background:#f4f3ed; color:#182229; box-shadow:0 30px 90px rgba(42,48,50,.32); }
   .drive-shell.classic .shift-modal-close { border-color:rgba(48,64,72,.2); background:#e9e9e3; color:#26343b; }
   .drive-shell.classic .shift-modal-close:hover { background:#deded7; }
+  .drive-shell.classic .shift-metric, .drive-shell.classic .shift-week-hero, .drive-shell.classic .shift-week-stat, .drive-shell.classic .shift-week-day, .drive-shell.classic .shift-mile-steppers button { border-color:rgba(48,64,72,.16); background:#f4f3ed; }
+  .drive-shell.classic .shift-mile-steppers button { color:#26343b; }
+  .drive-shell.classic .shift-mile-steppers button:hover { border-color:#3179b9; background:#e9e9e3; color:#1d6ea8; }
+  .drive-shell.classic .shift-mile-context strong, .drive-shell.classic .shift-week-back { color:#26343b; }
+  .drive-shell.classic .shift-tiles, .drive-shell.classic .shift-panel { border-color:rgba(48,64,72,.16); background:#f4f3ed; }
+  .drive-shell.classic .shift-panel span, .drive-shell.classic .shift-metric-label, .drive-shell.classic .shift-mile-cols small, .drive-shell.classic .shift-week-day span, .drive-shell.classic .shift-week-stat span, .drive-shell.classic .shift-week-hero span { color:#65737a; }
+  .drive-shell.classic .shift-mile-cols em { color:#1d6ea8; }
+  .drive-shell.classic .shift-donut-centre em, .drive-shell.classic .shift-donut-centre em.over { color:#1d6ea8; }
+  .drive-shell.classic .shift-donut-fill.over { stroke:#287848; }
+  .drive-shell.classic .shift-target-label { color:#1d6ea8; }
   .drive-shell.classic .shift-donut-track { stroke:rgba(48,64,72,.14); }
   .drive-shell.classic .shift-donut-fill { stroke:#3179b9; }
   .drive-shell.classic .shift-progress.goal .shift-donut-fill, .drive-shell.classic .shift-donut-fill.complete { stroke:#287848; }

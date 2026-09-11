@@ -2,8 +2,12 @@
 
 Map Engine shows a large, tappable Tesla-friendly shift control representing progress
 towards the day's Uber earnings target, without revealing any financial figures to
-passengers. Tapping it opens an Uber Engine dashboard overlay (DAY and WEEK views)
-directly above the live map — Map Engine does **not** navigate away from the map.
+passengers. Tapping it opens an Uber Engine **lean dashboard** overlay (TODAY and WEEK
+targets on one screen) directly above the live map — Map Engine does **not** navigate
+away from the map. The dashboard answers exactly four questions: the daily target, the
+weekly target, today's actual gross £/productive hour, and the recorded business
+mileage. All forecasting/estimation tiles are intentionally disabled and preserved in
+Map Engine's source under `// TESLA UI:` comments.
 
 Map Engine **consumes** this contract. Uber Engine **publishes** it. Map Engine never
 reads any other Uber Engine storage, and Uber Engine never touches Map Engine's map or
@@ -57,6 +61,8 @@ The overlay modal is driven by this JSON object:
   "weeklyProgress": 0.68,
   "weeklyMinutes": 960,
   "weeklyRemaining": 287.5,
+  "businessMilesToday": 47,
+  "businessMilesWeek": 214,
   "updatedAt": 1757513600000
 }
 ```
@@ -73,7 +79,11 @@ Field notes:
   roughly £5, e.g. £45 remaining → `9`). Uber Engine publishes this key; for
   compatibility Map Engine still accepts the legacy `targetUnitsRemaining` key.
 - `hourlyRate` is today's realised rate; `targetRate` is the planned per-hour rate.
-- Weekly fields mirror the day fields for the Week view.
+- Weekly fields mirror the day fields for the lean dashboard's WEEK sheet.
+- `businessMilesToday` / `businessMilesWeek` are the driver's recorded business miles.
+  Both are optional: Map Engine falls back to its own `map-engine-business-miles-v1`
+  store (which the driver maintains via the dashboard's UPDATE MILEAGE and the
+  end-of-shift mileage entry). If both sources are missing the mileage panels show 0.
 - `updatedAt` is epoch ms. If the object is older than 12 hours Map Engine treats it
   as unavailable rather than showing outdated figures.
 - A missing or corrupt object shows `Shift data unavailable` inside the modal. The
@@ -120,6 +130,23 @@ Guards: `miles` must be a finite number when provided (a malformed request is
 ignored), the request is cleared after handling regardless of outcome, and ending a
 shift never writes a lower gross than the day row already holds.
 
+## Business mileage request (`uberEngine.shift.mileageRequest`)
+
+The dashboard's **UPDATE MILEAGE** flow and the end-of-shift mileage entry both let the
+driver record how many business miles were driven. Map Engine writes a best-effort
+request key and also records the miles locally; Uber Engine consumes the request on load
+and on `storage` events to persist the figure as the authoritative day record:
+
+| Key                             | Value | Meaning |
+| ------------------------------- | ----- | ------- |
+| `uberEngine.shift.mileageRequest` | JSON | `{ "date": "2026-09-11", "miles": 56, "requestedAt": 1757513600000 }` |
+
+Map Engine keeps its own per-date business-mile record in the `map-engine-business-miles-v1`
+scoped store (so the TODAY/WEEK panels work even before Uber Engine republishes) and a
+per-date earnings/minutes journal in `map-engine-shift-days-v1` that powers the WEEK
+sheet's seven-day strip. `businessMilesToday` / `businessMilesWeek` from the published
+state take precedence once Uber Engine republishes them.
+
 ## Example publish
 
 ```js
@@ -153,17 +180,16 @@ filled in as the day's rides come in, turning green when the goal is reached —
 ever revealing figures to passengers. Anonymous bold white count tokens sit inside the
 segments themselves at intervals of five (1, 5, 10, ...) so the driver can read off
 progress without any money showing on screen. Tapping the bar opens the Uber
-Engine dashboard overlay directly above the live map: a header stamps `Uber Engine ·
-Shift Progress` with the date/time and a live shift-status pill, and the body is a
-landscape two-column layout with the earnings donut (plus its slimmer amber inner ring
-showing hours worked against the hours needed to reach the planned `targetRate`, e.g.
-`4h 48m of 10h to target`) on the left and a 2×3 grid of statistic tiles on the right
-(remaining, rides left with a large blue figure, worked, estimated time remaining at the
-current rate, your hourly rate, and the target rate; a WEEK view swaps in the weekly
-figures). A single bottom control row carries PAUSE/RESUME, UPDATE EARNINGS, END SHIFT
-and WEEK VIEW/DAY VIEW; ending a shift reveals the end-of-shift mileage entry, and
-UPDATE EARNINGS opens a smaller modal with the current running total, three +/− steppers
-(£100/£10/£1), a SAVE & UPDATE action, and a confirmation screen that either returns to
-the dashboard or lets the driver adjust the total again. The overlay is sized compact so
-the whole dashboard fits a Tesla's landscape browser viewport; navigating away from Map
-Engine never happens, and a large close control returns instantly to the map.
+Engine lean dashboard directly above the live map: a header stamps `Uber Engine · Shift
+Dashboard` with a live shift-status pill, and the body answers the four questions
+without scrolling on a Tesla's landscape screen — two equal earnings donuts (TODAY and
+WEEK) side by side, each showing the earned figure, the "of" target and the percentage
+(ring stays full when over target), then a metrics row with today's actual gross £/hour
+and the recorded business mileage (TODAY / WEEK), then a single control row of
+PAUSE/RESUME, UPDATE EARNINGS, UPDATE MILEAGE and END SHIFT. Tapping the WEEK donut
+opens the weekly sheet: total hours, rate, business mileage (with an inline UPDATE) and
+a MON–SUN earnings strip. UPDATE EARNINGS opens the running-total editor (£100/£10/£1
+steppers), UPDATE MILEAGE opens a −10/−1/+1/+10 mileage counter, and END SHIFT asks for
+today's business miles before finishing. The overlay is sized compact so the whole
+dashboard fits a Tesla's landscape browser viewport; navigating away from Map Engine
+never happens, and a large close control returns instantly to the map.

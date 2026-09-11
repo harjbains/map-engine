@@ -18,6 +18,7 @@ export const SHIFT_PROGRESS_KEYS = {
   state: "uberEngine.shift.state",
   syncRequest: "uberEngine.shift.syncRequest",
   controlRequest: "uberEngine.shift.controlRequest",
+  mileageRequest: "uberEngine.shift.mileageRequest",
 } as const;
 
 export const SHIFT_PROGRESS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -43,6 +44,8 @@ export type UberShiftState = {
   weeklyProgress: number;
   weeklyMinutes: number;
   weeklyRemaining: number;
+  businessMilesToday: number;
+  businessMilesWeek: number;
   updatedAt: number;
 };
 
@@ -127,6 +130,8 @@ export function parseShiftState(
     weeklyProgress: Math.min(1, Math.max(0, finiteNumber(parsed.weeklyProgress, weeklyTarget > 0 ? weeklyEarnings / weeklyTarget : 0))),
     weeklyMinutes: Math.max(0, Math.round(finiteNumber(parsed.weeklyMinutes, 0))),
     weeklyRemaining: Math.max(0, finiteNumber(parsed.weeklyRemaining, Math.max(0, weeklyTarget - weeklyEarnings))),
+    businessMilesToday: Math.max(0, finiteNumber(parsed.businessMilesToday, 0)),
+    businessMilesWeek: Math.max(0, finiteNumber(parsed.businessMilesWeek, 0)),
     updatedAt,
   };
 }
@@ -198,6 +203,35 @@ export function parseControlRequest(
     return {
       action,
       miles: miles === undefined || miles === null || miles === "" ? null : Number(miles),
+      requestedAt: Number(parsed.requestedAt) || Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function buildMileageRequest(
+  date: string,
+  miles: number,
+  now: number = Date.now(),
+): string {
+  const request: Record<string, unknown> = { date, miles: Math.max(0, Number(miles) || 0), requestedAt: now };
+  return JSON.stringify(request);
+}
+
+export function parseMileageRequest(
+  readValue: ShiftProgressReadValue,
+): { date: string; miles: number; requestedAt: number } | null {
+  const raw = readValue(SHIFT_PROGRESS_KEYS.mileageRequest);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.miles === undefined || parsed.miles === null || parsed.miles === "") return null;
+    const miles = Number(parsed.miles);
+    if (!Number.isFinite(miles)) return null;
+    return {
+      date: String(parsed.date || ""),
+      miles: Math.max(0, miles),
       requestedAt: Number(parsed.requestedAt) || Date.now(),
     };
   } catch {
