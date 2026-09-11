@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const shiftProgress = await import("../app/lib/shift-progress.ts");
+const businessMiles = await import("../app/lib/business-miles.ts");
 
 const values = (entries) => (key) => entries[key] ?? null;
 
@@ -66,7 +67,7 @@ test("hides stale data within a fixed reference time and tolerates malformed upd
 
 const VALID_STATE = {
   version: 1,
-  date: "2026-09-10",
+  date: businessMiles.isoOf(Date.now()),
   shiftActive: true,
   paused: false,
   hasActiveShift: true,
@@ -206,6 +207,57 @@ test("builds and parses the business mileage request channel", () => {
   for (const value of ["", "abc", "null", "{}", '{"miles":"abc"}', '{"date":"2026-09-11"}']) {
     assert.equal(shiftProgress.parseMileageRequest(values({ "uberEngine.shift.mileageRequest": value })), null, value);
   }
+});
+
+test("rolloverShiftState resets the daily view for a previous-day publish", () => {
+  const nowMs = Date.parse("2026-09-11T12:00:00");
+  const prev = { ...VALID_STATE, date: "2026-09-10", updatedAt: nowMs };
+  const rolled = shiftProgress.rolloverShiftState(prev, nowMs);
+  assert.equal(rolled.date, "2026-09-11", "the view carries today's date so writes target the new day");
+  assert.equal(rolled.todayEarnings, 0);
+  assert.equal(rolled.dailyProgress, 0);
+  assert.equal(rolled.remaining, 150);
+  assert.equal(rolled.ridesRemaining, 30, "a £150 target still needs 30 rides on the new day");
+  assert.equal(rolled.activeMinutes, 0);
+  assert.equal(rolled.hourlyRate, 0);
+  assert.equal(rolled.hasActiveShift, false);
+  assert.equal(rolled.shiftActive, false);
+  assert.equal(rolled.dailyTarget, 150, "the planned daily target carries into the new day");
+  assert.equal(rolled.weeklyEarnings, 612.5, "the same Mon-Sun week keeps accumulating");
+  assert.equal(rolled.weeklyMinutes, 960);
+  assert.equal(rolled.weeklyRemaining, 287.5);
+  assert.equal(rolled.businessMilesWeek, 214);
+  assert.equal(rolled.businessMilesToday, 0);
+  assert.notStrictEqual(rolled, prev, "a fresh-view object is produced");
+});
+
+test("rolloverShiftState resets the weekly view at the week boundary", () => {
+  const nowMs = Date.parse("2026-09-11T12:00:00");
+  const prev = { ...VALID_STATE, date: "2026-09-06", updatedAt: nowMs };
+  const rolled = shiftProgress.rolloverShiftState(prev, nowMs);
+  assert.equal(rolled.date, "2026-09-11");
+  assert.equal(rolled.weeklyEarnings, 0, "last week's earnings do not carry over");
+  assert.equal(rolled.weeklyProgress, 0);
+  assert.equal(rolled.weeklyMinutes, 0);
+  assert.equal(rolled.weeklyRemaining, 900);
+  assert.equal(rolled.businessMilesWeek, 0);
+  assert.equal(rolled.dailyTarget, 150, "the target is pinned even when the week resets");
+});
+
+test("rolloverShiftState is a no-op for the current day", () => {
+  const nowMs = Date.parse("2026-09-11T12:00:00");
+  const today = { ...VALID_STATE, date: "2026-09-11", updatedAt: nowMs };
+  assert.strictEqual(shiftProgress.rolloverShiftState(today, nowMs), today, "same reference, no re-render churn");
+});
+
+test("parseShiftStateCached rolls a stale-day publish over to today's date", () => {
+  const nowMs = Date.parse("2026-09-11T12:00:00");
+  const stale = JSON.stringify({ ...VALID_STATE, date: "2026-09-10", todayEarnings: 105, updatedAt: nowMs });
+  const parsed = shiftProgress.parseShiftStateCached(values({ "uberEngine.shift.state": stale }), nowMs);
+  assert.ok(parsed);
+  assert.equal(parsed.date, "2026-09-11");
+  assert.equal(parsed.todayEarnings, 0);
+  assert.equal(parsed.ridesRemaining, 30, "the required ride count answers the new day's target");
 });
 
 test("ships as an isolated component with a documented connection point and no financial wording", async () => {

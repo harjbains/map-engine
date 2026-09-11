@@ -159,11 +159,24 @@ localStorage.setItem("uberEngine.shift.state", JSON.stringify(stateObject));
 Write all of them together on any shift update. Map Engine will pick the values up on
 its next `focus`/`visibility`/`storage` refresh — no polling is needed.
 
-Map Engine consumes the `state` key through a snapshot cached on the raw JSON so that
-`useSyncExternalStore` receives referentially stable objects between refreshes; this
-avoids the React "Maximum update depth exceeded" loop that an uncached re-parse
-object would cause. The modal subtree is also wrapped in an error boundary so a
+Map Engine consumes the `state` key through a snapshot cached on the raw JSON plus the
+local day so that `useSyncExternalStore` receives referentially stable objects between
+refreshes; this avoids the React "Maximum update depth exceeded" loop that an uncached
+re-parse object would cause. The modal subtree is also wrapped in an error boundary so a
 render failure closes the modal instead of blanking the dashboard.
+
+## Day rollover
+
+If `state.date` is not today, Map Engine rolls the dashboard over before rendering: the
+new day opens at zero `todayEarnings` against the planned `dailyTarget`, with
+`ridesRemaining` showing the full ride count that target still needs (`dailyTarget / 5`)
+and `hourlyRate` cleared, while `weeklyEarnings`/`weeklyMinutes`/`businessMilesWeek` keep
+accumulating only while the publish fell within the same Mon-Sun week and reset at the
+week boundary. The rollover is passive and read-only in the browser: the publisher's
+stored state is left untouched until the driver acts, at which point the optimistic
+state, total-sync and mileage requests republish under today's date. When a new day
+begins and Uber Engine has already published for it, that newer state simply takes
+precedence as usual.
 
 ## Failure behaviour
 

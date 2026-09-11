@@ -11,6 +11,8 @@
 // Engine simply draws a neutral track, shows "Shift data unavailable", and
 // keeps rendering the map normally. Every write is best-effort and optional.
 
+import { isoOf, mondayOf } from "./business-miles.ts";
+
 export const SHIFT_PROGRESS_KEYS = {
   progress: "uberEngine.shift.progress",
   active: "uberEngine.shift.active",
@@ -138,20 +140,65 @@ export function parseShiftState(
 
 let cachedRawShiftState: string | null | undefined;
 let cachedShiftState: UberShiftState | null = null;
+let cachedShiftDayKey = "";
+
+// A published state describes the day it was published for. If that date is not
+// today, the shift figures belong to an earlier day: Map Engine rolls the view
+// over so a fresh day opens at zero against the planned daily target - with the
+// full ride count that target still needs - while keeping weekly figures
+// accumulating within the same Mon-Sun week and resetting at the week boundary.
+// The dashboard therefore answers "what is today's target and how many rides are
+// required" even before Uber Engine republishes for the new day. The rolled-over
+// view also carries today's date, so any optimistic writes (total sync, mileage,
+// end-of-shift) target the current day rather than the stale one.
+const RIDES_PER_REMAINDER = 5;
+
+export function rolloverShiftState(state: UberShiftState, now: number = Date.now()): UberShiftState {
+  const today = isoOf(now);
+  if (state.date === today) return state;
+  const stateMs = Date.parse(`${state.date}T00:00:00`);
+  const sameWeek = Number.isFinite(stateMs) ? mondayOf(stateMs) === mondayOf(now) : false;
+  const dailyTarget = Math.max(0, state.dailyTarget);
+  const weeklyTarget = Math.max(0, state.weeklyTarget);
+  return {
+    ...state,
+    date: today,
+    shiftActive: false,
+    paused: false,
+    hasActiveShift: false,
+    todayEarnings: 0,
+    dailyProgress: 0,
+    remaining: dailyTarget,
+    ridesRemaining: Math.round(dailyTarget / RIDES_PER_REMAINDER),
+    activeMinutes: 0,
+    hourlyRate: 0,
+    weeklyEarnings: sameWeek ? state.weeklyEarnings : 0,
+    weeklyProgress: sameWeek ? state.weeklyProgress : 0,
+    weeklyMinutes: sameWeek ? state.weeklyMinutes : 0,
+    weeklyRemaining: sameWeek ? state.weeklyRemaining : weeklyTarget,
+    businessMilesToday: 0,
+    businessMilesWeek: sameWeek ? state.businessMilesWeek : 0,
+  };
+}
 
 // React's useSyncExternalStore requires a snapshot that is referentially stable
 // between reads when the underlying value has not changed. parseShiftState builds
-// a fresh object every call, so memoize on the raw stored JSON: the same raw
-// string yields the same object identity, letting the modal's subscription
-// settle without "Maximum update depth exceeded" loops in React 19.
+// a fresh object every call, so memoize on the raw stored JSON plus the local
+// day: the same raw string on the same day yields the same object identity,
+// letting the modal's subscription settle without "Maximum update depth
+// exceeded" loops in React 19. Rollover keeps daily-bound figures pinned to the
+// current day so a stale publish never leaks yesterday's numbers onto the map.
 export function parseShiftStateCached(
   readValue: ShiftProgressReadValue,
   now: number = Date.now(),
 ): UberShiftState | null {
   const raw = readValue(SHIFT_PROGRESS_KEYS.state);
-  if (raw === cachedRawShiftState) return cachedShiftState;
+  const dayKey = isoOf(now);
+  if (raw === cachedRawShiftState && dayKey === cachedShiftDayKey) return cachedShiftState;
   cachedRawShiftState = raw;
-  cachedShiftState = parseShiftState(readValue, now);
+  cachedShiftDayKey = dayKey;
+  const parsed = parseShiftState(readValue, now);
+  cachedShiftState = parsed === null ? null : rolloverShiftState(parsed, now);
   return cachedShiftState;
 }
 
