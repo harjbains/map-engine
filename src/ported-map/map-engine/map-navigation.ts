@@ -1,0 +1,351 @@
+﻿import type maplibregl from "maplibre-gl";
+import type { CalculatedRoute } from "../lib/routing";
+import { dynamicZoom, type Point } from "../lib/driving.ts";
+import type { ActiveRoute, VehicleFix } from "./config";
+
+export function followZoomTarget(settings: { autoZoom: boolean }, speedMph: number, manualZoom: number | null, currentZoom: number): number {
+  if (manualZoom !== null) return manualZoom;
+  if (!settings.autoZoom) return currentZoom;
+  const suggested = dynamicZoom(speedMph);
+  return Math.abs(suggested - currentZoom) < 0.15 ? currentZoom : suggested;
+}
+
+export function fitUrbanArea(map: maplibregl.Map, centre: Point, radiusMiles = 10): number {
+  const canvas = map.getCanvas();
+  const pad = 70;
+  const innerWidth = Math.max(10, canvas.clientWidth - pad * 2);
+  const innerHeight = Math.max(10, canvas.clientHeight - pad * 2);
+  const diameterMetres = radiusMiles * 1_609.344 * 2;
+  const metresPerPixelAtEquatorZoom0 = 40_075_016.686 / 256;
+  const metresPerPixelZoom0 = metresPerPixelAtEquatorZoom0 * Math.cos(centre.latitude * Math.PI / 180);
+  const widthLimitedZoom = Math.log2(metresPerPixelZoom0 * innerWidth / diameterMetres);
+  const heightLimitedZoom = Math.log2(metresPerPixelZoom0 * innerHeight / diameterMetres);
+  const zoom = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), Math.min(widthLimitedZoom, heightLimitedZoom)));
+  map.jumpTo({ center: [centre.longitude, centre.latitude], zoom, bearing: map.getBearing(), pitch: map.getPitch() });
+  return zoom;
+}
+
+let areaView: { center: [number, number]; zoom: number; bearing: number; pitch: number; fitted: number } | null = null;
+let areaViewActive = false;
+const areaViewListeners = new Set<() => void>();
+
+export function subscribeAreaView(listener: () => void): () => void {
+  areaViewListeners.add(listener);
+  return () => {
+    areaViewListeners.delete(listener);
+  };
+}
+
+export function getAreaViewActive(): boolean {
+  return areaViewActive;
+}
+
+function publishAreaView() {
+  for (const listener of areaViewListeners) listener();
+}
+
+export function toggleAreaView(map: maplibregl.Map, centre: Point, radiusMiles = 10): number | null {
+  if (areaView !== null && Math.abs(map.getZoom() - areaView.fitted) < 0.6) {
+    const v = areaView;
+    areaView = null;
+    areaViewActive = false;
+    publishAreaView();
+    map.jumpTo({ center: v.center, zoom: v.zoom, bearing: v.bearing, pitch: v.pitch });
+    return null;
+  }
+  const c = map.getCenter();
+  const zoom = map.getZoom();
+  const bearing = map.getBearing();
+  const pitch = map.getPitch();
+  const fitted = fitUrbanArea(map, centre, radiusMiles);
+  areaView = { center: [c.lng, c.lat], zoom, bearing, pitch, fitted };
+  areaViewActive = true;
+  publishAreaView();
+  return fitted;
+}
+
+const ROAD_LABEL_LAYERS = ["road-name", "route-motorway", "route-a", "route-b"];
+const ARRIVAL_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+export function distanceKm(a: Point, b: Point) {
+  const lat = (a.latitude + b.latitude) / 2 * Math.PI / 180;
+  const x = (a.longitude - b.longitude) * Math.cos(lat) * 111.32;
+  const y = (a.latitude - b.latitude) * 110.574;
+  return Math.hypot(x, y);
+}
+
+export function mapCentre(map: maplibregl.Map): Point {
+  const canvas = map.getCanvas();
+  const centre = map.unproject([canvas.clientWidth / 2, canvas.clientHeight / 2]);
+  return { latitude: centre.lat, longitude: centre.lng };
+}
+export function bearingBetween(a: Point, b: Point) {
+  const latitudeDelta = (b.latitude - a.latitude) * Math.PI / 180;
+  const longitudeDelta = (b.longitude - a.longitude) * Math.PI / 180;
+  const y = Math.sin(longitudeDelta) * Math.cos(b.latitude * Math.PI / 180);
+  const x = Math.cos(a.latitude * Math.PI / 180) * Math.sin(b.latitude * Math.PI / 180)
+    - Math.sin(a.latitude * Math.PI / 180) * Math.cos(b.latitude * Math.PI / 180) * Math.cos(longitudeDelta);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+export function headingDifference(fromDegrees: number, toDegrees: number) {
+  return (fromDegrees - toDegrees + 540) % 360 - 180;
+}
+
+export type VisibleLandmark = {
+  id: string;
+  name: string;
+  category: string;
+  priority: number;
+  latitude: number;
+  longitude: number;
+  miles: number;
+  relativeDegrees: number;
+  score: number;
+};
+
+const PRIORITY_WEIGHT = 1.4;
+const DISTANCE_WEIGHT = 0.35;
+const ALIGNMENT_WEIGHT = 0.25;
+
+export function landmarksAhead(
+  fix: VehicleFix,
+  landmarks: Array<{ id: string; name: string; category: string; priority: number; latitude: number; longitude: number; roadName?: string | null }>,
+  limit = LANDMARK_CHIP_LIMIT,
+  coneDegrees = 45,
+  maxMiles = 5,
+  minimumSpacingMetres = LANDMARK_MIN_SPACING_METRES,
+  route: Pick<CalculatedRoute, "geometry"> | null = null,
+  roadName: string | null = null,
+) {
+  const effectiveConeDegrees = fix.speedMph < 8 ? 180 : coneDegrees;
+  const visible: VisibleLandmark[] = [];
+  for (const landmark of landmarks) {
+    if (roadName !== null && landmark.roadName && landmark.roadName !== roadName) continue;
+    const miles = distanceKm(fix, landmark) * 0.621371;
+    if (miles > maxMiles) continue;
+    if (route !== null && distanceFromRouteMetres(route, landmark) > ROUTE_CORRIDOR_METRES) continue;
+    const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
+    if (Math.abs(relativeDegrees) > effectiveConeDegrees) continue;
+    const distanceScore = (1 - miles / maxMiles) * DISTANCE_WEIGHT;
+    const alignmentScore = (1 - Math.abs(relativeDegrees) / effectiveConeDegrees) * ALIGNMENT_WEIGHT;
+    const score = (4 - landmark.priority) * PRIORITY_WEIGHT + distanceScore + alignmentScore;
+    visible.push({ ...landmark, miles, relativeDegrees, score });
+  }
+  visible.sort((left, right) => {
+    const scoreOrder = right.score - left.score;
+    if (scoreOrder !== 0) return scoreOrder;
+    const distanceOrder = left.miles - right.miles;
+    if (distanceOrder !== 0) return distanceOrder;
+    return left.id.localeCompare(right.id);
+  });
+  const minimumSpacingKm = minimumSpacingMetres / 1000;
+  const selected: VisibleLandmark[] = [];
+  const chosenCategories = new Set<string>();
+  const place = (candidate: VisibleLandmark): void => {
+    const overlaps = selected.some((kept) => distanceKm(candidate, kept) < minimumSpacingKm);
+    if (overlaps) return;
+    selected.push(candidate);
+    chosenCategories.add(candidate.category);
+  };
+
+  for (const candidate of visible) {
+    if (candidate.priority !== 1) continue;
+    if (chosenCategories.has(candidate.category)) continue;
+    place(candidate);
+    if (selected.length >= limit) break;
+  }
+  for (const candidate of visible) {
+    if (selected.length >= limit) break;
+    place(candidate);
+  }
+  return selected;
+}
+
+const KEEP_CONE_DEGREES = 135;
+const ROUTE_CORRIDOR_METRES = 400;
+const MAX_MILES = 5;
+
+export const LANDMARK_CHIP_LIMIT = 14;
+const LANDMARK_MIN_SPACING_METRES = 100;
+
+export function stickyLandmarksAhead(
+  fix: VehicleFix,
+  landmarks: Array<{ id: string; name: string; category: string; priority: number; latitude: number; longitude: number; roadName?: string | null }>,
+  previous: VisibleLandmark[],
+  limit = LANDMARK_CHIP_LIMIT,
+  route: Pick<CalculatedRoute, "geometry"> | null = null,
+  roadName: string | null = null,
+) {
+  const ranked = landmarksAhead(fix, landmarks, Infinity, 45, 5, LANDMARK_MIN_SPACING_METRES, route, roadName);
+  const rankedById = new Map(ranked.map((landmark) => [landmark.id, landmark]));
+  const knownById = new Map(landmarks.map((landmark) => [landmark.id, landmark]));
+  const keepConeDegrees = fix.speedMph < 8 ? 180 : KEEP_CONE_DEGREES;
+  const kept: VisibleLandmark[] = [];
+  const keptIds = new Set<string>();
+  for (const prev of previous) {
+    if (kept.length >= limit) break;
+    const landmark = knownById.get(prev.id);
+    if (!landmark) continue;
+    if (route !== null && distanceFromRouteMetres(route, landmark) > ROUTE_CORRIDOR_METRES) continue;
+    const miles = distanceKm(fix, landmark) * 0.621371;
+    const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
+    if (Math.abs(relativeDegrees) > keepConeDegrees) continue;
+    const current = rankedById.get(prev.id) ?? {
+      ...landmark,
+      miles,
+      relativeDegrees,
+      score: (4 - landmark.priority) * PRIORITY_WEIGHT + (1 - miles / MAX_MILES) * DISTANCE_WEIGHT + (1 - Math.abs(relativeDegrees) / 45) * ALIGNMENT_WEIGHT,
+    };
+    kept.push(current);
+    keptIds.add(current.id);
+  }
+  for (const candidate of ranked) {
+    if (kept.length >= limit) break;
+    if (keptIds.has(candidate.id)) continue;
+    if (kept.some((keptLandmark) => distanceKm(candidate, keptLandmark) < LANDMARK_MIN_SPACING_METRES / 1000)) continue;
+    kept.push(candidate);
+    keptIds.add(candidate.id);
+  }
+  return kept;
+}
+
+export function liveRouteProgress(route: ActiveRoute, position: Point, now: number) {
+  const coordinates = route.geometry.coordinates;
+  let totalGeometryKm = 0;
+  let completedGeometryKm = 0;
+  let closestDistanceKm = Number.POSITIVE_INFINITY;
+  let distanceBeforeSegmentKm = 0;
+  const latitudeScale = Math.cos(position.latitude * Math.PI / 180);
+  const point = { x: position.longitude * latitudeScale, y: position.latitude };
+
+  for (let index = 1; index < coordinates.length; index += 1) {
+    const previous = { latitude: coordinates[index - 1][1], longitude: coordinates[index - 1][0] };
+    const next = { latitude: coordinates[index][1], longitude: coordinates[index][0] };
+    const segmentKm = distanceKm(previous, next);
+    totalGeometryKm += segmentKm;
+    const start = { x: previous.longitude * latitudeScale, y: previous.latitude };
+    const end = { x: next.longitude * latitudeScale, y: next.latitude };
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const denominator = dx * dx + dy * dy;
+    const fraction = denominator === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / denominator));
+    const projected = { x: start.x + fraction * dx, y: start.y + fraction * dy };
+    const separationKm = Math.hypot((point.x - projected.x) * 111.32, (point.y - projected.y) * 110.574);
+    if (separationKm < closestDistanceKm) {
+      closestDistanceKm = separationKm;
+      completedGeometryKm = distanceBeforeSegmentKm + segmentKm * fraction;
+    }
+    distanceBeforeSegmentKm += segmentKm;
+  }
+
+  const completedFraction = totalGeometryKm > 0 ? Math.max(0, Math.min(1, completedGeometryKm / totalGeometryKm)) : 0;
+  const remainingMiles = Math.max(0, route.distanceMiles * (1 - completedFraction));
+  const remainingMinutes = remainingMiles < 0.05 ? 0 : Math.max(1, Math.ceil(route.durationMinutes * (remainingMiles / Math.max(route.distanceMiles, 0.01))));
+  const arrivalTime = ARRIVAL_TIME_FORMATTER.format(new Date(now + remainingMinutes * 60_000));
+  return { remainingMiles, remainingMinutes, arrivalTime };
+}
+
+export function vehicleScreenOffset(map: maplibregl.Map): [number, number] {
+  return [0, Math.round(map.getContainer().clientHeight * 0.15)];
+}
+
+export function positionVehicleMarker(map: maplibregl.Map, vehicle: HTMLDivElement, fix: VehicleFix, anchored: boolean) {
+  const container = map.getContainer();
+  const point = anchored
+    ? { x: container.clientWidth / 2, y: container.clientHeight * 0.65 }
+    : map.project([fix.longitude, fix.latitude]);
+  vehicle.style.left = `${point.x}px`;
+  vehicle.style.top = `${point.y}px`;
+  vehicle.style.transform = `translate(-50%, -50%) rotate(${fix.bearing - map.getBearing()}deg)`;
+}
+
+function distanceToSegment(point: { x: number; y: number }, start: { x: number; y: number }, end: { x: number; y: number }) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (dx === 0 && dy === 0) return Math.hypot(point.x - start.x, point.y - start.y);
+  const fraction = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(point.x - (start.x + fraction * dx), point.y - (start.y + fraction * dy));
+}
+
+export function roadFeatureLabel(feature: { properties: Record<string, unknown> | null }) {
+  const properties = feature.properties as Record<string, unknown> | null;
+  const ref = typeof properties?.ref === "string" ? properties.ref : "";
+  const name = typeof properties?.name_en === "string" ? properties.name_en : typeof properties?.name === "string" ? properties.name : "";
+  return ref && name && !name.includes(ref) ? `${ref} ${name}` : name || ref || null;
+}
+
+export function nearestNamedRoad(map: maplibregl.Map, point: Point) {
+  return nearestRoadLabelNear(map, point, 16);
+}
+
+export function nearestRoadLabelNear(map: maplibregl.Map, point: Point, bufferPixels = 40) {
+  const target = map.project([point.longitude, point.latitude]);
+  const labelLayers = ROAD_LABEL_LAYERS.filter((id) => Boolean(map.getLayer(id)));
+  if (labelLayers.length) {
+    const directlyUnderPointer = map.queryRenderedFeatures(target, { layers: labelLayers });
+    const directName = directlyUnderPointer.map(roadFeatureLabel).find(Boolean);
+    if (directName) return directName;
+    const labelsNearPointer = map.queryRenderedFeatures(
+      [[target.x - bufferPixels, target.y - bufferPixels], [target.x + bufferPixels, target.y + bufferPixels]],
+      { layers: labelLayers },
+    );
+    const nearbyName = labelsNearPointer.map(roadFeatureLabel).find(Boolean);
+    if (nearbyName) return nearbyName;
+  }
+  let nearest: { label: string; distance: number } | null = null;
+  for (const feature of map.querySourceFeatures("openmaptiles", { sourceLayer: "transportation_name" })) {
+    const label = roadFeatureLabel(feature);
+    if (!label || (feature.geometry.type !== "LineString" && feature.geometry.type !== "MultiLineString")) continue;
+    const geometry = feature.geometry as { type: "LineString" | "MultiLineString"; coordinates: [number, number][] | [number, number][][] };
+    const lines = geometry.type === "LineString" ? [geometry.coordinates as [number, number][]] : geometry.coordinates as [number, number][][];
+    let featureDistance = Number.POSITIVE_INFINITY;
+    for (const line of lines) {
+      for (let index = 1; index < line.length; index += 1) {
+        featureDistance = Math.min(featureDistance, distanceToSegment(target, map.project(line[index - 1]), map.project(line[index])));
+      }
+    }
+    if (!nearest || featureDistance < nearest.distance) nearest = { label, distance: featureDistance };
+  }
+  return nearest && nearest.distance <= 56 ? nearest.label : null;
+}
+
+export function nearestLocality(map: maplibregl.Map, point: Point) {
+  const priorities: Record<string, number> = { city: 0, town: 1, village: 2, borough: 3, suburb: 4, quarter: 5, neighbourhood: 6 };
+  let best: { name: string; score: number } | null = null;
+  for (const feature of map.querySourceFeatures("openmaptiles", { sourceLayer: "place" })) {
+    const geometry = feature.geometry as { type?: string; coordinates?: number[] };
+    if (geometry.type !== "Point" || !Array.isArray(geometry.coordinates)) continue;
+    const properties = feature.properties as Record<string, unknown> | null;
+    const name = typeof properties?.name_en === "string" ? properties.name_en : typeof properties?.name === "string" ? properties.name : "";
+    const localityClass = typeof properties?.class === "string" ? properties.class : "";
+    if (!name || priorities[localityClass] === undefined) continue;
+    const candidate = { latitude: geometry.coordinates[1], longitude: geometry.coordinates[0] };
+    const score = distanceKm(point, candidate) + priorities[localityClass] * 1.5;
+    if (!best || score < best.score) best = { name, score };
+  }
+  return best?.name ?? null;
+}
+
+export function distanceFromRouteMetres(route: Pick<CalculatedRoute, "geometry">, point: Point) {
+  let nearestMetres = Number.POSITIVE_INFINITY;
+  const latitudeScale = Math.cos(point.latitude * Math.PI / 180);
+  const fixed = { x: point.longitude * latitudeScale, y: point.latitude };
+  const coordinates = route.geometry.coordinates;
+  for (let index = 1; index < coordinates.length; index += 1) {
+    const start = coordinates[index - 1];
+    const end = coordinates[index];
+    const startX = start[0] * latitudeScale;
+    const endX = end[0] * latitudeScale;
+    const dx = endX - startX;
+    const dy = end[1] - start[1];
+    const denominator = dx * dx + dy * dy;
+    const fraction = denominator === 0 ? 0 : Math.max(0, Math.min(1, ((fixed.x - startX) * dx + (fixed.y - start[1]) * dy) / denominator));
+    const projected = { x: startX + fraction * dx, y: start[1] + fraction * dy };
+    const metres = Math.hypot((fixed.x - projected.x) * 111_320, (fixed.y - projected.y) * 110_574);
+    if (metres < nearestMetres) nearestMetres = metres;
+  }
+  return nearestMetres;
+}
+
+

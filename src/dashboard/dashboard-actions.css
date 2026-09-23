@@ -1,0 +1,7 @@
+.dashboard-update{width:100%;min-height:58px;margin-top:14px;border:1px solid #09b8fb;border-radius:10px;background:linear-gradient(#073a53,#04202d);color:#dff8ff;font-weight:800;letter-spacing:.08em;cursor:pointer}
+.uber-celebration-test{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.uber-celebration-test button{min-height:42px;padding:6px 10px;border:1px solid rgba(80,255,208,.35);border-radius:8px;background:rgba(6,65,47,.45);color:#a6ffeb;font-size:11px;font-weight:800;letter-spacing:.05em;cursor:pointer;transition:all .15s ease}
+.uber-celebration-test button:last-child{border-color:rgba(255,211,107,.4);background:rgba(73,48,6,.45);color:#ffe8a3}
+.uber-celebration-test button:hover{filter:brightness(1.25);transform:translateY(-1px)}
+.uber-celebration-test button:active{transform:scale(.97)}
+

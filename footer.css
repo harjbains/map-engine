@@ -1,0 +1,113 @@
+.uber-session-footer {
+  position: absolute;
+  z-index: 9;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(calc(100% - 24px), 760px);
+  height: 64px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #111a22;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  color: #fff;
+  gap: 16px;
+}
+
+.session-progress {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  height: 48px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-right: 1px solid #2a3a46;
+  text-align: left;
+}
+
+.session-progress-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 70px;
+}
+.band-name { font-size: 16px; font-weight: 800; }
+.band-sub { font-size: 10px; color: #8ba2b3; font-weight: 600; }
+
+.session-progress-track {
+  flex: 1;
+  height: 36px;
+  background: #1e2d38;
+  border-radius: 18px;
+  overflow: hidden;
+  position: relative;
+}
+
+.session-progress-fill {
+  height: 100%;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  transition: width 0.3s ease;
+}
+
+.session-progress-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000;
+}
+
+.session-progress-grey .band-name { color: #b3c2cc; }
+.session-progress-grey .session-progress-fill { background: #8ba2b3; }
+
+.session-progress-teal .band-name { color: #00e5ff; }
+.session-progress-teal .session-progress-fill { background: #00e5ff; }
+
+.session-progress-gold .band-name { color: #ffd700; }
+.session-progress-gold .session-progress-fill { background: #ffd700; }
+
+.session-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  transition: opacity 0.2s;
+}
+.btn-session:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-start, .btn-resume { background: #2b3945; }
+.btn-pause { background: #2b3945; }
+.btn-stop { background: #dc3545; }
+
+.session-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  padding-right: 8px;
+  border-left: 1px solid #2a3a46;
+  padding-left: 16px;
+  min-width: 80px;
+}
+.time-value { font-size: 18px; font-weight: 700; }
+.time-label { font-size: 11px; color: #8ba2b3; }

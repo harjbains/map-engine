@@ -1,0 +1,120 @@
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#d7f4ff;background:#010609}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -15%,#06334a 0,#01090f 42%,#010508 100%);min-width:320px}.tesla-shell{max-height:85svh;display:grid;place-items:center;padding:12px}.dashboard{width:min(100%,760px);padding:10px;border:1px solid #08b9fb;border-radius:14px;background:linear-gradient(135deg,rgba(2,16,25,.98),rgba(1,8,14,.98));box-shadow:0 0 28px #008dcb55,inset 0 0 40px #00395228}.dash-header,.date-row,.metric-top,.drive-footer{display:flex;align-items:center;justify-content:space-between}.brand{font-weight:800;letter-spacing:.12em;font-size:.85rem;color:#aee7ff}.brand-mark{color:#37cbff;font-size:1.1em}.menu-button{border:0;background:transparent;color:#36c7ff;font-size:1.3rem;min-width:44px;min-height:40px;cursor:pointer}.preview-badge{margin:2px 0 8px;padding:5px 8px;border:1px solid #8a6e24;border-radius:7px;color:#e4c976;font-size:.65rem;letter-spacing:.07em;text-align:center}.date-row{margin:8px 0 10px;color:#bbebff;font-weight:700}.date-row span{padding:4px 8px;border:1px solid #5a99b6;border-radius:6px;font-size:.75rem}.hero-panel{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #008dd1;border-radius:10px;background:linear-gradient(115deg,#031b28,#021018);box-shadow:inset 0 0 25px #00a6e11c}.hero-icon{font-size:2.8rem;line-height:1;color:#2cf0af;text-shadow:0 0 15px #00d29c}.eyebrow,.metric-top span{font-size:.7rem;letter-spacing:.06em;font-weight:800;color:#58ceff}.hero-money{font-size:clamp(1.8rem,5vw,2.6rem);font-weight:800;letter-spacing:-.055em;color:#32f4bd;text-shadow:0 0 19px #00b88a55}.target-line{color:#c3e7f6;margin-top:2px;font-size:.8rem}.difference{margin-left:auto;text-align:right;display:grid;gap:2px}.difference strong{font-size:1.1rem}.difference span{font-size:.7rem}.positive{color:#31f7b9}.negative{color:#ff6379}.muted{color:#7395a4}.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0}.metric-card{min-height:80px;padding:10px 12px;border:1px solid #007fbf;border-radius:10px;background:#03131d;box-shadow:inset 0 0 18px #0077b41a}.metric-top{justify-content:flex-start;gap:6px}.metric-top i{font-style:normal;color:#39caff;font-size:1.2rem}.metric-card>strong{display:block;margin-top:4px;font-size:1.25rem;color:#9bdfff}.metric-card small{display:block;margin-top:2px;color:#c8e8f5;font-size:.7rem}.progress{display:flex;align-items:center;gap:7px;margin-top:8px}.progress{height:10px;border-radius:20px;background:#062a3a;overflow:visible}.progress i{height:100%;border-radius:20px;background:#35f0b6;box-shadow:0 0 10px #35f0b6;display:block}.progress b{font-size:.7rem;color:#37efb9}.week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}.day-card{position:relative;min-height:72px;padding:8px 4px;border:1px solid #07506d;border-radius:8px;background:#03121b;text-align:center;display:grid;align-content:start;gap:4px}.day-card span{font-size:.7rem;color:#aee5f9}.day-card strong{font-size:.9rem;color:#68f3c5}.day-card small{font-size:.65rem;color:#7ab0c7;font-weight:800}.day-card i{position:absolute;right:5px;bottom:5px;color:#4fd7ff;font-style:normal;font-weight:800}.day-card.today{border-color:#29f1b4;box-shadow:inset 0 0 16px #00d69e22,0 0 12px #00d69e22}.day-card.today strong{color:#34f5bd}.day-card.missed strong{color:#ff7890}.drive-footer{display:none}@media(max-width:600px){.tesla-shell{padding:0;place-items:stretch}.dashboard{min-height:100svh;border-radius:0;padding:12px}.hero-panel{padding:12px 10px;gap:8px}.hero-icon{font-size:2.8rem}.hero-money{font-size:2.2rem}.metric-grid{grid-template-columns:1fr 1fr}.metric-card:last-child{grid-column:span 2;min-height:75px}.week-strip{gap:4px}.day-card{min-height:75px;padding:6px 2px}.day-card strong{font-size:.8rem}.day-card small{font-size:.6rem}}
+#root { width: 100%; height: 100dvh; }
+@media(min-width:1100px) {
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: #0d0f11;
+  }
+  #root {
+    width: 900px;
+    height: 850px;
+    position: relative;
+    overflow: hidden;
+    transform: translateZ(0); /* Create containing block for fixed elements */
+    border: 12px solid #1a1c1e;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    background: #000;
+  }
+}
+/* Light Mode Overrides */
+.drive-shell:not(.dark) .dashboard {
+  background: linear-gradient(135deg, rgba(245,248,250,0.98), rgba(230,235,240,0.98));
+  border-color: #a2c1d4;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  color: #1b252b;
+}
+.drive-shell:not(.dark) .hero-panel {
+  background: linear-gradient(115deg, #e3eff5, #d2e1eb);
+  border-color: #8ab6d6;
+  box-shadow: none;
+}
+.drive-shell:not(.dark) .hero-money {
+  color: #0b6845;
+  text-shadow: none;
+}
+.drive-shell:not(.dark) .hero-icon {
+  text-shadow: none;
+}
+.drive-shell:not(.dark) .eyebrow,
+.drive-shell:not(.dark) .target-line,
+.drive-shell:not(.dark) .difference span {
+  color: #3f5866;
+}
+.drive-shell:not(.dark) .metric-card {
+  background: #f0f5f9;
+  border-color: #8ab6d6;
+  box-shadow: none;
+}
+.drive-shell:not(.dark) .metric-card > strong {
+  color: #1b252b;
+}
+.drive-shell:not(.dark) .metric-card small {
+  color: #576871;
+}
+.drive-shell:not(.dark) .metric-top i {
+  color: #206399;
+}
+.drive-shell:not(.dark) .day-card {
+  background: #f0f5f9;
+  border-color: #a2c1d4;
+}
+.drive-shell:not(.dark) .day-card span,
+.drive-shell:not(.dark) .day-card small {
+  color: #576871;
+}
+.drive-shell:not(.dark) .day-card strong {
+  color: #0b6845;
+}
+.drive-shell:not(.dark) .day-card.today {
+  border-color: #197a48;
+  background: #e3f5ec;
+  box-shadow: none;
+}
+.drive-shell:not(.dark) .brand {
+  color: #206399;
+}
+.drive-shell:not(.dark) .brand-mark {
+  color: #197a48;
+}
+.drive-shell:not(.dark) .menu-button {
+  color: #206399;
+}
+.drive-shell:not(.dark) .date-row {
+  color: #1b252b;
+}
+.drive-shell:not(.dark) .difference .positive {
+  color: #0b6845;
+}
+.drive-shell:not(.dark) .difference .negative {
+  color: #c92a2a;
+}
+.drive-shell:not(.dark) .uber-dashboard-actions button {
+  background: #e3eff5;
+  border-color: #8ab6d6;
+  color: #206399;
+}
+.drive-shell:not(.dark) .preview-badge {
+  background: #fdf6e3;
+  border-color: #fce28b;
+  color: #92751f;
+}
+@keyframes progress-shimmer {
+  0% { transform: translateX(-150%) skewX(-30deg); }
+  100% { transform: translateX(250%) skewX(-30deg); }
+}
+.progress-shine {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+  width: 50%;
+  animation: progress-shimmer 2.5s infinite linear;
+}
+.drive-shell:not(.dark) .day-card span { color: #4d7a91; font-weight: bold; }
+.drive-shell:not(.dark) .day-card strong { color: #006648; font-weight: 900; }
+.drive-shell:not(.dark) .day-card small { color: #355f75; }
+.drive-shell:not(.dark) .day-card i { color: #00668a; }
+.drive-shell:not(.dark) .day-card.today { border-color: #009368; background: #d3f3e8; }
+.drive-shell:not(.dark) .day-card.today strong { color: #006648; }
+.drive-shell:not(.dark) .day-card.missed strong { color: #c4001e; }

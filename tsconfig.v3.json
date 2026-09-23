@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "include": [
+    "src/supabase/**/*.ts",
+    "src/uber/**/*.ts",
+    "src/dashboard/**/*.ts",
+    "src/dashboard/**/*.tsx",
+    "src/map/V3UberOverlay.tsx",
+    "tests/**/*.ts"
+  ]
+}

@@ -1,0 +1,135 @@
+.uber-progress{position:absolute;z-index:9;left:50%;bottom:8px;transform:translateX(-50%);display:grid;place-items:center;width:min(calc(100% - 24px),560px);min-height:54px;padding:8px 15px;border:1px solid #00c0fa;border-radius:11px;background:#04141de8;box-shadow:0 0 18px #007bc044,inset 0 0 15px #00608c20;color:#dff8ff;cursor:pointer}
+.uber-progress-title{display:grid;gap:2px}.uber-progress-title b{color:#35f1bd;letter-spacing:.08em;font-size:.8rem}.uber-progress-title em{font-size:.73rem;font-style:normal}.uber-cells{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}.uber-cell{position:relative;height:24px;overflow:hidden;border:1px solid #08749f;border-radius:4px;background:#041f2d;display:flex;align-items:center;justify-content:center}.uber-cell i{position:absolute;left:0;top:0;bottom:0;display:block;background:#09b8fb;box-shadow:0 0 10px #00b0f4}
+.cell-label{position:relative;z-index:2;font-size:13px;font-weight:800;color:#011b28;text-shadow:none}.uber-progress-open{color:#50ccff;font-size:.7rem;font-weight:800;letter-spacing:.05em}
+@keyframes progress-pulse{50%{box-shadow:0 0 28px #21edb288,inset 0 0 15px #00608c20}}.uber-progress:focus-visible,.uber-progress:hover{animation:progress-pulse 1.1s infinite}
+.uber-modal-backdrop{position:absolute;z-index:25;inset:0;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,0.45);backdrop-filter:blur(3px)}.uber-modal{width:min(780px,94%);max-height:85svh;overflow:auto;border-radius:15px;box-shadow:0 20px 70px #000}.uber-modal .tesla-shell{min-height:auto;padding:0}.uber-modal .dashboard{width:100%;min-height:auto;border-radius:14px}
+.uber-load-error{position:fixed;z-index:26;left:50%;bottom:88px;transform:translateX(-50%);max-width:min(600px,calc(100vw - 24px));padding:10px 14px;border:1px solid #f59a72;border-radius:8px;background:#1d1110ee;color:#ffe3d8;font:600 13px/1.3 system-ui}
+.drive-shell.uber-active .permission-card{bottom:90px}
+.uber-progress-goal .uber-cell i{background:#69c985;box-shadow:0 0 15px #69c985}.uber-cycle-flash{position:absolute;inset:9px 8px;pointer-events:none;border-radius:8px;background:rgba(57,137,87,.95);box-shadow:0 0 20px rgba(57,137,87,.85),inset 0 0 16px rgba(255,255,255,.4);animation:uber-cycle-pop 1.1s ease-out forwards}@keyframes uber-cycle-pop{0%{opacity:0;transform:scale(.96)}12%{opacity:1;transform:scale(1)}55%{opacity:1}100%{opacity:0}}
+.uber-milestone{position:fixed;z-index:30;top:8%;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:calc(100vw - 32px);padding:14px 23px;border:2px solid #50ffd0;border-radius:14px;background:#06412fef;color:#e7fff6;box-shadow:0 0 34px #17d698,0 14px 35px #0008;pointer-events:none;white-space:nowrap;animation:uber-milestone-pop 2.3s ease-out forwards}.uber-milestone-weekly{border-color:#ffd36b;background:#493006f2;box-shadow:0 0 42px #efa938,0 14px 35px #0008}.uber-milestone span{font-size:35px;filter:drop-shadow(0 0 10px currentColor)}.uber-milestone strong{font-size:clamp(14px,2.3vw,23px);letter-spacing:.05em}@keyframes uber-milestone-pop{0%{opacity:0;transform:translate(-50%,-18px) scale(.9)}12%{opacity:1;transform:translate(-50%,0) scale(1.04)}20%,72%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,-12px) scale(.98)}}@media(prefers-reduced-motion:reduce){.uber-cycle-flash,.uber-milestone{animation:none;opacity:.9}}
+@media(max-width:600px){.uber-progress{bottom:11px;width:calc(100% - 24px);grid-template-columns:auto 1fr auto;gap:8px;min-height:57px;padding:9px}.uber-progress-open{display:none}.uber-progress-title em{font-size:.63rem}.uber-cell{height:17px}.uber-modal-backdrop{padding:6px}.uber-modal{max-height:calc(100svh - 12px)}.uber-modal .dashboard{border-radius:12px}.uber-modal .preview-badge{display:none}}
+.drive-shell:not(.dark) .uber-progress{background:#fffffff2;border-color:#3179b9;box-shadow:0 4px 22px rgba(0,0,0,.18),inset 0 0 10px rgba(49,121,185,.12);color:#1b252b}
+.drive-shell:not(.dark) .uber-progress-title b{color:#197a48}
+.drive-shell:not(.dark) .uber-progress-title em{color:#576871}
+.drive-shell:not(.dark) .uber-cell{border-color:#a2c1d4;background:#ebf2f7}
+.drive-shell:not(.dark) .uber-progress-open{color:#206399}
+
+.drive-shell:not(.dark) .uber-modal-backdrop {
+  background: rgba(255,255,255,0.15);
+}
+.drive-shell:not(.dark) .uber-modal {
+  box-shadow: 0 20px 70px rgba(0,0,0,0.25);
+}
+.uber-session-footer {
+  position: absolute;
+  z-index: 9;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(calc(100% - 24px), 760px);
+  height: 64px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #111a22;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  color: #fff;
+  gap: 16px;
+}
+
+.session-progress {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  height: 48px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-right: 1px solid #2a3a46;
+  text-align: left;
+}
+
+.session-progress-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 70px;
+}
+.band-name { font-size: 16px; font-weight: 800; }
+.band-sub { font-size: 10px; color: #8ba2b3; font-weight: 600; }
+
+.session-progress-track {
+  flex: 1;
+  height: 36px;
+  background: #1e2d38;
+  border-radius: 18px;
+  overflow: hidden;
+  position: relative;
+}
+
+.session-progress-fill {
+  height: 100%;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  transition: width 0.3s ease;
+}
+
+.session-progress-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000;
+}
+
+.session-progress-grey .band-name { color: #b3c2cc; }
+.session-progress-grey .session-progress-fill { background: #8ba2b3; }
+
+.session-progress-teal .band-name { color: #00e5ff; }
+.session-progress-teal .session-progress-fill { background: #00e5ff; }
+
+.session-progress-gold .band-name { color: #ffd700; }
+.session-progress-gold .session-progress-fill { background: #ffd700; }
+
+.session-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  transition: opacity 0.2s;
+}
+.btn-session:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-start, .btn-resume { background: #2b3945; }
+.btn-pause { background: #2b3945; }
+.btn-stop { background: #dc3545; }
+
+.session-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  padding-right: 8px;
+  border-left: 1px solid #2a3a46;
+  padding-left: 16px;
+  min-width: 80px;
+}
+.time-value { font-size: 18px; font-weight: 700; }
+.time-label { font-size: 11px; color: #8ba2b3; }

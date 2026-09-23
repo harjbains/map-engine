@@ -1,0 +1,108 @@
+export const MPS_TO_MPH = 2.2369362920544;
+
+export type Point = { latitude: number; longitude: number };
+
+export function toMph(metresPerSecond: number): number {
+  return Math.max(0, metresPerSecond) * MPS_TO_MPH;
+}
+
+export function nearestMainRoadMetres(point: Point, roadLines: Array<{ name: string | null; geom: Array<{ lat: number; lon: number }> }>): { metres: number; name: string | null } {
+  let nearest = Number.POSITIVE_INFINITY;
+  let nearestName: string | null = null;
+  const latitudeScale = Math.cos(point.latitude * Math.PI / 180);
+  const fixed = { x: point.longitude * latitudeScale, y: point.latitude };
+  for (const road of roadLines) {
+    const line = road.geom;
+    for (let index = 1; index < line.length; index += 1) {
+      const start = line[index - 1];
+      const end = line[index];
+      const startX = start.lon * latitudeScale;
+      const endX = end.lon * latitudeScale;
+      const dx = endX - startX;
+      const dy = end.lat - start.lat;
+      const denominator = dx * dx + dy * dy;
+      const fraction = denominator === 0 ? 0 : Math.max(0, Math.min(1, ((fixed.x - startX) * dx + (fixed.y - start.lat) * dy) / denominator));
+      const projected = { x: startX + fraction * dx, y: start.lat + fraction * dy };
+      const metres = Math.hypot((fixed.x - projected.x) * 111_320, (fixed.y - projected.y) * 110_574);
+      if (metres < nearest) {
+        nearest = metres;
+        nearestName = road.name;
+      }
+    }
+  }
+  return { metres: nearest, name: nearestName };
+}
+
+export function smooth(previous: number | null, sample: number, alpha: number): number {
+  return previous === null ? sample : previous + alpha * (sample - previous);
+}
+
+export function smoothBearing(previous: number | null, target: number, alpha = 0.3): number {
+  if (previous === null) return ((target % 360) + 360) % 360;
+  const delta = ((target - previous + 540) % 360) - 180;
+  return (previous + delta * alpha + 360) % 360;
+}
+
+export function dynamicZoom(speedMph: number): number {
+  const interpolate = (from: number, to: number, fraction: number) => from + (to - from) * Math.max(0, Math.min(1, fraction));
+  if (speedMph <= 10) return interpolate(16.7, 16.5, speedMph / 10);
+  if (speedMph <= 30) return interpolate(16.5, 16, (speedMph - 10) / 20);
+  if (speedMph <= 50) return interpolate(16, 15.5, (speedMph - 30) / 20);
+  if (speedMph <= 70) return interpolate(15.5, 14.8, (speedMph - 50) / 20);
+  return 14.6;
+}
+
+export function pointAhead(point: Point, bearingDegrees: number, distanceMetres: number): Point {
+  const earthRadius = 6_371_000;
+  const angularDistance = distanceMetres / earthRadius;
+  const bearing = bearingDegrees * Math.PI / 180;
+  const lat1 = point.latitude * Math.PI / 180;
+  const lon1 = point.longitude * Math.PI / 180;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(angularDistance) +
+    Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing),
+  );
+  const lon2 = lon1 + Math.atan2(
+    Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
+    Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2),
+  );
+  return { latitude: lat2 * 180 / Math.PI, longitude: lon2 * 180 / Math.PI };
+}
+
+export function distanceMetres(a: Point, b: Point): number {
+  const earthRadius = 6_371_000;
+  const toRadians = (degrees: number) => degrees * Math.PI / 180;
+  const lat1 = toRadians(a.latitude);
+  const lat2 = toRadians(b.latitude);
+  const deltaLat = lat2 - lat1;
+  const deltaLon = toRadians(b.longitude) - toRadians(a.longitude);
+  const haversine = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  return earthRadius * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+export function plausibleGpsStep(from: Point, to: Point, elapsedMs: number, maxMetresPerSecond = 50): boolean {
+  if (elapsedMs <= 150) return true;
+  return distanceMetres(from, to) / (elapsedMs / 1000) <= maxMetresPerSecond;
+}
+
+export function isFreshFix(timestamp: number, now = Date.now(), maxAgeMs = 10_000): boolean {
+  if (timestamp <= 0) return true;
+  return now - timestamp <= maxAgeMs;
+}
+
+export function acceptsPositionUpdate(timestamp: number, lastTimestamp: number, now = Date.now(), maxAgeMs = 10_000): boolean {
+  if (timestamp <= 0) return true;
+  const freshByClock = now - timestamp <= maxAgeMs;
+  const progressing = timestamp > lastTimestamp;
+  return freshByClock || progressing;
+}
+
+export function bindCompassHeading(onHeading: (heading: number) => void): void {
+  const handler = (event: DeviceOrientationEvent) => {
+    const webkitHeading = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
+    const heading = webkitHeading ?? (event.alpha === null ? null : (360 - event.alpha) % 360);
+    if (heading !== null) onHeading(heading);
+  };
+  window.addEventListener("deviceorientationabsolute", handler as EventListener, { passive: true });
+  window.addEventListener("deviceorientation", handler, { passive: true });
+}

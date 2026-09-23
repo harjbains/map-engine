@@ -1,0 +1,211 @@
+.v2-earnings-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 480px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  border: 1px solid #e2e8f0;
+}
+
+.v2-earnings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.v2-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2b75d6;
+  letter-spacing: 0.5px;
+}
+
+.v2-close {
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.v2-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.v2-title-left h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.v2-date {
+  font-size: 13px;
+  color: #64748b;
+  margin-left: 28px;
+  margin-top: 2px;
+}
+
+.v2-week-badge {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.v2-status-box {
+  background: #f0f7fb;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  display: flex;
+  padding: 16px;
+}
+
+.v2-status-left {
+  flex: 1;
+}
+
+.v2-status-right {
+  flex: 1;
+  text-align: center;
+}
+
+.v2-status-divider {
+  width: 1px;
+  background: #bae6fd;
+  margin: 0 16px;
+}
+
+.v2-status-label {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.v2-status-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: #047857;
+  margin-bottom: 4px;
+}
+
+.v2-status-diff.positive {
+  font-size: 32px;
+  font-weight: 800;
+  color: #047857;
+  margin-bottom: 4px;
+}
+
+.v2-status-diff.negative {
+  font-size: 32px;
+  font-weight: 800;
+  color: #dc2626;
+  margin-bottom: 4px;
+}
+
+.v2-status-sub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.v2-status-sub.positive-text {
+  color: #047857;
+}
+
+.v2-status-sub.negative-text {
+  color: #dc2626;
+}
+
+.v2-btn-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.v2-btn-add {
+  background: white;
+  border: 2px solid #10b981;
+  border-radius: 8px;
+  padding: 12px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #10b981;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.v2-btn-add:active {
+  background: #d1fae5;
+}
+
+.v2-btn-sub {
+  background: white;
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  padding: 12px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ef4444;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.v2-btn-sub:active {
+  background: #fee2e2;
+}
+
+.v2-action-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.v2-btn-cancel {
+  flex: 1;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 14px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.v2-btn-save {
+  flex: 1;
+  background: linear-gradient(to bottom, #3b82f6, #2563eb);
+  border: none;
+  border-radius: 8px;
+  padding: 14px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(37,99,235,0.2);
+}
