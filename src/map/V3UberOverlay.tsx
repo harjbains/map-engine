@@ -80,21 +80,18 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
       <button type="button" className="session-progress" onClick={() => setModal("editor")} aria-label="Open Update Earnings screen" style={{ borderRight: 'none', padding: 0 }}>
         <div className="session-progress-track" style={{ height: '38px', borderRadius: '8px', border: '2px solid #000' }}>
           <div className="session-progress-fill" style={{ width: `${percent}%`, background: barColor }} />
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', zIndex: 2, pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px', zIndex: 2, pointerEvents: 'none' }}>
               <span style={{ fontSize: '16px', fontWeight: 800, color: '#ffffff', textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>
-                {(dashboard.todayEarningsPence / 100).toFixed(2).replace('.00', '')}
+                {Math.floor(dashboard.todayEarningsPence / 100)}
               </span>
               {isNearlyReached ? (
                 <span style={{ fontSize: '16px', fontWeight: 800, color: '#eab308', textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>
-                  - Target nearly reached!
+                  Target nearly reached!
                 </span>
               ) : (
-                <>
-                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#94a3b8', textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>/</span>
-                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#eab308', textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>
-                    {(currentMaxTarget / 100).toFixed(2).replace('.00', '')}
-                  </span>
-                </>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#eab308', textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>
+                  {Math.floor(currentMaxTarget / 100)}
+                </span>
               )}
             </div>
         </div>
