@@ -16,27 +16,13 @@ export function MilestoneCelebration({
   useEffect(() => {
     if (!transition) return;
     setFading(false);
+  }, [transition]);
 
-    // Calculate level/board based on newSquares
-    const level = Math.max(1, Math.ceil(transition.newSquares / 25));
-    const startSquare = (level - 1) * 25;
-    
-    // Only calculate squaresToAdd for the squares appearing on the CURRENT board.
-    // If they jumped from 24 to 27, the board is level 2 (squares 26-50), 
-    // so the ones popping here are just 26 and 27 (2 squares).
-    const poppingOnThisBoard = Math.max(0, transition.newSquares - Math.max(startSquare, transition.oldSquares));
-    
-    const staggerDelay = Math.max(150, Math.min(500, 2000 / (poppingOnThisBoard || 1)));
-    const totalAnimationTime = (poppingOnThisBoard * staggerDelay) + 1000;
-    
-    const fadeTimer = window.setTimeout(() => setFading(true), totalAnimationTime);
-    const finishTimer = window.setTimeout(() => onComplete?.(), totalAnimationTime + 500);
-
-    return () => {
-      window.clearTimeout(fadeTimer);
-      window.clearTimeout(finishTimer);
-    };
-  }, [transition, onComplete]);
+  const handleClose = () => {
+    if (fading) return;
+    setFading(true);
+    setTimeout(() => onComplete?.(), 500); // Wait for CSS fade out
+  };
 
   if (!transition) return null;
 
@@ -50,9 +36,10 @@ export function MilestoneCelebration({
       className={`ride-squares-overlay ${fading ? 'fade-out' : ''}`}
       role='status'
       aria-live='polite'
-      onClick={() => onComplete?.()}
+      onClick={handleClose}
+      style={{ cursor: 'pointer' }}
     >
-      <div className="ride-squares-container" onClick={(e) => e.stopPropagation()}>
+      <div className="ride-squares-container">
         <h2>Daily Target Progress</h2>
         
         {level > 1 && (
@@ -111,6 +98,7 @@ export function MilestoneCelebration({
           })}
         </div>
         <p className="ride-squares-text">£{transition.newSquares * 5} earned today in Ride Squares!</p>
+        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '16px', opacity: 0.7 }}>Tap anywhere to close</p>
       </div>
     </div>
   );
