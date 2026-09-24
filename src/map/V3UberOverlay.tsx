@@ -78,20 +78,29 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   return <>
     <footer className="uber-session-footer">
       <button type="button" className="session-progress" onClick={() => setModal("editor")} aria-label="Open Update Earnings screen" style={{ borderRight: 'none', padding: 0 }}>
-        <div className="session-progress-track" style={{ height: '38px', borderRadius: '8px', border: '1px solid #2a3a46' }}>
+        <div className="session-progress-track" style={{ height: '38px', borderRadius: '8px', border: '2px solid #000' }}>
           <div className="session-progress-fill" style={{ width: `${percent}%`, background: barColor }} />
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px', zIndex: 2, pointerEvents: 'none' }}>
-              <span style={{ fontSize: '16px', fontWeight: 800, color: percent > 10 ? '#000' : '#fff', textShadow: percent > 10 ? 'none' : '0 1px 3px rgba(0,0,0,0.8)', transition: 'color 0.3s' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', zIndex: 2, pointerEvents: 'none' }}>
+              <span style={{ fontSize: '16px', fontWeight: 800, color: '#ffffff', textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>
                 {(dashboard.todayEarningsPence / 100).toFixed(2).replace('.00', '')}
               </span>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: percent > 75 ? '#000' : '#8ba2b3', textShadow: percent > 75 ? 'none' : '0 1px 3px rgba(0,0,0,0.8)', transition: 'color 0.3s' }}>
-                {isNearlyReached ? "Target nearly reached!" : (currentMaxTarget / 100).toFixed(2).replace('.00', '')}
-              </span>
+              {isNearlyReached ? (
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#eab308', textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>
+                  - Target nearly reached!
+                </span>
+              ) : (
+                <>
+                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#94a3b8', textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>/</span>
+                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#eab308', textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>
+                    {(currentMaxTarget / 100).toFixed(2).replace('.00', '')}
+                  </span>
+                </>
+              )}
             </div>
         </div>
       </button>
     </footer>
-    <MilestoneCelebration transition={activeTransition} onComplete={() => setActiveTransition(null)} />
+    <MilestoneCelebration transition={activeTransition} onComplete={() => setActiveTransition(null)} /> setActiveTransition(null)} />
     {modal !== "closed" && <div className="uber-modal-backdrop" role="presentation" onMouseDown={() => setModal("closed")}>
       <section className="uber-modal" role="dialog" aria-modal="true" aria-label="Uber earnings dashboard" onMouseDown={(event) => event.stopPropagation()}>
         {modal === "dashboard" && <TeslaUberDashboard dashboard={dashboard} preview={preview} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onClose={() => {setModal("closed"); onChangeDate?.(null);}} onUpdate={() => {setReturnTo("dashboard"); setModal("editor");}} onMileage={() => {setReturnTo("dashboard"); setModal("mileage");}} onPlan={() => setModal("plan")} onUpdateHistoricalDay={(date) => {onChangeDate?.(date);}} {...(onChangeDate ? {onChangeDate} : {})} />}
