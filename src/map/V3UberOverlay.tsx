@@ -80,11 +80,11 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   const tripsLeft = remainingPence === 0 ? 0 : Math.max(1, Math.ceil(remainingPence / avgTripPence));
   const visualStars = Math.min(tripsLeft, 7);
 
-  const primaryText = darkMode ? "#ffffff" : "#0f172a";
-  const trackBg = darkMode ? "#334155" : "#e2e8f0";
-  const trackBorder = darkMode ? "#000" : "rgba(0,0,0,0.1)";
-  const starBoxBg = darkMode ? "#1e293b" : "#f8fafc";
-  const starBoxBorder = darkMode ? "#334155" : "#e2e8f0";
+    const primaryText = darkMode ? "#ffffff" : "#197a48";
+  const trackBg = darkMode ? "#334155" : "#e0f2fe";
+  const trackBorder = darkMode ? "#000" : "#bae6fd";
+  const starBoxBg = darkMode ? "#1e293b" : "#ffffff";
+  const starBoxBorder = darkMode ? "#334155" : "#bae6fd";
   const goldText = darkMode ? "#eab308" : "#d97706";
 
   return <>
