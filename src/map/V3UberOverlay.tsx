@@ -100,7 +100,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
         </div>
       </button>
     </footer>
-    <MilestoneCelebration transition={activeTransition} onComplete={() => setActiveTransition(null)} /> setActiveTransition(null)} />
+    <MilestoneCelebration transition={activeTransition} onComplete={() => setActiveTransition(null)} />
     {modal !== "closed" && <div className="uber-modal-backdrop" role="presentation" onMouseDown={() => setModal("closed")}>
       <section className="uber-modal" role="dialog" aria-modal="true" aria-label="Uber earnings dashboard" onMouseDown={(event) => event.stopPropagation()}>
         {modal === "dashboard" && <TeslaUberDashboard dashboard={dashboard} preview={preview} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onClose={() => {setModal("closed"); onChangeDate?.(null);}} onUpdate={() => {setReturnTo("dashboard"); setModal("editor");}} onMileage={() => {setReturnTo("dashboard"); setModal("mileage");}} onPlan={() => setModal("plan")} onUpdateHistoricalDay={(date) => {onChangeDate?.(date);}} {...(onChangeDate ? {onChangeDate} : {})} />}
