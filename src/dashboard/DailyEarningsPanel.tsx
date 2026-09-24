@@ -11,14 +11,14 @@ const isoWeek = (date: string) => {
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 };
 
-export function DailyEarningsPanel({ dashboard, onCancel, onSave }: { dashboard: UberDashboard; onCancel: () => void; onSave: (previewPence: number) => Promise<void> }) {
+export function DailyEarningsPanel({ dashboard, onCancel, onSave, darkMode }: { dashboard: UberDashboard; onCancel: () => void; onSave: (previewPence: number) => Promise<void>; darkMode?: boolean }) {
   const [val, setVal] = useState(dashboard.todayEarningsPence);
 
   const add = (amountPence: number) => setVal(v => Math.max(0, v + amountPence));
   const diff = val - ((dashboard.todayTargetPence || 0) || 0);
 
   return (
-    <div className="v2-earnings-modal">
+    <div className={`v2-earnings-modal ${darkMode ? "dark" : ""}`}>
       <header className="v2-earnings-header">
         <div className="v2-brand">
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2L2 22h20L12 2z"/></svg>

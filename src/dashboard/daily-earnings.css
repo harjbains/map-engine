@@ -209,3 +209,5 @@
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(37,99,235,0.2);
 }
+
+.v2-earnings-modal.dark { background: #0f172a; border-color: #334155; color: #fff; } .v2-earnings-modal.dark .v2-header { border-bottom-color: #334155; } .v2-earnings-modal.dark .v2-close { background: #1e293b; border-color: #475569; color: #cbd5e1; } .v2-earnings-modal.dark .v2-title-left h2 { color: #f8fafc; } .v2-earnings-modal.dark .v2-week-badge { background: #1e293b; border-color: #475569; color: #94a3b8; } .v2-earnings-modal.dark .v2-status-box { background: #1e293b; border-color: #0c4a6e; } .v2-earnings-modal.dark .v2-status-divider { background: #334155; } .v2-earnings-modal.dark .v2-btn-add { background: #0f172a; border-color: #10b981; } .v2-earnings-modal.dark .v2-btn-add:active { background: #064e3b; } .v2-earnings-modal.dark .v2-btn-sub { background: #0f172a; border-color: #ef4444; } .v2-earnings-modal.dark .v2-btn-sub:active { background: #7f1d1d; } .v2-earnings-modal.dark .v2-btn-cancel { background: #1e293b; border-color: #475569; color: #f8fafc; }
