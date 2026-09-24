@@ -289,6 +289,27 @@ function distanceToPathMetres(point: TrafficSignalPoint, path: TrafficSignalPoin
   return nearest;
 }
 
+
+const overpassQueue: (() => void)[] = [];
+let overpassActive = 0;
+
+async function acquireOverpassSlot() {
+  if (overpassActive < 2) {
+    overpassActive++;
+    return;
+  }
+  return new Promise<void>((resolve) => overpassQueue.push(resolve));
+}
+
+function releaseOverpassSlot() {
+  const next = overpassQueue.shift();
+  if (next) {
+    next();
+  } else {
+    overpassActive--;
+  }
+}
+
 async function requestOverpass(endpoint: string, query: string, delayMs: number, controllers: AbortController[], parentSignal?: AbortSignal, hardTimeoutMs?: number) {
   const controller = new AbortController();
   controllers.push(controller);
@@ -307,6 +328,7 @@ async function requestOverpass(endpoint: string, query: string, delayMs: number,
   const timeoutCap = declaredTimeout ? Number(declaredTimeout) * 1_000 + 3_000 : 20_000;
   const timeout = window.setTimeout(() => controller.abort(), Math.min(30_000, hardTimeoutMs ?? timeoutCap));
   try {
+    await acquireOverpassSlot();
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
@@ -317,6 +339,7 @@ async function requestOverpass(endpoint: string, query: string, delayMs: number,
     return await response.json() as { elements?: OverpassElement[] };
   } finally {
     window.clearTimeout(timeout);
+    releaseOverpassSlot();
   }
 }
 
