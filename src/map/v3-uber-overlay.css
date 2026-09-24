@@ -156,3 +156,10 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
 }
+
+/* Light mode softer background for the footer */
+.drive-shell:not(.dark) .uber-session-footer {
+  background: #ffffff !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
