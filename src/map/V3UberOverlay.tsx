@@ -62,56 +62,35 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   const hrs = Math.floor(liveSeconds / 3600);
   const mins = Math.floor((liveSeconds % 3600) / 60);
 
-  const forecastBand = dashboard.forecastBand ?? "grey";
-  const percent = dashboard.todayTargetPence ? Math.min(100, Math.floor((dashboard.todayEarningsPence / dashboard.todayTargetPence) * 100)) : 0;
+  let currentMaxTarget = dashboard.todayTargetPence || 0;
+  let targetUnlocked = false;
+  if (currentMaxTarget > 0) {
+    while (dashboard.todayEarningsPence >= currentMaxTarget) {
+      currentMaxTarget += 2500;
+      targetUnlocked = true;
+    }
+  }
+
+  const isNearlyReached = currentMaxTarget > 0 && (currentMaxTarget - dashboard.todayEarningsPence) <= 1000;
+  const barColor = targetUnlocked ? "#eab308" : "#3b82f6";
+  const percent = currentMaxTarget ? Math.min(100, Math.floor((dashboard.todayEarningsPence / currentMaxTarget) * 100)) : 0;
 
   return <>
-      <footer className="uber-session-footer">
-        <button type="button" className={`session-progress session-progress-${forecastBand}`} onClick={() => setModal("editor")} aria-label="Open Update Earnings screen">
-          
-          <div className="session-progress-track">
-            <div className="session-progress-fill" style={{ width: `${percent}%` }} />
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 12px', zIndex: 2, pointerEvents: 'none' }}>
-                <span style={{ fontSize: '15px', fontWeight: 800, color: percent > 10 ? '#000' : '#fff', textShadow: percent > 10 ? 'none' : '0 1px 3px rgba(0,0,0,0.8)', transition: 'color 0.3s' }}>
-                  {(dashboard.todayEarningsPence / 100).toFixed(2).replace('.00', '')}
-                </span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: percent > 90 ? '#000' : '#8ba2b3', textShadow: percent > 90 ? 'none' : '0 1px 3px rgba(0,0,0,0.8)', transition: 'color 0.3s' }}>
-                  {dashboard.todayTargetPence ? (dashboard.todayTargetPence / 100).toFixed(2).replace('.00', '') : '--'}
-                </span>
-              </div>
-          </div>
-        </button>
-
-        <div className="session-controls">
-          {(!dashboard.session || dashboard.session.status === "completed") && (
-            <button type="button" className="btn-session btn-start" onClick={onStartSession} aria-label="Start Session">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M8 5v14l11-7z" /></svg>
-              Start
-            </button>
-          )}
-          {sessionActive && (
-            <button type="button" className="btn-session btn-pause" onClick={onPauseSession} aria-label="Pause Session">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
-              Pause
-            </button>
-          )}
-          {sessionPaused && (
-            <button type="button" className="btn-session btn-resume" onClick={onResumeSession} aria-label="Resume Session">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M8 5v14l11-7z" /></svg>
-              Resume
-            </button>
-          )}
-          <button type="button" className="btn-session btn-stop" onClick={onEndSession} disabled={!dashboard.session || sessionCompleted} aria-label="Stop Session">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6 6h12v12H6z" /></svg>
-            Stop
-          </button>
+    <footer className="uber-session-footer">
+      <button type="button" className="session-progress" onClick={() => setModal("editor")} aria-label="Open Update Earnings screen" style={{ borderRight: 'none', padding: 0 }}>
+        <div className="session-progress-track" style={{ height: '38px', borderRadius: '8px', border: '1px solid #2a3a46' }}>
+          <div className="session-progress-fill" style={{ width: `${percent}%`, background: barColor }} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px', zIndex: 2, pointerEvents: 'none' }}>
+              <span style={{ fontSize: '16px', fontWeight: 800, color: percent > 10 ? '#000' : '#fff', textShadow: percent > 10 ? 'none' : '0 1px 3px rgba(0,0,0,0.8)', transition: 'color 0.3s' }}>
+                {(dashboard.todayEarningsPence / 100).toFixed(2).replace('.00', '')}
+              </span>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: percent > 75 ? '#000' : '#8ba2b3', textShadow: percent > 75 ? 'none' : '0 1px 3px rgba(0,0,0,0.8)', transition: 'color 0.3s' }}>
+                {isNearlyReached ? "Target nearly reached!" : (currentMaxTarget / 100).toFixed(2).replace('.00', '')}
+              </span>
+            </div>
         </div>
-
-        <div className="session-time">
-          <div className="time-value">{hrs}h {mins}m</div>
-          <div className="time-label">Session</div>
-        </div>
-      </footer>
+      </button>
+    </footer>
     <MilestoneCelebration transition={activeTransition} onComplete={() => setActiveTransition(null)} />
     {modal !== "closed" && <div className="uber-modal-backdrop" role="presentation" onMouseDown={() => setModal("closed")}>
       <section className="uber-modal" role="dialog" aria-modal="true" aria-label="Uber earnings dashboard" onMouseDown={(event) => event.stopPropagation()}>
