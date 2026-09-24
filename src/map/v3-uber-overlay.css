@@ -149,3 +149,10 @@
 .drive-shell .active-route-panel {
   margin-bottom: 45px !important;
 }
+
+/* Ensure the footer stands out clearly against the dark map */
+.drive-shell.dark .uber-session-footer {
+  background: #1e293b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
