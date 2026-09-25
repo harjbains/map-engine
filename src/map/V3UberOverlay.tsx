@@ -32,6 +32,33 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   const [flash, setFlash] = useState(false);
   const [activeTransition, setActiveTransition] = useState<EarningsTransition | null>(null);
 
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const [showCompletion, setShowCompletion] = useState(false);
+  useEffect(() => {
+    const todayStr = dashboard.today;
+    const h = currentTime.getHours();
+    if (h >= 11 && h < 15) {
+      if (!localStorage.getItem(`morning_commitment_${todayStr}`)) {
+        setShowCompletion(true);
+        localStorage.setItem(`morning_commitment_${todayStr}`, "true");
+      }
+    } else {
+      setShowCompletion(false);
+    }
+  }, [currentTime, dashboard.today]);
+
+  useEffect(() => {
+    if (showCompletion) {
+      const timer = setTimeout(() => setShowCompletion(false), 3 * 60 * 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [showCompletion]);
+
   useEffect(() => {
     if (!transition) return;
     if (transition.cycleCrossed) setFlash(true);
@@ -77,6 +104,37 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   const percent = currentMaxTarget ? Math.min(100, Math.floor((dashboard.todayEarningsPence / currentMaxTarget) * 100)) : 0;
   
   const avgTripPence = dashboard.todayTrips > 0 ? (dashboard.todayEarningsPence / dashboard.todayTrips) : 450;
+
+  let topLeftText = targetUnlocked ? "BONUS TIME" : (isNearlyReached ? "ALMOST THERE" : "ON TRACK");
+  let topRightText = remainingPence > 0 ? `${Math.floor(remainingPence / 100)} TO NEXT MILESTONE` : "MILESTONE REACHED";
+
+  const hour = currentTime.getHours();
+  if (showCompletion) {
+    topLeftText = "MORNING COMMITMENT ACHIEVED ✓";
+    topRightText = "11:00 REACHED";
+  } else if (hour === 9) {
+    const hash = Math.floor(dashboard.todayEarningsPence / 500);
+    const msgs = [
+      "STAY IN THE GAME",
+      "YOUR MORNING ISN'T OVER YET",
+      "KEEP YOUR OPTIONS OPEN UNTIL 11",
+      "ANOTHER RIDE, ANOTHER STEP FORWARD",
+      "KEEP BUILDING YOUR TESLA FUND"
+    ];
+    topLeftText = msgs[hash % msgs.length];
+    topRightText = "11:00 FINISH";
+  } else if (hour === 10) {
+    const hash = Math.floor(dashboard.todayEarningsPence / 500);
+    const msgs = [
+      "FINAL HOUR",
+      "YOUR 11:00 FINISH IS GETTING CLOSER",
+      "ONE MORE RIDE COULD BUILD YOUR BONUS",
+      "KEEP YOUR MORNING MOMENTUM",
+      "EVERY EXTRA £5 BUILDS YOUR TESLA FUND"
+    ];
+    topLeftText = msgs[hash % msgs.length];
+    topRightText = "11:00 FINISH";
+  }
   const tripsLeft = remainingPence === 0 ? 0 : Math.max(1, Math.ceil(remainingPence / avgTripPence));
   const visualStars = Math.min(tripsLeft, 7);
 
@@ -93,8 +151,8 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
         
         {/* TOP ROW */}
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '11px', fontWeight: 800, color: goldText, letterSpacing: '0.5px' }}>
-          <span>{targetUnlocked ? "BONUS TIME" : (isNearlyReached ? "ALMOST THERE" : "ON TRACK")}</span>
-          <span>{remainingPence > 0 ? `${Math.floor(remainingPence / 100)} TO NEXT MILESTONE` : "MILESTONE REACHED"}</span>
+          <span>{topLeftText}</span>
+            <span>{topRightText}</span>
         </div>
 
         {/* PROGRESS BAR ROW */}
