@@ -120,8 +120,8 @@ export function TeslaUberDashboard({ dashboard, preview = false, onClose, onUpda
   const isBonus = pct >= 100;
 
   return (
-    <section className="hero-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <section className="hero-panel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '16px', padding: '16px', width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
         <div style={{ flex: 1 }}>
           <div className="eyebrow" style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.05em' }}>TODAY</div>
           <div className="hero-money" style={{ fontSize: '2.5rem', fontWeight: 800, color: '#197a48', lineHeight: 1 }}>{gbp(dashboard.todayEarningsPence)}</div>
@@ -129,8 +129,8 @@ export function TeslaUberDashboard({ dashboard, preview = false, onClose, onUpda
         </div>
 
         <div style={{ flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginTop: '16px' }}>
-          <div style={{ background: '#dbeafe', color: '#3b82f6', padding: '4px 12px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap' }}>{title}</div>
-          <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '4px' }}>{sub}</div>
+          <div style={{ background: '#dbeafe', color: '#3b82f6', padding: '6px 16px', borderRadius: '16px', fontSize: '0.9rem', fontWeight: 800, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</div>
+          <div style={{ fontSize: '0.95rem', color: '#334155', marginTop: '6px', fontWeight: 600 }}>{sub}</div>
         </div>
 
         <div style={{ flex: 1, textAlign: 'right' }}>
