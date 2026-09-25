@@ -1,21 +1,13 @@
-import { UBER_CYCLE_PENCE } from "./progress.js";
-import type { UberDashboard } from "./types.js";
+const fs = require('fs');
 
-export type EarningsMilestone = "daily" | "weekly" | "cycle" | "streak" | "micro" | null;
-export type EarningsTransition = { 
-  id: number; 
-  cycleCrossed: boolean; 
-  milestone: EarningsMilestone;
-  candyText?: string;
-  subText?: string;
-  oldSquares: number;
-  newSquares: number;
-};
+let file = fs.readFileSync('src/uber/milestones.ts', 'utf8');
 
-let currentStreak = 0;
-let lastUpdateTimestamp = 0;
+const startIndex = file.indexOf('export function deriveEarningsTransition');
+if (startIndex !== -1) {
+  file = file.substring(0, startIndex);
+}
 
-export function deriveEarningsTransition(before: UberDashboard, after: UberDashboard, id: number): EarningsTransition | null {
+const newImplementation = `export function deriveEarningsTransition(before: UberDashboard, after: UberDashboard, id: number): EarningsTransition | null {
   if (before.today !== after.today || before.summary.weekStart !== after.summary.weekStart) return null;
   const increased = after.todayEarningsPence > before.todayEarningsPence;
   if (!increased) return null;
@@ -31,8 +23,8 @@ export function deriveEarningsTransition(before: UberDashboard, after: UberDashb
   
   const combo = newSquares - oldSquares;
   if (combo >= 4) {
-    candyText = `${combo} SQUARE COMBO!`;
-    subText = `£${combo * 5} of progress unlocked`;
+    candyText = \`\${combo} SQUARE COMBO!\`;
+    subText = \`£\${combo * 5} of progress unlocked\`;
   } else if (oldSquares < 50 && newSquares >= 50) {
     candyText = "DOUBLE BOARD COMPLETE!";
     subText = "£250 unlocked";
@@ -66,7 +58,7 @@ export function deriveEarningsTransition(before: UberDashboard, after: UberDashb
 
   // Set default if no special text
   if (!candyText && combo > 1) {
-    candyText = `${combo} SQUARES!`;
+    candyText = \`\${combo} SQUARES!\`;
     subText = "Keep building";
   } else if (!candyText) {
     candyText = "SWEET!";
@@ -75,3 +67,6 @@ export function deriveEarningsTransition(before: UberDashboard, after: UberDashb
   
   return { id, cycleCrossed: milestone === "cycle", milestone, candyText, subText, oldSquares, newSquares };
 }
+`;
+
+fs.writeFileSync('src/uber/milestones.ts', file + newImplementation);
