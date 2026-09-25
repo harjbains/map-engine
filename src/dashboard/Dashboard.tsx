@@ -77,7 +77,7 @@ export function TeslaUberDashboard({ dashboard, preview = false, onClose, onUpda
         <Metric icon="📅" label="THIS WEEK" value={gbp(summary.weeklyEarningsPence)} detail={`of ${gbp(summary.weeklyTargetPence)}`}>
           <div className="progress"><i style={{ width: `${progress}%` }} /><b>{progress}%</b></div>
         </Metric>
-        <Metric icon="🔮" label="FORECAST" value={gbp(dashboard.weeklyForecastPence || 0)} detail={<span style={{ color: (dashboard.forecastBand || 'grey') === 'gold' ? '#eab308' : (dashboard.forecastBand || 'grey') === 'teal' ? '#06b6d4' : '#64748b', fontWeight: 'bold' }}>Band: {(dashboard.forecastBand || 'grey').toUpperCase()}</span>} />
+        <Metric icon="🔮" label="FORECAST" value={gbp(dashboard.weeklyForecastPence || 0)} detail={<span style={{ color: (dashboard.forecastBand || 'grey') === 'gold' ? '#eab308' : (dashboard.forecastBand || 'grey') === 'teal' ? '#06b6d4' : '#64748b', fontWeight: 'bold' }}>Band: {(dashboard.forecastBand || 'grey').toUpperCase()}{dashboard.provisionalForecast ? " (Provisional)" : ""}</span>} />
         <article className="metric-card" style={{ cursor: "pointer", display: "flex", flexDirection: "column" }} onClick={onMileage}>
           <div className="metric-top"><i>🛣️</i><span>BUSINESS MILES</span></div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "auto", paddingTop: "4px" }}>

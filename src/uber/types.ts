@@ -77,6 +77,7 @@ export interface UberDashboard {
   todayTrips: number;
   aheadBehindPence: Pence | null;
   weeklyForecastPence: Pence | null;
+  provisionalForecast?: boolean;
   forecastBand: "grey" | "teal" | "gold" | null;
   session: UberSession | null;
   days: DashboardDay[];

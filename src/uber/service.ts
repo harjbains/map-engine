@@ -58,7 +58,7 @@ export class UberWeekService {
     const summary = deriveWeeklySummary(plan, planDays, records);
     const days = deriveDashboardDays(plan, planDays, records);
     const sessions = await this.repository.getSessionsForWeek(weekStart);
-    const forecast = calculateWeeklyForecast(summary, sessions, planDays, records, today);
+    const forecast = calculateWeeklyForecast(summary, planDays, records, today);
     const todayDay = days.find((day) => day.date === today);
     const todayRecord = records.find((record) => record.date === today);
     const todayEarningsPence = todayRecord?.grossEarningsPence ?? 0;
@@ -72,6 +72,7 @@ export class UberWeekService {
       todayTrips: todayRecord?.trips ?? 0,
       aheadBehindPence: todayTargetPence === null ? null : todayEarningsPence - todayTargetPence,
       weeklyForecastPence: forecast.amount,
+      provisionalForecast: forecast.provisional,
       forecastBand: forecast.band,
       session: sessions.find(s => s.date === today) ?? null,
       days,
