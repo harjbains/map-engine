@@ -88,8 +88,8 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   const goldText = darkMode ? "#eab308" : "#d97706";
 
   return <>
-    <footer className="uber-session-footer" style={{ height: 'auto', padding: '12px 16px', flexDirection: 'column', alignItems: 'stretch' }}>
-      <button type="button" className="session-progress" onClick={() => setModal("editor")} aria-label="Open Update Earnings screen" style={{ borderRight: 'none', padding: 0, flexDirection: 'column', height: 'auto', gap: '8px', background: 'transparent' }}>
+    <footer className="uber-session-footer" style={{ height: 'auto', padding: '12px 16px', flexDirection: 'column', alignItems: 'stretch', position: 'relative' }}>
+        <div className="session-progress" style={{ borderRight: 'none', padding: 0, flexDirection: 'column', height: 'auto', gap: '8px', background: 'transparent', cursor: 'default' }}>
         
         {/* TOP ROW */}
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '11px', fontWeight: 800, color: goldText, letterSpacing: '0.5px' }}>
@@ -130,8 +130,36 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
           </span>
         </div>
 
-      </button>
-    </footer>
+      </div>
+        
+        {/* 3 Clickable Zones */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', zIndex: 10, borderRadius: '12px', overflow: 'hidden' }}>
+          <button 
+            type="button" 
+            onClick={() => setModal("dashboard")} 
+            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }}
+            aria-label="Open Dashboard"
+          />
+          <button 
+            type="button" 
+            onClick={() => setModal("editor")} 
+            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }}
+            aria-label="Update earnings"
+          />
+          <button 
+            type="button" 
+            onClick={() => setActiveTransition({ 
+              id: Date.now(), 
+              cycleCrossed: false, 
+              milestone: null, 
+              oldSquares: Math.floor(dashboard.todayEarningsPence / 500), 
+              newSquares: Math.floor(dashboard.todayEarningsPence / 500) 
+            })} 
+            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }}
+            aria-label="Display tiles"
+          />
+        </div>
+      </footer>
     <MilestoneCelebration transition={activeTransition} onComplete={() => setActiveTransition(null)} />
     {modal !== "closed" && <div className="uber-modal-backdrop" role="presentation" onMouseDown={() => setModal("closed")}>
       <section className="uber-modal" role="dialog" aria-modal="true" aria-label="Uber earnings dashboard" onMouseDown={(event) => event.stopPropagation()}>
