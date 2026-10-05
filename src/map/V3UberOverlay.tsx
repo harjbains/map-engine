@@ -168,7 +168,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
 
         {/* BOTTOM ROW */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '2px' }}>
-          <span style={{ fontSize: '18px', fontWeight: 800, color: primaryText }}>
+          <span style={{ fontSize: '24px', fontWeight: 800, color: primaryText }}>
             {Math.floor(dashboard.todayEarningsPence / 100)}
           </span>
           
@@ -189,7 +189,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#10b981' }}>TARGET MET</span>
           )}
 
-          <span style={{ fontSize: '18px', fontWeight: 800, color: primaryText }}>
+          <span style={{ fontSize: '24px', fontWeight: 800, color: primaryText }}>
             {Math.floor(blockTargetPence / 100)}
           </span>
         </div>
