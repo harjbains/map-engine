@@ -9,6 +9,19 @@ export type Pence = number;
 /** Integer tenths of a business mile avoid floating-point mileage errors. */
 export type MilesTenths = number;
 
+
+export type ShiftStatus = "active" | "completed";
+
+export interface UberShift {
+  id: string;
+  date: LocalDate;
+  status: ShiftStatus;
+  startTimestamp: string;
+  endTimestamp: string | null;
+  startEarningsPence: Pence;
+  endEarningsPence: Pence | null;
+}
+
 export type SessionStatus = "active" | "paused" | "completed";
 
 export interface UberSession {
@@ -79,6 +92,6 @@ export interface UberDashboard {
   weeklyForecastPence: Pence | null;
   provisionalForecast?: boolean;
   forecastBand: "grey" | "teal" | "gold" | null;
-  session: UberSession | null;
+  shifts: UberShift[];
   days: DashboardDay[];
 }

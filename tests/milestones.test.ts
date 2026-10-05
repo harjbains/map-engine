@@ -5,7 +5,7 @@ import type { UberDashboard } from "../src/uber/types.js";
 
 const dashboard = (today: number, week: number, target: number | null = 10_000): UberDashboard => ({
   today: "2026-09-18", summary: { weekStart: "2026-09-14", weeklyTargetPence: 75_000, weeklyEarningsPence: week, weeklyMilesTenths: 0, remainingTargetPence: 75_000 - week, dailyTargets: [] },
-  todayEarningsPence: today, todayMilesTenths: 0, todayTargetPence: target, todayTrips: 0, weeklyForecastPence: 0, forecastBand: 'grey', session: null, aheadBehindPence: target === null ? null : today - target, days: [],
+  todayEarningsPence: today, todayMilesTenths: 0, todayTargetPence: target, todayTrips: 0, weeklyForecastPence: 0, forecastBand: 'grey', shifts: [], aheadBehindPence: target === null ? null : today - target, days: [],
 });
 
 test("a persisted £25 boundary flashes only on an increasing earnings transition", () => {

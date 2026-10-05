@@ -21,7 +21,13 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
-      uber_sessions: {
+              uber_shifts: {
+          Row: { id: string; owner_id: string; date: string; status: "active" | "completed"; start_timestamp: string; end_timestamp: string | null; start_earnings_pence: number; end_earnings_pence: number | null; created_at: string; updated_at: string };
+          Insert: { id?: string; owner_id?: string; date: string; status?: "active" | "completed"; start_timestamp?: string; end_timestamp?: string | null; start_earnings_pence?: number; end_earnings_pence?: number | null; created_at?: string; updated_at?: string };
+          Update: { id?: string; owner_id?: string; date?: string; status?: "active" | "completed"; start_timestamp?: string; end_timestamp?: string | null; start_earnings_pence?: number; end_earnings_pence?: number | null; created_at?: string; updated_at?: string };
+          Relationships: [];
+        };
+        uber_sessions: {
         Row: { owner_id: string; date: string; status: "active" | "paused" | "completed"; last_resumed_at: string; active_seconds: number; created_at: string; updated_at: string };
         Insert: never;
         Update: never;

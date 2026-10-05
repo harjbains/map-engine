@@ -74,33 +74,21 @@ export default function App() {
     return service.getWeeklyHistory(dashboard?.today);
   }, [service, dashboard]);
 
-  const startSession = useCallback(async () => {
-    const refreshed = await service.startSession(dashboard?.today);
+  
+  const startShift = useCallback(async (startEarnings: number) => {
+    const refreshed = await service.startShift(dashboard?.today, startEarnings);
     if (!refreshed) throw new Error("No current week plan exists");
     setDashboard(refreshed);
     return refreshed;
   }, [service, dashboard]);
 
-  const pauseSession = useCallback(async () => {
-    const refreshed = await service.pauseSession(dashboard?.today);
+  const endShift = useCallback(async (shiftId: string, endEarnings: number) => {
+    const refreshed = await service.endShift(shiftId, dashboard?.today, endEarnings);
     if (!refreshed) throw new Error("No current week plan exists");
     setDashboard(refreshed);
     return refreshed;
   }, [service, dashboard]);
 
-  const resumeSession = useCallback(async () => {
-    const refreshed = await service.resumeSession(dashboard?.today);
-    if (!refreshed) throw new Error("No current week plan exists");
-    setDashboard(refreshed);
-    return refreshed;
-  }, [service, dashboard]);
-
-  const endSession = useCallback(async () => {
-    const refreshed = await service.endSession(dashboard?.today);
-    if (!refreshed) throw new Error("No current week plan exists");
-    setDashboard(refreshed);
-    return refreshed;
-  }, [service, dashboard]);
 
   const [showChangelog, setShowChangelog] = useState(false);
 
@@ -119,10 +107,7 @@ export default function App() {
         onLoadHistory={loadHistory}
         onChangeDate={setViewDate}
         onSignOut={async () => { await supabaseClient.auth.signOut(); }}
-        onStartSession={startSession}
-        onPauseSession={pauseSession}
-        onResumeSession={resumeSession}
-        onEndSession={endSession}
+        onStartShift={startShift} onEndShift={endShift}
         transition={transition}
       />
       {session === false && <UberAuthPanel client={supabaseClient} />}

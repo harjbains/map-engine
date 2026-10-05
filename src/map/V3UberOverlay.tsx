@@ -6,12 +6,11 @@ import { WeeklyPlanPanel } from "../dashboard/WeeklyPlanPanel.js";
 
 import { gbpFromPence } from "../uber/money.js";
 import { uberProgressCycle } from "../uber/progress.js";
-import type { UberDashboard, WeeklySummary, WorkWeight } from "../uber/types.js";
+import type { UberDashboard, WeeklySummary, WorkWeight, UberShift } from "../uber/types.js";
 import type { EarningsTransition, EarningsMilestone } from "../uber/milestones.js";
-import { MilestoneCelebration } from "./MilestoneCelebration.js";
 import "./v3-uber-overlay.css";
 
-export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveMileage, onSavePlan, onLoadHistory, onChangeDate, onSignOut, onStartSession, onPauseSession, onResumeSession, onEndSession, transition, darkMode, onToggleDarkMode }: {
+export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveMileage, onSavePlan, onLoadHistory, onChangeDate, onSignOut, onStartShift, onEndShift, transition, darkMode, onToggleDarkMode }: {
   dashboard: UberDashboard; preview: boolean;
   onSaveTodayEarnings: (previewPence: number) => Promise<UberDashboard>;
   onSaveMileage: (milesTenths: number) => Promise<UberDashboard>;
@@ -19,10 +18,8 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   onLoadHistory: () => Promise<WeeklySummary[]>;
   onChangeDate?: (date: string | null) => void;
   onSignOut?: () => Promise<void>;
-  onStartSession: () => Promise<UberDashboard>;
-  onPauseSession: () => Promise<UberDashboard>;
-  onResumeSession: () => Promise<UberDashboard>;
-  onEndSession: () => Promise<UberDashboard>;
+  onStartShift: (startEarnings: number) => Promise<UberDashboard>;
+  onEndShift: (shiftId: string, endEarnings: number) => Promise<UberDashboard>;
   transition: EarningsTransition | null;
   darkMode?: boolean;
   onToggleDarkMode?: () => void;
@@ -66,25 +63,36 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
     const cycleTimer = window.setTimeout(() => setFlash(false), 1_100);
     return () => { window.clearTimeout(cycleTimer); };
   }, [transition]);
-  // Derived session info
-  const sessionActive = dashboard.session?.status === "active";
-  const sessionPaused = dashboard.session?.status === "paused";
-  const sessionCompleted = dashboard.session?.status === "completed";
-  
-  // Calculate display seconds live if active
-  const [liveSeconds, setLiveSeconds] = useState(dashboard.session?.activeSeconds ?? 0);
-  
+    const activeShift = dashboard.shifts?.find(s => s.status === 'active');
+  const [showStartPrompt, setShowStartPrompt] = useState(false);
+
   useEffect(() => {
-    if (!dashboard.session) return;
-    setLiveSeconds(dashboard.session.activeSeconds);
-    if (dashboard.session.status === "active") {
+    if (!activeShift) {
+      const timer = window.setTimeout(() => setShowStartPrompt(true), 5 * 60 * 1000);
+      return () => window.clearTimeout(timer);
+    } else {
+      setShowStartPrompt(false);
+    }
+  }, [activeShift]);
+
+  const [liveSeconds, setLiveSeconds] = useState(0);
+  useEffect(() => {
+    if (activeShift && activeShift.startTimestamp) {
+      const startMs = new Date(activeShift.startTimestamp).getTime();
+      setLiveSeconds(Math.floor((Date.now() - startMs) / 1000));
       const timer = window.setInterval(() => {
-        const elapsed = Math.floor((new Date().getTime() - new Date(dashboard.session!.lastResumedAt).getTime()) / 1000);
-        setLiveSeconds(dashboard.session!.activeSeconds + elapsed);
+        setLiveSeconds(Math.floor((Date.now() - startMs) / 1000));
       }, 1000);
       return () => window.clearInterval(timer);
+    } else {
+      setLiveSeconds(0);
     }
-  }, [dashboard.session]);
+  }, [activeShift]);
+
+  const shiftEarnings = activeShift ? dashboard.todayEarningsPence - activeShift.startEarningsPence : 0;
+  const shiftPph = liveSeconds > 0 ? Math.floor(shiftEarnings / (liveSeconds / 3600)) : 0;
+  const pphPercent = Math.min(100, Math.floor((shiftPph / 3000) * 100)); // £30/hr is 100%
+  const pphColor = shiftPph >= 2000 ? "#10b981" : (shiftPph >= 1500 ? "#eab308" : "#ef4444");
 
   const hrs = Math.floor(liveSeconds / 3600);
   const mins = Math.floor((liveSeconds % 3600) / 60);
@@ -147,6 +155,14 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   const goldText = darkMode ? "#eab308" : "#d97706";
 
   return <>
+    
+      {showStartPrompt && !activeShift && modal === "closed" && (
+        <div style={{ position: 'absolute', inset: 16, background: darkMode ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.95)', borderRadius: '16px', zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', border: `1px solid ${trackBorder}`, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+          <div style={{ fontSize: '20px', fontWeight: 900, color: primaryText, textAlign: 'center' }}>ARE YOU WORKING?<br/><span style={{ color: goldText, fontSize: '16px' }}>SHIFT STARTED?</span></div>
+          <button onClick={() => { setShowStartPrompt(false); onStartShift(dashboard.todayEarningsPence); }} style={{ padding: '12px 24px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', fontSize: '16px', fontWeight: 800, width: '80%' }}>START SHIFT</button>
+          <button onClick={() => setShowStartPrompt(false)} style={{ padding: '12px 24px', background: 'transparent', color: darkMode ? '#94a3b8' : '#64748b', borderRadius: '8px', border: `1px solid ${trackBorder}`, fontSize: '14px', fontWeight: 700, width: '80%' }}>NO - NOT WORKING</button>
+        </div>
+      )}
     <footer className="uber-session-footer" style={{ height: 'auto', padding: '12px 16px', flexDirection: 'column', alignItems: 'stretch' }}>
         <div className="session-progress" style={{ borderRight: 'none', padding: 0, flexDirection: 'column', height: 'auto', gap: '8px', background: 'transparent', cursor: 'default' }}>
         
@@ -166,7 +182,20 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
           <div className="session-progress-fill" style={{ height: '100%', width: `${percent}%`, background: barColor, borderRadius: '6px', transition: 'width 0.3s ease', padding: 0 }} />
         </div>
 
+        
+        {/* PPH ROW */}
+        {activeShift && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: darkMode ? '#94a3b8' : '#64748b', width: '40px' }}>£/HR</span>
+            <div style={{ height: '8px', borderRadius: '4px', border: `1px solid ${trackBorder}`, flex: 1, background: trackBg, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pphPercent}%`, background: pphColor, transition: 'width 0.3s ease' }} />
+            </div>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: pphColor, width: '30px', textAlign: 'right' }}>£{Math.floor(shiftPph / 100)}</span>
+          </div>
+        )}
+
         {/* BOTTOM ROW */}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '2px' }}>
           <span style={{ fontSize: '15px', fontWeight: 700, color: darkMode ? '#cbd5e1' : '#475569' }}>
               {Math.floor(dashboard.todayEarningsPence / 100)}
@@ -224,8 +253,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
           />
         </div>
       </footer>
-    <MilestoneCelebration transition={activeTransition} onComplete={() => setActiveTransition(null)} />
-    {modal !== "closed" && <div className="uber-modal-backdrop" role="presentation" onMouseDown={() => setModal("closed")}>
+        {modal !== "closed" && <div className="uber-modal-backdrop" role="presentation" onMouseDown={() => setModal("closed")}>
       <section className="uber-modal" role="dialog" aria-modal="true" aria-label="Uber earnings dashboard" onMouseDown={(event) => event.stopPropagation()}>
         {modal === "dashboard" && <TeslaUberDashboard dashboard={dashboard} preview={preview} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onClose={() => {setModal("closed"); onChangeDate?.(null);}} onUpdate={() => {setReturnTo("dashboard"); setModal("editor");}} onMileage={() => {setReturnTo("dashboard"); setModal("mileage");}} onPlan={() => setModal("plan")} onUpdateHistoricalDay={(date) => {onChangeDate?.(date);}} {...(onChangeDate ? {onChangeDate} : {})} />}
         {modal === "editor" && <DailyEarningsPanel darkMode={darkMode} key={dashboard.today} dashboard={dashboard} onCancel={() => setModal(returnTo === "history" ? "history" : (returnTo === "closed" ? "closed" : "dashboard"))} onSave={async (previewPence) => { await onSaveTodayEarnings(previewPence); setModal("closed"); if (returnTo === "closed") onChangeDate?.(null); }} />}

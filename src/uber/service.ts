@@ -1,11 +1,11 @@
 import { deriveDashboardDays, deriveWeeklySummary, calculateWeeklyForecast } from "./calculations.js";
 import { londonToday, weekStartForDate } from "./calendar.js";
 import type { UberRepository } from "./repository.js";
-import { FIXED_WEEKLY_TARGET_PENCE, type LocalDate, type UberDashboard, type WeeklySummary, type WorkWeight, type WeekPlanDay, type DayRecord, type UberSession } from "./types.js";
+import { FIXED_WEEKLY_TARGET_PENCE, type LocalDate, type UberDashboard, type WeeklySummary, type WorkWeight, type WeekPlanDay, type DayRecord, type UberSession, type UberShift } from "./types.js";
 
 /** Read composition only; all writes stay in the approved repository RPCs. */
 export class UberWeekService {
-  constructor(private readonly repository: Pick<UberRepository, "getWeekPlan" | "getPlanDays" | "getDayRecordsForWeek" | "getDayRecord" | "saveDayRecord" | "createWeekPlan" | "updateWeeklyTarget" | "saveWeekWeights" | "getSession" | "getSessionsForWeek" | "startSession" | "pauseSession" | "resumeSession" | "endSession">) {}
+  constructor(private readonly repository: Pick<UberRepository, "getWeekPlan" | "getPlanDays" | "getDayRecordsForWeek" | "getDayRecord" | "saveDayRecord" | "createWeekPlan" | "updateWeeklyTarget" | "saveWeekWeights" | "getSession" | "getSessionsForWeek" | "startSession" | "pauseSession" | "resumeSession" | "endSession" | "getShiftsForWeek" | "startShift" | "endShift">) {}
 
   /** Only the current week is initialized or brought to the fixed V3 target. */
   async initializeCurrentWeek(today = londonToday()): Promise<void> {
@@ -58,6 +58,7 @@ export class UberWeekService {
     const summary = deriveWeeklySummary(plan, planDays, records);
     const days = deriveDashboardDays(plan, planDays, records);
     const sessions = await this.repository.getSessionsForWeek(weekStart);
+      const shifts = await this.repository.getShiftsForWeek(weekStart);
     const forecast = calculateWeeklyForecast(summary, planDays, records, today);
     const todayDay = days.find((day) => day.date === today);
     const todayRecord = records.find((record) => record.date === today);
@@ -74,7 +75,7 @@ export class UberWeekService {
       weeklyForecastPence: forecast.amount,
       provisionalForecast: forecast.provisional,
       forecastBand: forecast.band,
-      session: sessions.find(s => s.date === today) ?? null,
+      shifts: shifts.filter(s => s.date === today),
       days,
     };
   }
@@ -106,6 +107,17 @@ export class UberWeekService {
     if (existing?.status === "missed" && milesTenths === 0) return this.getDashboard(today);
     await this.repository.saveDayRecord(today, existing?.grossEarningsPence ?? 0, milesTenths, existing?.trips ?? 0,
       existing?.status === "missed" ? "completed" : existing?.status ?? "working");
+    return this.getDashboard(today);
+  }
+
+  
+  async startShift(today = londonToday(), startEarnings = 0): Promise<UberDashboard | null> {
+    await this.repository.startShift(today, startEarnings);
+    return this.getDashboard(today);
+  }
+
+  async endShift(shiftId: string, today = londonToday(), endEarnings = 0): Promise<UberDashboard | null> {
+    await this.repository.endShift(shiftId, endEarnings);
     return this.getDashboard(today);
   }
 

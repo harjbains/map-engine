@@ -12,5 +12,5 @@ export function dashboardPreview(): UberDashboard {
   const today = "2026-09-17" as const;
   const todayRecord = records.find((record) => record.date === today)!;
   const todayTargetPence = summary.dailyTargets.find((target) => target.date === today)!.targetPence;
-  return { today, summary, todayEarningsPence: todayRecord.grossEarningsPence, todayMilesTenths: todayRecord.businessMilesTenths, todayTargetPence, aheadBehindPence: todayRecord.grossEarningsPence - todayTargetPence, todayTrips: 5, weeklyForecastPence: 650_00, forecastBand: 'teal', session: null, days: deriveDashboardDays(plan, planDays, records) };
+  return { today, summary, todayEarningsPence: todayRecord.grossEarningsPence, todayMilesTenths: todayRecord.businessMilesTenths, todayTargetPence, aheadBehindPence: todayRecord.grossEarningsPence - todayTargetPence, todayTrips: 5, weeklyForecastPence: 650_00, forecastBand: 'teal', shifts: [], days: deriveDashboardDays(plan, planDays, records) };
 }
