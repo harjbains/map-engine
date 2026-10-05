@@ -89,24 +89,27 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   const hrs = Math.floor(liveSeconds / 3600);
   const mins = Math.floor((liveSeconds % 3600) / 60);
 
-  let currentMaxTarget = dashboard.todayTargetPence || 0;
-  let targetUnlocked = false;
-  if (currentMaxTarget > 0) {
-    while (dashboard.todayEarningsPence >= currentMaxTarget) {
-      currentMaxTarget += 2500;
-      targetUnlocked = true;
-    }
-  }
-
-  const remainingPence = Math.max(0, currentMaxTarget - dashboard.todayEarningsPence);
-  const isNearlyReached = currentMaxTarget > 0 && remainingPence <= 1000;
-  const barColor = targetUnlocked ? "#eab308" : "#3b82f6";
-  const percent = currentMaxTarget ? Math.min(100, Math.floor((dashboard.todayEarningsPence / currentMaxTarget) * 100)) : 0;
+  const dailyTargetPence = dashboard.todayTargetPence || 0;
+  const isTargetUnlocked = dailyTargetPence > 0 && dashboard.todayEarningsPence >= dailyTargetPence;
   
+  const blockIndex = Math.floor(dashboard.todayEarningsPence / 2500);
+  const blockTargetPence = (blockIndex + 1) * 2500;
+  
+  const blockProgressPence = dashboard.todayEarningsPence % 2500;
+  const percent = (blockProgressPence / 2500) * 100;
+  
+  const remainingToBlock = blockTargetPence - dashboard.todayEarningsPence;
+  const remainingToDaily = Math.max(0, dailyTargetPence - dashboard.todayEarningsPence);
+  const isNearlyReached = !isTargetUnlocked && remainingToDaily > 0 && remainingToDaily <= 1000;
+  
+  const barColor = isTargetUnlocked ? "#eab308" : "#3b82f6";
   const avgTripPence = dashboard.todayTrips > 0 ? (dashboard.todayEarningsPence / dashboard.todayTrips) : 450;
 
-  let topLeftText = targetUnlocked ? "BONUS TIME" : (isNearlyReached ? "ALMOST THERE" : "ON TRACK");
-  let topRightText = remainingPence > 0 ? `${Math.floor(remainingPence / 100)} TO NEXT MILESTONE` : "MILESTONE REACHED";
+  let topLeftText = isTargetUnlocked ? "BONUS TIME" : (isNearlyReached ? "ALMOST THERE" : "ON TRACK");
+  if (!isTargetUnlocked && dailyTargetPence > 0) {
+    topLeftText += ` · TARGET: £${Math.floor(dailyTargetPence / 100)}`;
+  }
+  let topRightText = `${Math.floor(remainingToBlock / 100)} TO NEXT BLOCK`;
 
   const hour = currentTime.getHours();
   if (showCompletion) {
@@ -135,8 +138,8 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
     topLeftText = msgs[hash % msgs.length];
     topRightText = "11:00 FINISH";
   }
-  const tripsLeft = remainingPence === 0 ? 0 : Math.max(1, Math.ceil(remainingPence / avgTripPence));
-  const visualStars = Math.min(tripsLeft, 7);
+  const squaresLeft = Math.ceil(remainingToBlock / 500);
+  const visualStars = Math.min(squaresLeft, 5);
 
     const primaryText = darkMode ? "#ffffff" : "#197a48";
   const trackBg = darkMode ? "#334155" : "#e0f2fe";
@@ -166,7 +169,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
             {Math.floor(dashboard.todayEarningsPence / 100)}
           </span>
           
-          {tripsLeft > 0 ? (
+          {squaresLeft > 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ display: 'flex', gap: '4px' }}>
                 {Array.from({ length: visualStars }).map((_, i) => (
@@ -176,7 +179,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
                 ))}
               </div>
               <span style={{ fontSize: '13px', fontWeight: 700, color: goldText }}>
-                {tripsLeft} left
+                {squaresLeft} left
               </span>
             </div>
           ) : (
@@ -184,7 +187,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
           )}
 
           <span style={{ fontSize: '18px', fontWeight: 800, color: primaryText }}>
-            {Math.floor(currentMaxTarget / 100)}
+            {Math.floor(blockTargetPence / 100)}
           </span>
         </div>
 
