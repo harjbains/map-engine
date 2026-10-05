@@ -3,6 +3,7 @@ import { TeslaUberDashboard, AnimatedProgressBar } from "../dashboard/Dashboard.
 import { DailyEarningsPanel } from "../dashboard/DailyEarningsPanel.js";
 import { MileagePanel } from "../dashboard/MileagePanel.js";
 import { WeeklyPlanPanel } from "../dashboard/WeeklyPlanPanel.js";
+import { ShiftHistoryPanel } from "../dashboard/ShiftHistoryPanel.js";
 
 import { gbpFromPence } from "../uber/money.js";
 import { uberProgressCycle } from "../uber/progress.js";
@@ -24,7 +25,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   darkMode?: boolean;
   onToggleDarkMode?: () => void;
 }) {
-  const [modal, setModal] = useState<"closed" | "dashboard" | "editor" | "mileage" | "plan" | "history" | "changelog">("closed");
+  const [modal, setModal] = useState<"closed" | "dashboard" | "editor" | "mileage" | "plan" | "history" | "changelog" | "shifts">("closed");
   const [returnTo, setReturnTo] = useState<"closed" | "history" | "dashboard">("closed");
   const [flash, setFlash] = useState(false);
   const [activeTransition, setActiveTransition] = useState<EarningsTransition | null>(null);
@@ -242,7 +243,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
       </footer>
         {modal !== "closed" && <div className="uber-modal-backdrop" role="presentation" onMouseDown={() => setModal("closed")}>
       <section className="uber-modal" role="dialog" aria-modal="true" aria-label="Uber earnings dashboard" onMouseDown={(event) => event.stopPropagation()}>
-        {modal === "dashboard" && <TeslaUberDashboard dashboard={dashboard} preview={preview} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onClose={() => {setModal("closed"); onChangeDate?.(null);}} onUpdate={() => {setReturnTo("dashboard"); setModal("editor");}} onMileage={() => {setReturnTo("dashboard"); setModal("mileage");}} onPlan={() => setModal("plan")} onUpdateHistoricalDay={(date) => {onChangeDate?.(date);}} {...(onChangeDate ? {onChangeDate} : {})} />}
+        {modal === "dashboard" && <TeslaUberDashboard dashboard={dashboard} preview={preview} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onClose={() => {setModal("closed"); onChangeDate?.(null);}} onUpdate={() => {setReturnTo("dashboard"); setModal("editor");}} onMileage={() => {setReturnTo("dashboard"); setModal("mileage");}} onPlan={() => setModal("plan")} onShifts={() => setModal("shifts")} onUpdateHistoricalDay={(date) => {onChangeDate?.(date);}} {...(onChangeDate ? {onChangeDate} : {})} />}
         {modal === "editor" && <DailyEarningsPanel darkMode={darkMode} key={dashboard.today} dashboard={dashboard} onCancel={() => setModal(returnTo === "history" ? "history" : (returnTo === "closed" ? "closed" : "dashboard"))} onSave={async (previewPence) => { await onSaveTodayEarnings(previewPence); setModal("closed"); if (returnTo === "closed") onChangeDate?.(null); }} />}
         {modal === "mileage" && <MileagePanel darkMode={darkMode} key={dashboard.today} dashboard={dashboard} onCancel={() => setModal(returnTo === "history" ? "history" : (returnTo === "closed" ? "closed" : "dashboard"))} onSave={async (miles) => { await onSaveMileage(miles); setModal("closed"); if (returnTo === "closed") onChangeDate?.(null); }} />}
         {modal === "plan" && <WeeklyPlanPanel dashboard={dashboard} onCancel={() => setModal("dashboard")} onSave={async (targetPence, weights) => { await onSavePlan(targetPence, weights); setModal("closed"); onChangeDate?.(null); }} />}

@@ -28,7 +28,7 @@ export function AnimatedProgressBar({ earningsPence, targetPence, forecastBand, 
   );
 }
 
-export function TeslaUberDashboard({ dashboard, preview = false, onClose, onUpdate, onMileage, onPlan, onUpdateHistoricalDay, onChangeDate, darkMode, onToggleDarkMode }: { dashboard: UberDashboard; preview?: boolean; onClose?: () => void; onUpdate?: () => void; onMileage?: () => void; onPlan?: () => void; onUpdateHistoricalDay?: (date: string) => void; onChangeDate?: (date: string | null) => void; darkMode?: boolean; onToggleDarkMode?: () => void; }) {
+export function TeslaUberDashboard({ dashboard, preview = false, onClose, onUpdate, onMileage, onPlan, onShifts, onUpdateHistoricalDay, onChangeDate, darkMode, onToggleDarkMode }: { dashboard: UberDashboard; preview?: boolean; onClose?: () => void; onUpdate?: () => void; onMileage?: () => void; onPlan?: () => void; onShifts?: () => void; onUpdateHistoricalDay?: (date: string) => void; onChangeDate?: (date: string | null) => void; darkMode?: boolean; onToggleDarkMode?: () => void; }) {
   const { summary } = dashboard;
   const progress = summary.weeklyTargetPence === 0 ? 0 : Math.min(100, Math.round((summary.weeklyEarningsPence / summary.weeklyTargetPence) * 100));
   const difference = dashboard.aheadBehindPence;
@@ -177,11 +177,14 @@ export function TeslaUberDashboard({ dashboard, preview = false, onClose, onUpda
         </article>)}
       </section>
 
+      
       <nav className="uber-dashboard-actions" aria-label="Uber actions">
         {onUpdate && <button type="button" onClick={onUpdate}>UPDATE EARNINGS</button>}
         {onMileage && <button type="button" onClick={onMileage}>BUSINESS MILES</button>}
         {onPlan && <button type="button" onClick={onPlan}>WEEKLY PLAN</button>}
+        {onShifts && <button type="button" onClick={onShifts}>SHIFT HISTORY</button>}
       </nav>
+
 
     </section>
   </main>;
