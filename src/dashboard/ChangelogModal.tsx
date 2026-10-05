@@ -6,12 +6,17 @@ export function ChangelogModal({ onClose }: { onClose: () => void }) {
       <header>
         <div>
           <small>MAP-ENGINE</small>
-          <h1>v3.1.2 Updates</h1>
-          <p>Light Mode, visual upgrades, and bug fixes</p>
+          <h1>v3.3.0 Updates</h1>
+          <p>Shift Tracking, UI refinements, and more</p>
         </div>
         <button type="button" aria-label="Close changelog" onClick={onClose}>×</button>
       </header>
       <div style={{ padding: "10px 0", display: "grid", gap: "10px", color: "#d9f5ff", lineHeight: 1.4 }}>
+        <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
+          <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>Shift Tracking</h3>
+          <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>You can now start and end multiple shifts in a day to track your true active £/hr. Check your shift history from the Dashboard!</p>
+        </article>
+
         <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
           <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>More UI Refinements</h3>
           <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>Close buttons are now beautifully unified. Light Mode day cards have improved contrast. Dashboard layout is more compact to fit the Tesla screen better. Mileage panel now features +20/-20 adjustment buttons.</p>
