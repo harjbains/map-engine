@@ -15,7 +15,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   dashboard: UberDashboard; preview: boolean;
   onSaveTodayEarnings: (previewPence: number) => Promise<UberDashboard>;
   onSaveMileage: (milesTenths: number) => Promise<UberDashboard>;
-  onSavePlan: (weights: Array<WorkWeight | null>) => Promise<UberDashboard>;
+  onSavePlan: (targetPence: number, weights: Array<WorkWeight | null>) => Promise<UberDashboard>;
   onLoadHistory: () => Promise<WeeklySummary[]>;
   onChangeDate?: (date: string | null) => void;
   onSignOut?: () => Promise<void>;
@@ -224,7 +224,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
         {modal === "dashboard" && <TeslaUberDashboard dashboard={dashboard} preview={preview} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onClose={() => {setModal("closed"); onChangeDate?.(null);}} onUpdate={() => {setReturnTo("dashboard"); setModal("editor");}} onMileage={() => {setReturnTo("dashboard"); setModal("mileage");}} onPlan={() => setModal("plan")} onUpdateHistoricalDay={(date) => {onChangeDate?.(date);}} {...(onChangeDate ? {onChangeDate} : {})} />}
         {modal === "editor" && <DailyEarningsPanel darkMode={darkMode} key={dashboard.today} dashboard={dashboard} onCancel={() => setModal(returnTo === "history" ? "history" : (returnTo === "closed" ? "closed" : "dashboard"))} onSave={async (previewPence) => { await onSaveTodayEarnings(previewPence); setModal("closed"); if (returnTo === "closed") onChangeDate?.(null); }} />}
         {modal === "mileage" && <MileagePanel darkMode={darkMode} key={dashboard.today} dashboard={dashboard} onCancel={() => setModal(returnTo === "history" ? "history" : (returnTo === "closed" ? "closed" : "dashboard"))} onSave={async (miles) => { await onSaveMileage(miles); setModal("closed"); if (returnTo === "closed") onChangeDate?.(null); }} />}
-        {modal === "plan" && <WeeklyPlanPanel dashboard={dashboard} onCancel={() => setModal("dashboard")} onSave={async (weights) => { await onSavePlan(weights); setModal("closed"); onChangeDate?.(null); }} />}
+        {modal === "plan" && <WeeklyPlanPanel dashboard={dashboard} onCancel={() => setModal("dashboard")} onSave={async (targetPence, weights) => { await onSavePlan(targetPence, weights); setModal("closed"); onChangeDate?.(null); }} />}
         
       </section>
     </div>}

@@ -38,7 +38,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   dashboard: UberDashboard | null; preview: boolean;
   onSaveTodayEarnings: (previewPence: number) => Promise<UberDashboard>;
   onSaveMileage: (milesTenths: number) => Promise<UberDashboard>;
-  onSavePlan: (weights: Array<WorkWeight | null>) => Promise<UberDashboard>;
+  onSavePlan: (targetPence: number, weights: Array<WorkWeight | null>) => Promise<UberDashboard>;
   onLoadHistory: () => Promise<WeeklySummary[]>;
   onChangeDate?: (date: string | null) => void;
   onSignOut: () => Promise<void>;

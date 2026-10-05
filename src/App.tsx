@@ -63,8 +63,8 @@ export default function App() {
     return refreshed;
   }, [service, dashboard]);
 
-  const savePlan = useCallback(async (weights: Array<WorkWeight | null>) => {
-    const refreshed = await service.saveCurrentWeekWeights(weights, dashboard?.today);
+  const savePlan = useCallback(async (targetPence: number, weights: Array<WorkWeight | null>) => {
+    const refreshed = await service.saveCurrentWeekPlan(targetPence, weights, dashboard?.today);
     if (!refreshed) throw new Error("No current week plan exists");
     setDashboard(refreshed);
     return refreshed;
