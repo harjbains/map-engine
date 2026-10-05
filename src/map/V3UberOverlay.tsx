@@ -151,10 +151,10 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
         <div className="session-progress" style={{ borderRight: 'none', padding: 0, flexDirection: 'column', height: 'auto', gap: '8px', background: 'transparent', cursor: 'default' }}>
         
         {/* TOP ROW */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', width: '100%', fontSize: '11px', fontWeight: 800, color: goldText, letterSpacing: '0.5px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', width: '100%', fontSize: '11px', fontWeight: 800, color: goldText, letterSpacing: '0.5px' }}>
             <span style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>{topLeftText}</span>
             {dailyTargetPence > 0 && !isTargetUnlocked ? (
-              <span style={{ textAlign: 'center', color: darkMode ? '#94a3b8' : '#64748b' }}>
+              <span style={{ textAlign: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: '18px', fontWeight: 900 }}>
                 {Math.floor(dailyTargetPence / 100)}
               </span>
             ) : <span />}
@@ -168,9 +168,9 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
 
         {/* BOTTOM ROW */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '2px' }}>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: primaryText }}>
-            {Math.floor(dashboard.todayEarningsPence / 100)}
-          </span>
+          <span style={{ fontSize: '15px', fontWeight: 700, color: darkMode ? '#cbd5e1' : '#475569' }}>
+              {Math.floor(dashboard.todayEarningsPence / 100)}
+            </span>
           
           {squaresLeft > 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -189,9 +189,9 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#10b981' }}>TARGET MET</span>
           )}
 
-          <span style={{ fontSize: '24px', fontWeight: 800, color: primaryText }}>
-            {Math.floor(blockTargetPence / 100)}
-          </span>
+          <span style={{ fontSize: '15px', fontWeight: 700, color: darkMode ? '#cbd5e1' : '#475569' }}>
+              {Math.floor(blockTargetPence / 100)}
+            </span>
         </div>
 
       </div>
