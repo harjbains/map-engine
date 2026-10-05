@@ -225,32 +225,19 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
 
       </div>
         
-        {/* 3 Clickable Zones */}
+        {/* Clickable Zones & Shift Controls */}
         <div style={{ position: 'absolute', inset: 0, display: 'flex', zIndex: 10, borderRadius: '12px', overflow: 'hidden' }}>
-          <button 
-            type="button" 
-            onClick={() => { setReturnTo("closed"); setModal("dashboard"); }} 
-            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }}
-            aria-label="Open Dashboard"
-          />
-          <button 
-            type="button" 
-            onClick={() => { setReturnTo("closed"); setModal("editor"); }} 
-            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }}
-            aria-label="Update earnings"
-          />
-          <button 
-            type="button" 
-            onClick={() => setActiveTransition({ 
-              id: Date.now(), 
-              cycleCrossed: false, 
-              milestone: null, 
-              oldSquares: Math.floor(dashboard.todayEarningsPence / 500), 
-              newSquares: Math.floor(dashboard.todayEarningsPence / 500) 
-            })} 
-            style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }}
-            aria-label="Display tiles"
-          />
+          <button type="button" onClick={() => { setReturnTo("closed"); setModal("dashboard"); }} style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }} />
+          <button type="button" onClick={() => { setReturnTo("closed"); setModal("editor"); }} style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }} />
+        </div>
+        
+        {/* Shift Buttons */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px', zIndex: 20, position: 'relative' }}>
+          {!activeShift ? (
+            <button onClick={() => onStartShift(dashboard.todayEarningsPence)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, width: '100%', cursor: 'pointer' }}>START SHIFT</button>
+          ) : (
+            <button onClick={() => onEndShift(activeShift.id, dashboard.todayEarningsPence)} style={{ background: 'transparent', color: darkMode ? '#ef4444' : '#dc2626', border: `1px solid ${darkMode ? '#ef4444' : '#dc2626'}`, padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, width: '100%', cursor: 'pointer' }}>END SHIFT</button>
+          )}
         </div>
       </footer>
         {modal !== "closed" && <div className="uber-modal-backdrop" role="presentation" onMouseDown={() => setModal("closed")}>
