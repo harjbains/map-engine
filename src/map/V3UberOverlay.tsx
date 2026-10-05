@@ -106,9 +106,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   const avgTripPence = dashboard.todayTrips > 0 ? (dashboard.todayEarningsPence / dashboard.todayTrips) : 450;
 
   let topLeftText = isTargetUnlocked ? "BONUS TIME" : (isNearlyReached ? "ALMOST THERE" : "ON TRACK");
-  if (!isTargetUnlocked && dailyTargetPence > 0) {
-    topLeftText += ` · TARGET: £${Math.floor(dailyTargetPence / 100)}`;
-  }
+  
   let topRightText = `${Math.floor(remainingToBlock / 100)} TO NEXT BLOCK`;
 
   const hour = currentTime.getHours();
@@ -153,10 +151,15 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
         <div className="session-progress" style={{ borderRight: 'none', padding: 0, flexDirection: 'column', height: 'auto', gap: '8px', background: 'transparent', cursor: 'default' }}>
         
         {/* TOP ROW */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '11px', fontWeight: 800, color: goldText, letterSpacing: '0.5px' }}>
-          <span>{topLeftText}</span>
-            <span>{topRightText}</span>
-        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', width: '100%', fontSize: '11px', fontWeight: 800, color: goldText, letterSpacing: '0.5px' }}>
+            <span style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>{topLeftText}</span>
+            {dailyTargetPence > 0 && !isTargetUnlocked ? (
+              <span style={{ textAlign: 'center', color: darkMode ? '#94a3b8' : '#64748b' }}>
+                {Math.floor(dailyTargetPence / 100)}
+              </span>
+            ) : <span />}
+            <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{topRightText}</span>
+          </div>
 
         {/* PROGRESS BAR ROW */}
         <div className="session-progress-track" style={{ height: '12px', borderRadius: '6px', border: `1px solid ${trackBorder}`, width: '100%', background: trackBg, flex: 'none', overflow: 'hidden' }}>
