@@ -184,43 +184,22 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
         </div>
 
         
-        {/* PPH ROW */}
-        {activeShift && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, color: darkMode ? '#94a3b8' : '#64748b', width: '40px' }}>£/HR</span>
-            <div style={{ height: '8px', borderRadius: '4px', border: `1px solid ${trackBorder}`, flex: 1, background: trackBg, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pphPercent}%`, background: pphColor, transition: 'width 0.3s ease' }} />
-            </div>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: pphColor, width: '30px', textAlign: 'right' }}>£{Math.floor(shiftPph / 100)}</span>
-          </div>
-        )}
-
         {/* BOTTOM ROW */}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '2px' }}>
-          <span style={{ fontSize: '15px', fontWeight: 700, color: darkMode ? '#cbd5e1' : '#475569' }}>
+          <span style={{ fontSize: '18px', fontWeight: 800, color: darkMode ? '#cbd5e1' : '#475569' }}>
               {Math.floor(dashboard.todayEarningsPence / 100)}
             </span>
           
-          {squaresLeft > 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                {Array.from({ length: visualStars }).map((_, i) => (
-                  <div key={i} style={{ width: '22px', height: '22px', borderRadius: '6px', background: starBoxBg, border: `1px solid ${starBoxBorder}`, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <svg viewBox="0 0 24 24" fill={goldText} width="12" height="12"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                  </div>
-                ))}
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: goldText }}>
-                {squaresLeft} left
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+              <span style={{ fontSize: '20px', fontWeight: 900, color: activeShift ? pphColor : (darkMode ? '#64748b' : '#94a3b8') }}>
+                {activeShift ? Math.floor(shiftPph / 100) : '-'}
               </span>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: darkMode ? '#64748b' : '#94a3b8' }}>/HR</span>
             </div>
-          ) : (
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#10b981' }}>TARGET MET</span>
-          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', zIndex: 30, position: 'relative' }}>
-              <span style={{ fontSize: '15px', fontWeight: 700, color: darkMode ? '#cbd5e1' : '#475569' }}>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: darkMode ? '#cbd5e1' : '#475569' }}>
                 {Math.floor(blockTargetPence / 100)}
               </span>
               {!activeShift ? (
@@ -228,11 +207,11 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
               ) : (
                 <button onClick={() => onEndShift(activeShift.id, dashboard.todayEarningsPence)} style={{ background: 'transparent', color: darkMode ? '#ef4444' : '#dc2626', border: `1px solid ${darkMode ? '#ef4444' : '#dc2626'}`, padding: '5px 11px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>END SHIFT</button>
               )}
-            </div>
+          </div>
         </div>
 
-      </div>
-        
+        </div>
+          
         {/* Clickable Zones & Shift Controls */}
         <div style={{ position: 'absolute', inset: 0, display: 'flex', zIndex: 10, borderRadius: '12px', overflow: 'hidden' }}>
           <button type="button" onClick={() => { setReturnTo("closed"); setModal("dashboard"); }} style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }} />
