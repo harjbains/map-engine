@@ -219,9 +219,16 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#10b981' }}>TARGET MET</span>
           )}
 
-          <span style={{ fontSize: '15px', fontWeight: 700, color: darkMode ? '#cbd5e1' : '#475569' }}>
-              {Math.floor(blockTargetPence / 100)}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', zIndex: 30, position: 'relative' }}>
+              <span style={{ fontSize: '15px', fontWeight: 700, color: darkMode ? '#cbd5e1' : '#475569' }}>
+                {Math.floor(blockTargetPence / 100)}
+              </span>
+              {!activeShift ? (
+                <button onClick={() => onStartShift(dashboard.todayEarningsPence)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>START SHIFT</button>
+              ) : (
+                <button onClick={() => onEndShift(activeShift.id, dashboard.todayEarningsPence)} style={{ background: 'transparent', color: darkMode ? '#ef4444' : '#dc2626', border: `1px solid ${darkMode ? '#ef4444' : '#dc2626'}`, padding: '5px 11px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>END SHIFT</button>
+              )}
+            </div>
         </div>
 
       </div>
@@ -232,15 +239,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
           <button type="button" onClick={() => { setReturnTo("closed"); setModal("editor"); }} style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }} />
         </div>
         
-        {/* Shift Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px', zIndex: 20, position: 'relative' }}>
-          {!activeShift ? (
-            <button onClick={() => onStartShift(dashboard.todayEarningsPence)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, width: '100%', cursor: 'pointer' }}>START SHIFT</button>
-          ) : (
-            <button onClick={() => onEndShift(activeShift.id, dashboard.todayEarningsPence)} style={{ background: 'transparent', color: darkMode ? '#ef4444' : '#dc2626', border: `1px solid ${darkMode ? '#ef4444' : '#dc2626'}`, padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 800, width: '100%', cursor: 'pointer' }}>END SHIFT</button>
-          )}
-        </div>
-      </footer>
+        </footer>
         {modal !== "closed" && <div className="uber-modal-backdrop" role="presentation" onMouseDown={() => setModal("closed")}>
       <section className="uber-modal" role="dialog" aria-modal="true" aria-label="Uber earnings dashboard" onMouseDown={(event) => event.stopPropagation()}>
         {modal === "dashboard" && <TeslaUberDashboard dashboard={dashboard} preview={preview} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onClose={() => {setModal("closed"); onChangeDate?.(null);}} onUpdate={() => {setReturnTo("dashboard"); setModal("editor");}} onMileage={() => {setReturnTo("dashboard"); setModal("mileage");}} onPlan={() => setModal("plan")} onShifts={() => setModal("shifts")} onUpdateHistoricalDay={(date) => {onChangeDate?.(date);}} {...(onChangeDate ? {onChangeDate} : {})} />}

@@ -41,7 +41,7 @@ export function WeeklyPlanPanel({ dashboard, onCancel, onSave }: { dashboard: Ub
   };
 
   return <section className="uber-panel" aria-label="Weekly plan">
-    <header><div><small>MAP-ENGINE V3.3.1</small><h1>Weekly Plan</h1><p>Edit your weekly target and tap a day to cycle intensity</p></div><button type="button" aria-label="Close weekly plan" onClick={onCancel}>✕</button></header>
+    <header><div><small>MAP-ENGINE V3.3.2</small><h1>Weekly Plan</h1><p>Edit your weekly target and tap a day to cycle intensity</p></div><button type="button" aria-label="Close weekly plan" onClick={onCancel}>✕</button></header>
     
     <div style={{ padding: "16px", background: "rgba(0,0,0,0.2)", borderRadius: "8px", margin: "10px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <label htmlFor="target-input" style={{ fontWeight: 800, fontSize: "0.9rem", color: "#aee5f9" }}>WEEKLY TARGET (£)</label>
