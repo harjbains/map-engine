@@ -6,7 +6,7 @@ export function ChangelogModal({ onClose }: { onClose: () => void }) {
       <header>
         <div>
           <small>MAP-ENGINE</small>
-          <h1>v3.3.3 Updates</h1>
+          <h1>v3.3.4 Updates</h1>
           <p>Shift Tracking, UI refinements, and more</p>
         </div>
         <button type="button" aria-label="Close changelog" onClick={onClose}>×</button>

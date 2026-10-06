@@ -43,13 +43,13 @@ export function TeslaUberDashboard({ dashboard, preview = false, onClose, onUpda
           <div style={{ display: "flex", alignItems: "center" }}>
             <span style={{display:"flex",gap:"10px",alignItems:"center"}}>
               <button type="button" style={{background:"none",border:"none",color:"#53cfff",fontSize:"1.2rem",cursor:"pointer"}} onClick={() => {
-                const d = new Date(dashboard.today + "T12:00:00Z");
+                const d = new Date(dashboard.summary.weekStart + "T12:00:00Z");
                 d.setUTCDate(d.getUTCDate() - 7);
                 onChangeDate?.(d.toISOString().slice(0,10));
               }}>◀</button>
               Week {isoWeek(dashboard.today)}
               <button type="button" style={{background:"none",border:"none",color:"#53cfff",fontSize:"1.2rem",cursor:"pointer"}} onClick={() => {
-                const d = new Date(dashboard.today + "T12:00:00Z");
+                const d = new Date(dashboard.summary.weekStart + "T12:00:00Z");
                 d.setUTCDate(d.getUTCDate() + 7);
                 onChangeDate?.(d.toISOString().slice(0,10));
               }}>▶</button>
