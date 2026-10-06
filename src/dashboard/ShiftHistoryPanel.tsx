@@ -38,7 +38,7 @@ export function ShiftHistoryPanel({ dashboard, darkMode, onClose }: { dashboard:
             return (
               <div key={shift.id} style={{ padding: '16px', borderRadius: '12px', border: `1px solid ${borderCol}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '18px' }}>
-                  <span>{formatTime(shift.startTimestamp)} – {formatTime(shift.endTimestamp)}</span>
+                  <span>{formatTime(shift.startTimestamp)} - {formatTime(shift.endTimestamp)}</span>
                   <span style={{ color: '#10b981' }}>£{(shiftEarnings / 100).toFixed(2)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: textSecondary, fontSize: '14px', fontWeight: 600 }}>

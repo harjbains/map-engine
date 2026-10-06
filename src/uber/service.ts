@@ -75,7 +75,7 @@ export class UberWeekService {
       weeklyForecastPence: forecast.amount,
       provisionalForecast: forecast.provisional,
       forecastBand: forecast.band,
-      shifts: shifts.filter(s => s.date === today),
+      shifts, // Return all shifts for the week so history panel can see them
       days,
     };
   }
