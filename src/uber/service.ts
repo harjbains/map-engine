@@ -5,7 +5,7 @@ import { FIXED_WEEKLY_TARGET_PENCE, type LocalDate, type UberDashboard, type Wee
 
 /** Read composition only; all writes stay in the approved repository RPCs. */
 export class UberWeekService {
-  constructor(private readonly repository: Pick<UberRepository, "getWeekPlan" | "getPlanDays" | "getDayRecordsForWeek" | "getDayRecord" | "saveDayRecord" | "createWeekPlan" | "updateWeeklyTarget" | "saveWeekWeights" | "getSession" | "getSessionsForWeek" | "startSession" | "pauseSession" | "resumeSession" | "endSession" | "getShiftsForWeek" | "startShift" | "endShift">) {}
+  constructor(private readonly repository: Pick<UberRepository, "getWeekPlan" | "getPlanDays" | "getDayRecordsForWeek" | "getDayRecord" | "saveDayRecord" | "createWeekPlan" | "updateWeeklyTarget" | "saveWeekWeights" | "getSession" | "getSessionsForWeek" | "startSession" | "pauseSession" | "resumeSession" | "endSession" | "getShiftsForWeek" | "startShift" | "endShift" | "updateShift" | "deleteShift">) {}
 
   /** Only the current week is initialized or brought to the fixed V3 target. */
   async initializeCurrentWeek(today = londonToday()): Promise<void> {
@@ -118,6 +118,17 @@ export class UberWeekService {
 
   async endShift(shiftId: string, today = londonToday(), endEarnings = 0): Promise<UberDashboard | null> {
     await this.repository.endShift(shiftId, endEarnings);
+    return this.getDashboard(today);
+  }
+
+  
+  async updateShift(shiftId: string, updates: { startTimestamp?: string, endTimestamp?: string, startEarningsPence?: number, endEarningsPence?: number }, today = londonToday()): Promise<UberDashboard | null> {
+    await this.repository.updateShift(shiftId, updates);
+    return this.getDashboard(today);
+  }
+
+  async deleteShift(shiftId: string, today = londonToday()): Promise<UberDashboard | null> {
+    await this.repository.deleteShift(shiftId);
     return this.getDashboard(today);
   }
 

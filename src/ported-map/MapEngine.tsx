@@ -34,7 +34,7 @@ import { styleJsonUrl } from "./lib/mapbox-client";
 import { mapResourceUrl } from "./lib/map-resource-url";
 const ROAD_LAYERS = ["road-motorway", "road-a", "road-b", "road-local"];
 const MAX_ACCEPTED_ACCURACY_METRES = 160;
-export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onSaveMileage, onSavePlan, onLoadHistory, onChangeDate, onSignOut, onStartShift, onEndShift, transition }: {
+export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onSaveMileage, onSavePlan, onLoadHistory, onChangeDate, onSignOut, onStartShift, onEndShift, onUpdateShift, onDeleteShift, transition }: {
   dashboard: UberDashboard | null; preview: boolean;
   onSaveTodayEarnings: (previewPence: number) => Promise<UberDashboard>;
   onSaveMileage: (milesTenths: number) => Promise<UberDashboard>;
@@ -44,6 +44,8 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   onSignOut: () => Promise<void>;
   onStartShift: (startEarnings: number) => Promise<UberDashboard>;
   onEndShift: (shiftId: string, endEarnings: number) => Promise<UberDashboard>;
+  onUpdateShift?: (shiftId: string, updates: any) => Promise<UberDashboard>;
+  onDeleteShift?: (shiftId: string) => Promise<UberDashboard>;
   transition: EarningsTransition | null;
 }) {
   const lastPositionTimestampRef = useRef<number>(0);
@@ -1095,7 +1097,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
 
       {pickupNotice && <div className="pickup-notice" role="status">{pickupNotice}</div>}
 
-      {dashboard && <V3UberOverlay dashboard={dashboard} preview={preview} onSaveTodayEarnings={onSaveTodayEarnings} onSaveMileage={onSaveMileage} onSavePlan={onSavePlan} onLoadHistory={onLoadHistory} onChangeDate={onChangeDate} onSignOut={onSignOut} onStartShift={onStartShift} onEndShift={onEndShift} transition={transition} darkMode={settings.darkMode} onToggleDarkMode={() => updateSettings({ darkMode: !settings.darkMode })} />}
+      {dashboard && <V3UberOverlay dashboard={dashboard} preview={preview} onSaveTodayEarnings={onSaveTodayEarnings} onSaveMileage={onSaveMileage} onSavePlan={onSavePlan} onLoadHistory={onLoadHistory} onChangeDate={onChangeDate} onSignOut={onSignOut} onStartShift={onStartShift} onEndShift={onEndShift} onUpdateShift={onUpdateShift} onDeleteShift={onDeleteShift} transition={transition} darkMode={settings.darkMode} onToggleDarkMode={() => updateSettings({ darkMode: !settings.darkMode })} />}
 
       {<PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 

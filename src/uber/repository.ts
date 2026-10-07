@@ -128,6 +128,24 @@ export class UberRepository {
     return shiftFromRow(result.data);
   }
 
+  
+  async updateShift(shiftId: string, updates: { startTimestamp?: string, endTimestamp?: string, startEarningsPence?: number, endEarningsPence?: number }): Promise<any> {
+    const patch: any = {};
+    if (updates.startTimestamp !== undefined) patch.start_timestamp = updates.startTimestamp;
+    if (updates.endTimestamp !== undefined) patch.end_timestamp = updates.endTimestamp;
+    if (updates.startEarningsPence !== undefined) patch.start_earnings_pence = updates.startEarningsPence;
+    if (updates.endEarningsPence !== undefined) patch.end_earnings_pence = updates.endEarningsPence;
+    
+    const result = await this.client.from("uber_shifts").update(patch).eq("id", shiftId).select().single();
+    if (result.error) throw new Error(result.error.message);
+    return result.data;
+  }
+
+  async deleteShift(shiftId: string): Promise<void> {
+    const result = await this.client.from("uber_shifts").delete().eq("id", shiftId);
+    if (result.error) throw new Error(result.error.message);
+  }
+
   async startSession(date: LocalDate): Promise<UberSession> {
     const result = await this.client.rpc("start_uber_session", { p_date: date });
     return sessionFromRow(throwOnError(result));

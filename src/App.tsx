@@ -75,6 +75,21 @@ export default function App() {
   }, [service, dashboard]);
 
   
+  
+  const updateShift = useCallback(async (shiftId: string, updates: { startTimestamp?: string, endTimestamp?: string, startEarningsPence?: number, endEarningsPence?: number }) => {
+    const refreshed = await service.updateShift(shiftId, updates, dashboard?.today);
+    if (!refreshed) throw new Error("No current week plan exists");
+    setDashboard(refreshed);
+    return refreshed;
+  }, [service, dashboard]);
+
+  const deleteShift = useCallback(async (shiftId: string) => {
+    const refreshed = await service.deleteShift(shiftId, dashboard?.today);
+    if (!refreshed) throw new Error("No current week plan exists");
+    setDashboard(refreshed);
+    return refreshed;
+  }, [service, dashboard]);
+
   const startShift = useCallback(async (startEarnings: number) => {
     const refreshed = await service.startShift(dashboard?.today, startEarnings);
     if (!refreshed) throw new Error("No current week plan exists");
@@ -107,7 +122,7 @@ export default function App() {
         onLoadHistory={loadHistory}
         onChangeDate={setViewDate}
         onSignOut={async () => { await supabaseClient.auth.signOut(); }}
-        onStartShift={startShift} onEndShift={endShift}
+        onStartShift={startShift} onEndShift={endShift} onUpdateShift={updateShift} onDeleteShift={deleteShift}
         transition={transition}
       />
       {session === false && <UberAuthPanel client={supabaseClient} />}

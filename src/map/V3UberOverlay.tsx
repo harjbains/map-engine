@@ -11,7 +11,7 @@ import type { UberDashboard, WeeklySummary, WorkWeight, UberShift } from "../ube
 import type { EarningsTransition, EarningsMilestone } from "../uber/milestones.js";
 import "./v3-uber-overlay.css";
 
-export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveMileage, onSavePlan, onLoadHistory, onChangeDate, onSignOut, onStartShift, onEndShift, transition, darkMode, onToggleDarkMode }: {
+export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveMileage, onSavePlan, onLoadHistory, onChangeDate, onSignOut, onStartShift, onEndShift, onUpdateShift, onDeleteShift, transition, darkMode, onToggleDarkMode }: {
   dashboard: UberDashboard; preview: boolean;
   onSaveTodayEarnings: (previewPence: number) => Promise<UberDashboard>;
   onSaveMileage: (milesTenths: number) => Promise<UberDashboard>;
@@ -21,6 +21,8 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
   onSignOut?: () => Promise<void>;
   onStartShift: (startEarnings: number) => Promise<UberDashboard>;
   onEndShift: (shiftId: string, endEarnings: number) => Promise<UberDashboard>;
+  onUpdateShift?: (shiftId: string, updates: any) => Promise<UberDashboard>;
+  onDeleteShift?: (shiftId: string) => Promise<UberDashboard>;
   transition: EarningsTransition | null;
   darkMode?: boolean;
   onToggleDarkMode?: () => void;
@@ -164,8 +166,8 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
           <button onClick={() => setShowStartPrompt(false)} style={{ padding: '12px 24px', background: 'transparent', color: darkMode ? '#94a3b8' : '#64748b', borderRadius: '8px', border: `1px solid ${trackBorder}`, fontSize: '14px', fontWeight: 700, width: '80%' }}>NO - NOT WORKING</button>
         </div>
       )}
-    <footer className="uber-session-footer" style={{ height: 'auto', padding: '12px 16px', flexDirection: 'column', alignItems: 'stretch' }}>
-        <div className="session-progress" style={{ borderRight: 'none', padding: 0, flexDirection: 'column', height: 'auto', gap: '8px', background: 'transparent', cursor: 'default' }}>
+    <footer className="uber-session-footer" style={{ height: 'auto', padding: '6px 12px', flexDirection: 'column', alignItems: 'stretch' }}>
+        <div className="session-progress" style={{ borderRight: 'none', padding: 0, flexDirection: 'column', height: 'auto', gap: '4px', background: 'transparent', cursor: 'default' }}>
         
         {/* TOP ROW */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', width: '100%', fontSize: '11px', fontWeight: 800, color: goldText, letterSpacing: '0.5px' }}>
@@ -179,40 +181,39 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
           </div>
 
         {/* PROGRESS BAR ROW */}
-        <div className="session-progress-track" style={{ height: '12px', borderRadius: '6px', border: `1px solid ${trackBorder}`, width: '100%', background: trackBg, flex: 'none', overflow: 'hidden' }}>
+        <div className="session-progress-track" style={{ height: '8px', borderRadius: '4px', border: `1px solid ${trackBorder}`, width: '100%', background: trackBg, flex: 'none', overflow: 'hidden' }}>
           <div className="session-progress-fill" style={{ height: '100%', width: `${percent}%`, background: barColor, borderRadius: '6px', transition: 'width 0.3s ease', padding: 0 }} />
         </div>
 
         
         {/* BOTTOM ROW */}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '2px' }}>
-          <span style={{ fontSize: '18px', fontWeight: 800, color: darkMode ? '#cbd5e1' : '#475569' }}>
-              {Math.floor(dashboard.todayEarningsPence / 100)}
-            </span>
-          
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-              <span style={{ fontSize: '20px', fontWeight: 900, color: activeShift ? pphColor : (darkMode ? '#64748b' : '#94a3b8') }}>
-                {activeShift ? Math.floor(shiftPph / 100) : '-'}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '0px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 800, color: darkMode ? '#cbd5e1' : '#475569' }}>
+                {Math.floor(dashboard.todayEarningsPence / 100)}
               </span>
-              <span style={{ fontSize: '12px', fontWeight: 800, color: darkMode ? '#64748b' : '#94a3b8' }}>/HR</span>
+            
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <span style={{ fontSize: '20px', fontWeight: 900, color: darkMode ? '#cbd5e1' : '#475569' }}>
+                  {activeShift ? Math.floor(shiftPph / 100) : '-'}
+                </span>
+              </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', zIndex: 30, position: 'relative' }}>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: darkMode ? '#cbd5e1' : '#475569' }}>
+                  {Math.floor(blockTargetPence / 100)}
+                </span>
+                {!activeShift ? (
+                  <button onClick={() => onStartShift(dashboard.todayEarningsPence)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>START</button>
+                ) : (
+                  <button onClick={() => onEndShift(activeShift.id, dashboard.todayEarningsPence)} style={{ background: 'transparent', color: darkMode ? '#ef4444' : '#dc2626', border: `1px solid ${darkMode ? '#ef4444' : '#dc2626'}`, padding: '3px 9px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>END</button>
+                )}
             </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', zIndex: 30, position: 'relative' }}>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: darkMode ? '#cbd5e1' : '#475569' }}>
-                {Math.floor(blockTargetPence / 100)}
-              </span>
-              {!activeShift ? (
-                <button onClick={() => onStartShift(dashboard.todayEarningsPence)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>START SHIFT</button>
-              ) : (
-                <button onClick={() => onEndShift(activeShift.id, dashboard.todayEarningsPence)} style={{ background: 'transparent', color: darkMode ? '#ef4444' : '#dc2626', border: `1px solid ${darkMode ? '#ef4444' : '#dc2626'}`, padding: '5px 11px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>END SHIFT</button>
-              )}
           </div>
-        </div>
 
-        </div>
-          
-        {/* Clickable Zones & Shift Controls */}
+          </div>
+            
+          {/* Clickable Zones & Shift Controls */}
         <div style={{ position: 'absolute', inset: 0, display: 'flex', zIndex: 10, borderRadius: '12px', overflow: 'hidden' }}>
           <button type="button" onClick={() => { setReturnTo("closed"); setModal("dashboard"); }} style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }} />
           <button type="button" onClick={() => { setReturnTo("closed"); setModal("editor"); }} style={{ flex: 1, background: 'transparent', border: 'none', cursor: 'pointer' }} />
@@ -224,7 +225,7 @@ export function V3UberOverlay({ dashboard, preview, onSaveTodayEarnings, onSaveM
         {modal === "dashboard" && <TeslaUberDashboard dashboard={dashboard} preview={preview} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onClose={() => {setModal("closed"); onChangeDate?.(null);}} onUpdate={() => {setReturnTo("dashboard"); setModal("editor");}} onMileage={() => {setReturnTo("dashboard"); setModal("mileage");}} onPlan={() => setModal("plan")} onShifts={() => setModal("shifts")} onUpdateHistoricalDay={(date) => {onChangeDate?.(date);}} {...(onChangeDate ? {onChangeDate} : {})} />}
         {modal === "editor" && <DailyEarningsPanel darkMode={darkMode} key={dashboard.today} dashboard={dashboard} onCancel={() => setModal(returnTo === "history" ? "history" : (returnTo === "closed" ? "closed" : "dashboard"))} onSave={async (previewPence) => { await onSaveTodayEarnings(previewPence); setModal("closed"); if (returnTo === "closed") onChangeDate?.(null); }} />}
         {modal === "mileage" && <MileagePanel darkMode={darkMode} key={dashboard.today} dashboard={dashboard} onCancel={() => setModal(returnTo === "history" ? "history" : (returnTo === "closed" ? "closed" : "dashboard"))} onSave={async (miles) => { await onSaveMileage(miles); setModal("closed"); if (returnTo === "closed") onChangeDate?.(null); }} />}
-        {modal === "shifts" && <ShiftHistoryPanel darkMode={darkMode} dashboard={dashboard} onClose={() => setModal("dashboard")} />}
+        {modal === "shifts" && <ShiftHistoryPanel darkMode={darkMode} dashboard={dashboard} onUpdateShift={onUpdateShift} onDeleteShift={onDeleteShift} onClose={() => setModal("dashboard")} />}
         {modal === "plan" && <WeeklyPlanPanel dashboard={dashboard} onCancel={() => setModal("dashboard")} onSave={async (targetPence, weights) => { await onSavePlan(targetPence, weights); setModal("closed"); onChangeDate?.(null); }} />}
         
       </section>
