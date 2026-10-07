@@ -87,7 +87,7 @@ export function ShiftHistoryPanel({ dashboard, darkMode, onClose, onUpdateShift,
             const isEditing = editingId === shift.id;
 
             return (
-              <div key={shift.id} style={{ padding: '16px', borderRadius: '12px', border: \`1px solid \${borderCol}\`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div key={shift.id} style={{ padding: '16px', borderRadius: '12px', border: `1px solid \${borderCol}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '18px' }}>
                   <span>{formatTime(shift.startTimestamp)} - {formatTime(shift.endTimestamp)}</span>
                   <span style={{ color: '#10b981' }}>£{(shiftEarnings / 100).toFixed(2)}</span>
@@ -98,15 +98,15 @@ export function ShiftHistoryPanel({ dashboard, darkMode, onClose, onUpdateShift,
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <div style={{ flex: 1 }}>
                         <label style={{ fontSize: '12px', color: textSecondary }}>Start Earnings (£)</label>
-                        <input type="number" step="0.01" value={startPence} onChange={e => setStartPence(e.target.value)} style={{ width: '100%', padding: '6px', borderRadius: '4px', border: \`1px solid \${borderCol}\`, background: 'transparent', color: textPrimary }} />
+                        <input type="number" step="0.01" value={startPence} onChange={e => setStartPence(e.target.value)} style={{ width: '100%', padding: '6px', borderRadius: '4px', border: `1px solid \${borderCol}`, background: 'transparent', color: textPrimary }} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <label style={{ fontSize: '12px', color: textSecondary }}>End Earnings (£)</label>
-                        <input type="number" step="0.01" value={endPence} onChange={e => setEndPence(e.target.value)} disabled={!shift.endTimestamp} style={{ width: '100%', padding: '6px', borderRadius: '4px', border: \`1px solid \${borderCol}\`, background: 'transparent', color: textPrimary, opacity: shift.endTimestamp ? 1 : 0.5 }} />
+                        <input type="number" step="0.01" value={endPence} onChange={e => setEndPence(e.target.value)} disabled={!shift.endTimestamp} style={{ width: '100%', padding: '6px', borderRadius: '4px', border: `1px solid \${borderCol}`, background: 'transparent', color: textPrimary, opacity: shift.endTimestamp ? 1 : 0.5 }} />
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
-                      <button onClick={() => setEditingId(null)} disabled={saving} style={{ padding: '4px 8px', background: 'transparent', border: \`1px solid \${borderCol}\`, color: textPrimary, borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                      <button onClick={() => setEditingId(null)} disabled={saving} style={{ padding: '4px 8px', background: 'transparent', border: `1px solid \${borderCol}`, color: textPrimary, borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
                       <button onClick={() => handleSave(shift)} disabled={saving} style={{ padding: '4px 8px', background: '#3b82f6', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>Save</button>
                     </div>
                   </div>
