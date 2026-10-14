@@ -1,11 +1,13 @@
 import type maplibregl from "maplibre-gl";
 import type { CalculatedRoute } from "../lib/routing";
-import { mapboxKey, trafficTileUrl } from "../lib/mapbox-client";
+import { tomTomKey, trafficTileUrl, trafficIncidentTileUrl } from "../lib/tomtom-client";
 
 const EMPTY_ROUTE_DATA = { type: "FeatureCollection", features: [] } as const;
-export const TRAFFIC_SOURCE = "mapbox-live-traffic";
-const TRAFFIC_LAYER = "mapbox-live-traffic-flow";
-const TRAFFIC_LAYERS = [TRAFFIC_LAYER];
+export const TRAFFIC_SOURCE = "tomtom-live-traffic";
+export const TRAFFIC_INCIDENTS_SOURCE = "tomtom-traffic-incidents";
+const TRAFFIC_FLOW_LAYER = "tomtom-live-traffic-flow";
+const TRAFFIC_INCIDENT_LAYER = "tomtom-traffic-incidents-flow";
+const TRAFFIC_LAYERS = [TRAFFIC_FLOW_LAYER, TRAFFIC_INCIDENT_LAYER];
 
 export function ensureTrafficLayer(map: maplibregl.Map) {
   addTrafficGeometry(map, false);
@@ -13,16 +15,28 @@ export function ensureTrafficLayer(map: maplibregl.Map) {
 
 function addTrafficGeometry(map: maplibregl.Map, visible: boolean) {
   if (!map.isStyleLoaded()) return;
-  if (!mapboxKey()) return;
+  if (!tomTomKey()) return;
   const visibility = visible ? "visible" : "none";
   
-  if (!map.getSource(TRAFFIC_SOURCE)) {
+  const tileUrl = trafficTileUrl();
+  if (tileUrl && !map.getSource(TRAFFIC_SOURCE)) {
     map.addSource(TRAFFIC_SOURCE, {
       type: "vector",
-      tiles: [trafficTileUrl()],
+      tiles: [tileUrl],
       minzoom: 5,
       maxzoom: 22,
-      attribution: "Traffic © Mapbox",
+      attribution: "Traffic © TomTom",
+    });
+  }
+
+  const incidentUrl = trafficIncidentTileUrl();
+  if (incidentUrl && !map.getSource(TRAFFIC_INCIDENTS_SOURCE)) {
+    map.addSource(TRAFFIC_INCIDENTS_SOURCE, {
+      type: "vector",
+      tiles: [incidentUrl],
+      minzoom: 5,
+      maxzoom: 22,
+      attribution: "Traffic © TomTom",
     });
   }
 
@@ -33,25 +47,50 @@ function addTrafficGeometry(map: maplibregl.Map, visible: boolean) {
         ? "road-name"
         : undefined;
 
-  if (!map.getLayer(TRAFFIC_LAYER)) {
+  if (map.getSource(TRAFFIC_SOURCE) && !map.getLayer(TRAFFIC_FLOW_LAYER)) {
     map.addLayer({
-      id: TRAFFIC_LAYER,
+      id: TRAFFIC_FLOW_LAYER,
       type: "line",
       source: TRAFFIC_SOURCE,
-      "source-layer": "traffic",
+      "source-layer": "Traffic flow",
       minzoom: 7,
       layout: { visibility, "line-cap": "round", "line-join": "round" },
       paint: {
         "line-color": [
-          "match",
-          ["get", "congestion"],
-          "severe", "#6b0f1c",
-          "heavy", "#e0242d",
-          "moderate", "#f2a513",
-          "rgba(0,0,0,0)" // low
+          "case",
+          ["==", ["get", "road_closure"], true],
+          "#6b0f1c", // severe (road closure)
+          [
+            "step",
+            ["get", "traffic_level"],
+            "#6b0f1c", // 0 to 0.35: severe
+            0.35,
+            "#e0242d", // 0.35 to 0.60: heavy
+            0.60,
+            "#f2a513", // 0.60 to 0.80: delay / moderate
+            0.80,
+            "rgba(0,0,0,0)", // > 0.80: normal free flow
+          ],
         ],
-        "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.5, 12, 5, 15, 9, 18, 16],
-        "line-opacity": 0.96,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.5, 12, 4.5, 15, 8, 18, 14],
+        "line-opacity": 0.95,
+      },
+    }, before);
+  }
+
+  if (map.getSource(TRAFFIC_INCIDENTS_SOURCE) && !map.getLayer(TRAFFIC_INCIDENT_LAYER)) {
+    map.addLayer({
+      id: TRAFFIC_INCIDENT_LAYER,
+      type: "line",
+      source: TRAFFIC_INCIDENTS_SOURCE,
+      "source-layer": "Traffic incident flow",
+      minzoom: 7,
+      layout: { visibility, "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": "#c8322d",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 7, 2, 12, 5, 15, 9, 18, 15],
+        "line-dasharray": [2, 1.5],
+        "line-opacity": 0.95,
       },
     }, before);
   }
@@ -69,10 +108,12 @@ export function setTrafficVisibility(map: maplibregl.Map, visible: boolean) {
 }
 
 export function refreshTrafficTiles(map: maplibregl.Map) {
-  for (const layer of TRAFFIC_LAYERS) {
+  for (const layer of [...TRAFFIC_LAYERS, "mapbox-live-traffic-flow"]) {
     if (map.getLayer(layer)) map.removeLayer(layer);
   }
   if (map.getSource(TRAFFIC_SOURCE)) map.removeSource(TRAFFIC_SOURCE);
+  if (map.getSource(TRAFFIC_INCIDENTS_SOURCE)) map.removeSource(TRAFFIC_INCIDENTS_SOURCE);
+  if (map.getSource("mapbox-live-traffic")) map.removeSource("mapbox-live-traffic");
   addTrafficGeometry(map, true);
   map.triggerRepaint();
 }

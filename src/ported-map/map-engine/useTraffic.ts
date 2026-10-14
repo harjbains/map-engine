@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type maplibregl from "maplibre-gl";
 import { trafficDelayPercent, type RoadTraffic, type TrafficHealthState } from "../lib/traffic";
-import { probeTraffic, mapboxKey } from "../lib/mapbox-client";
+import { probeTraffic, tomTomKey } from "../lib/tomtom-client";
 import type { VehicleFix } from "./config";
 import { refreshTrafficTiles, setTrafficVisibility } from "./map-routing-layers";
 
@@ -21,7 +21,7 @@ export function useTraffic({ mapRef, latestFixRef, mapReady, enabled, online }: 
   const [roadTraffic, setRoadTraffic] = useState<RoadTraffic | null>(null);
 
   useEffect(() => {
-    const configured = Boolean(mapboxKey());
+    const configured = Boolean(tomTomKey());
     setConfigured(configured);
     if (!configured) setHealth("error");
   }, []);
@@ -86,12 +86,12 @@ export function useTraffic({ mapRef, latestFixRef, mapReady, enabled, online }: 
   const delayPercent = roadTraffic ? trafficDelayPercent(roadTraffic) : null;
   const updatedTime = updatedAt ? new Date(updatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : null;
   const title = state === "live" && roadTraffic
-    ? `Mapbox live · ${Math.round(roadTraffic.currentSpeed)} mph now, ${Math.round(roadTraffic.freeFlowSpeed)} mph normally · ${Math.round(roadTraffic.confidence * 100)}% confidence · checked ${updatedTime}`
-    : state === "live" ? `Mapbox traffic live · checked ${updatedTime}`
-      : state === "stale" ? `Mapbox traffic is stale · last successful check ${updatedTime}`
-        : state === "checking" ? "Checking Mapbox traffic…"
+    ? `TomTom live · ${Math.round(roadTraffic.currentSpeed)} mph now, ${Math.round(roadTraffic.freeFlowSpeed)} mph normally · ${Math.round(roadTraffic.confidence * 100)}% confidence · checked ${updatedTime}`
+    : state === "live" ? `TomTom traffic live · checked ${updatedTime}`
+      : state === "stale" ? `TomTom traffic is stale · last successful check ${updatedTime}`
+        : state === "checking" ? "Checking TomTom traffic…"
           : state === "off" ? "Live traffic is switched off"
-            : !online ? "Traffic unavailable while offline" : "Mapbox traffic unavailable";
+            : !online ? "Traffic unavailable while offline" : "TomTom traffic unavailable";
 
   return { configured, state, title, roadTraffic, delayPercent, reset };
 }

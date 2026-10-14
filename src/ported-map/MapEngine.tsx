@@ -38,11 +38,11 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   dashboard: UberDashboard | null; preview: boolean;
   onSaveTodayEarnings: (previewPence: number) => Promise<UberDashboard>;
   onSaveMileage: (milesTenths: number) => Promise<UberDashboard>;
-  onSavePlan: (targetPence: number, weights: Array<WorkWeight | null>) => Promise<UberDashboard>;
+  onSavePlan: (amTargets: number[], pmTargets: number[]) => Promise<UberDashboard>;
   onLoadHistory: () => Promise<WeeklySummary[]>;
   onChangeDate?: (date: string | null) => void;
   onSignOut: () => Promise<void>;
-  onStartShift: (startEarnings: number) => Promise<UberDashboard>;
+  onStartShift: (shiftType: 'am' | 'pm', startEarnings: number) => Promise<UberDashboard>;
   onEndShift: (shiftId: string, endEarnings: number) => Promise<UberDashboard>;
   onUpdateShift?: (shiftId: string, updates: any) => Promise<UberDashboard>;
   onDeleteShift?: (shiftId: string) => Promise<UberDashboard>;
@@ -86,6 +86,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   const [follow, setFollow] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dashboardOpenTrigger, setDashboardOpenTrigger] = useState(0);
   const [legendOpen, setLegendOpen] = useState(false);
   const [locationState, setLocationState] = useState<"idle" | "requesting" | "active" | "denied" | "unavailable">("idle");
   const [fix, setFix] = useState<VehicleFix | null>(null);
@@ -634,6 +635,16 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     map.easeTo({ center: [fix.longitude, fix.latitude], offset: vehicleScreenOffset(map), bearing: fix.bearing, pitch: is3d ? settings.pitch : 0, zoom: settings.autoZoom ? dynamicZoom(fix.speedMph) : map.getZoom(), duration: 400, essential: true });
   };
 
+  const refreshLocation = useCallback(async () => {
+    lastPositionTimestampRef.current = 0;
+    lastGoodFixAtRef.current = performance.now();
+    smoothedRef.current = { lat: null, lon: null, speed: null, bearing: null };
+    await startLocation();
+    if (fix && mapRef.current) {
+      recenter();
+    }
+  }, [startLocation, fix]);
+
   const toggle3d = () => {
     const next = !is3d;
     is3dRef.current = next;
@@ -1027,18 +1038,14 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       <div ref={mapNode} className="map-surface" aria-label="Live Map Engine road map" />
       <div ref={vehicleElementRef} className="vehicle-map-marker" aria-label="Vehicle position" hidden={!fix} />
       <MapHeader
-        darkMode={settings.darkMode} is3d={is3d}
-        offlineSaved={Boolean(offlinePack)} online={online}
+        darkMode={settings.darkMode}
         settingsOpen={settingsOpen}
         trafficState={traffic.state}
         trafficTitle={traffic.title}
         onOpenSettings={() => setSettingsOpen(true)}
         onToggleDarkMode={() => updateSettings({ darkMode: !settings.darkMode })}
-        onToggle3d={toggle3d}
-        legendOpen={legendOpen}
-        onToggleLegend={() => setLegendOpen((current) => !current)}
-        showLandmarks={settings.showLandmarks}
-        onToggleLandmarks={() => updateSettings({ showLandmarks: !settings.showLandmarks })}
+        onOpenDashboard={() => setDashboardOpenTrigger(c => c + 1)}
+        onRefreshLocation={refreshLocation}
       />
 
       <MapLegend open={legendOpen} onClose={() => setLegendOpen(false)} darkMode={settings.darkMode} />
@@ -1097,7 +1104,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
 
       {pickupNotice && <div className="pickup-notice" role="status">{pickupNotice}</div>}
 
-      {dashboard && <V3UberOverlay dashboard={dashboard} preview={preview} onSaveTodayEarnings={onSaveTodayEarnings} onSaveMileage={onSaveMileage} onSavePlan={onSavePlan} onLoadHistory={onLoadHistory} onChangeDate={onChangeDate} onSignOut={onSignOut} onStartShift={onStartShift} onEndShift={onEndShift} onUpdateShift={onUpdateShift} onDeleteShift={onDeleteShift} transition={transition} darkMode={settings.darkMode} onToggleDarkMode={() => updateSettings({ darkMode: !settings.darkMode })} />}
+      {dashboard && <V3UberOverlay openTrigger={dashboardOpenTrigger} dashboard={dashboard} preview={preview} onSaveTodayEarnings={onSaveTodayEarnings} onSaveMileage={onSaveMileage} onSavePlan={onSavePlan} onLoadHistory={onLoadHistory} onChangeDate={onChangeDate} onSignOut={onSignOut} onStartShift={onStartShift} onEndShift={onEndShift} onUpdateShift={onUpdateShift} onDeleteShift={onDeleteShift} transition={transition} darkMode={settings.darkMode} onToggleDarkMode={() => updateSettings({ darkMode: !settings.darkMode })} />}
 
       {<PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 
@@ -1107,15 +1114,11 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
         <button className="area-button" aria-pressed={areaActive} onClick={() => { const m = mapRef.current; if (!m) return; manualZoomRef.current = toggleAreaView(m, latestFixRef.current ?? mapCentre(m), 10); }} aria-label="Show towns and cities within 10 miles"><svg className="icon-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></svg><svg className="icon-collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
       </div>
 
-      <section className="drive-controls" aria-label="Driving controls">
-        {fix && !follow && <button className="recenter-button" onClick={recenter}><span className="target-icon" />Re-centre</button>}
-        {settings.showSpeed && (
-          <div className={`speed-card ${speedWarning ? "speed-warning" : ""}`} aria-label={`${currentSpeedMph} miles per hour${speedLimitMph === null ? "" : `, speed limit ${speedLimitMph}`}`}>
-            <strong>{currentSpeedMph}</strong>
-            <span>mph{speedLimitMph !== null && <small> � {speedLimitMph} limit</small>}</span>
-          </div>
-        )}
-      </section>
+      {fix && !follow && (
+        <section className="drive-controls" aria-label="Driving controls">
+          <button className="recenter-button" onClick={recenter}><span className="target-icon" />Re-centre</button>
+        </section>
+      )}
 
       {locationState !== "active" && (
         <section className="permission-card">
@@ -1197,6 +1200,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
           }}
           onPitch={(pitch) => updateSettings({ pitch })}
           onInstall={() => { void (async () => { if (!installPrompt) return; await installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); })(); }}
+          onShowLegend={() => setLegendOpen(true)}
         />
       )}
     </main>

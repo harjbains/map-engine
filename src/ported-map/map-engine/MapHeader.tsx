@@ -3,23 +3,43 @@ import type { TrafficHealthState } from "../lib/traffic";
 
 type MapHeaderProps = {
   darkMode: boolean;
-  is3d: boolean;
-  offlineSaved: boolean;
-  online: boolean;
   settingsOpen: boolean;
   trafficState: TrafficHealthState;
   trafficTitle: string;
-  legendOpen: boolean;
-  showLandmarks: boolean;
   onOpenSettings: () => void;
   onToggleDarkMode: () => void;
-  onToggle3d: () => void;
-  onToggleLegend: () => void;
-  onToggleLandmarks: () => void;
+  onOpenDashboard?: () => void;
+  onRefreshLocation?: () => void;
+  is3d?: boolean;
+  offlineSaved?: boolean;
+  online?: boolean;
+  legendOpen?: boolean;
+  showLandmarks?: boolean;
+  onToggle3d?: () => void;
+  onToggleLegend?: () => void;
+  onToggleLandmarks?: () => void;
 };
 
-export function MapHeader({ darkMode, is3d, offlineSaved, online, settingsOpen, trafficState, trafficTitle, legendOpen, showLandmarks, onOpenSettings, onToggleDarkMode, onToggle3d, onToggleLegend, onToggleLandmarks }: MapHeaderProps) {
-  const trafficLabel = trafficState === "live" ? "Mapbox traffic live" : trafficState === "stale" ? "Mapbox traffic stale" : trafficState === "checking" ? "Checking Mapbox traffic" : trafficState === "off" ? "Traffic switched off" : "Mapbox traffic unavailable";
+export function MapHeader({
+  darkMode,
+  settingsOpen,
+  trafficState,
+  trafficTitle,
+  onOpenSettings,
+  onToggleDarkMode,
+  onOpenDashboard,
+  onRefreshLocation,
+}: MapHeaderProps) {
+  const trafficLabel =
+    trafficState === "live"
+      ? "TomTom traffic live"
+      : trafficState === "stale"
+      ? "TomTom traffic stale"
+      : trafficState === "checking"
+      ? "Checking TomTom traffic"
+      : trafficState === "off"
+      ? "Traffic switched off"
+      : "TomTom traffic unavailable";
 
   return (
     <header className="top-bar">
@@ -32,7 +52,6 @@ export function MapHeader({ darkMode, is3d, offlineSaved, online, settingsOpen, 
       <div className="header-actions">
         <button className={`icon-button settings-button ${settingsOpen ? "active" : ""}`} aria-label="Open settings" aria-pressed={settingsOpen} onClick={onOpenSettings}><span /></button>
         <span className={`status-icon traffic-status-icon ${trafficState}`} aria-label={trafficLabel} title={trafficTitle}>T</span>
-        <span className={`status-icon online-status-icon ${online ? "available" : "unavailable"}`} aria-label={online ? "Online" : "Offline"} title={online ? "Online" : offlineSaved ? "Offline map" : "No connection"}>O</span>
         <button className={`icon-button dark-mode-button ${darkMode ? "active" : ""}`} aria-label={`Switch to ${darkMode ? "day" : "night"} mode`} aria-pressed={darkMode} title={`Switch to ${darkMode ? "day" : "night"} mode`} onClick={onToggleDarkMode}>
           {darkMode ? (
             <svg className="dark-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -45,14 +64,19 @@ export function MapHeader({ darkMode, is3d, offlineSaved, online, settingsOpen, 
             </svg>
           )}
         </button>
-        <button className={`icon-button mode-button header-mode-button ${is3d ? "active" : ""}`} onClick={onToggle3d} aria-label={`Switch to ${is3d ? "2D" : "3D"} view`} aria-pressed={is3d}>{is3d ? "3D" : "2D"}</button>
-        <button className={`icon-button legend-toggle-button ${legendOpen ? "active" : ""}`} onClick={onToggleLegend} aria-label="Show map legend" aria-pressed={legendOpen} title="Map legend"><span aria-hidden="true">?</span></button>
-        <button className={`icon-button poi-toggle-button ${showLandmarks ? "active" : ""}`} onClick={onToggleLandmarks} aria-label="Show landmarks" aria-pressed={showLandmarks} title="Landmarks">
-          <svg className="poi-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z" />
-            <circle cx="12" cy="10" r="2.5" />
-          </svg>
-        </button>
+        {onRefreshLocation && (
+          <button className="icon-button mode-button active" onClick={onRefreshLocation} aria-label="Refresh GPS location" title="Refresh GPS location">
+            <svg className="location-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+          </button>
+        )}
+        {onOpenDashboard && (
+          <button className="icon-button mode-button active" onClick={onOpenDashboard} aria-label="Open Earnings Dashboard" title="Dashboard">
+            £
+          </button>
+        )}
       </div>
     </header>
   );
