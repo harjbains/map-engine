@@ -22,7 +22,7 @@ export interface Database {
         Relationships: [];
       };
               uber_shifts: {
-          Row: { id: string; owner_id: string; date: string; status: "active" | "completed"; start_timestamp: string; end_timestamp: string | null; start_earnings_pence: number; end_earnings_pence: number | null; created_at: string; updated_at: string };
+          Row: { id: string; owner_id: string; date: string; status: "active" | "completed"; start_timestamp: string; end_timestamp: string | null; start_earnings_pence: number; end_earnings_pence: number | null; shift_type: "am" | "pm" | null; created_at: string; updated_at: string };
           Insert: { id?: string; owner_id?: string; date: string; status?: "active" | "completed"; start_timestamp?: string; end_timestamp?: string | null; start_earnings_pence?: number; end_earnings_pence?: number | null; created_at?: string; updated_at?: string };
           Update: { id?: string; owner_id?: string; date?: string; status?: "active" | "completed"; start_timestamp?: string; end_timestamp?: string | null; start_earnings_pence?: number; end_earnings_pence?: number | null; created_at?: string; updated_at?: string };
           Relationships: [];

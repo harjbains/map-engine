@@ -5,7 +5,7 @@ import { FIXED_WEEKLY_TARGET_PENCE, type LocalDate, type UberDashboard, type Wee
 
 /** Read composition only; all writes stay in the approved repository RPCs. */
 export class UberWeekService {
-  constructor(private readonly repository: Pick<UberRepository, "getWeekPlan" | "getPlanDays" | "getDayRecordsForWeek" | "getDayRecord" | "saveDayRecord" | "createWeekPlan" | "updateWeeklyTarget" | "saveWeekWeights" | "getSession" | "getSessionsForWeek" | "startSession" | "pauseSession" | "resumeSession" | "endSession" | "getShiftsForWeek" | "startShift" | "endShift" | "updateShift" | "deleteShift">) {}
+  constructor(private readonly repository: Pick<UberRepository, "getWeekPlan" | "getPlanDays" | "getDayRecordsForWeek" | "getDayRecord" | "saveDayRecord" | "createWeekPlan" | "updateWeeklyTarget" | "saveWeekWeights" | "saveAmPmPlan" | "getSession" | "getSessionsForWeek" | "startSession" | "pauseSession" | "resumeSession" | "endSession" | "getShiftsForWeek" | "startShift" | "endShift" | "updateShift" | "deleteShift">) {}
 
   /** Only the current week is initialized or brought to the fixed V3 target. */
   async initializeCurrentWeek(today = londonToday()): Promise<void> {
@@ -26,12 +26,15 @@ export class UberWeekService {
     return summaries.filter((summary): summary is WeeklySummary => summary !== null);
   }
 
-  async saveCurrentWeekPlan(targetPence: number, weights: Array<WorkWeight | null>, today = londonToday()): Promise<UberDashboard | null> {
+  
+  async saveAmPmPlan(amTargets: number[], pmTargets: number[], today = londonToday()): Promise<UberDashboard | null> {
     const weekStart = weekStartForDate(today);
-    await this.repository.updateWeeklyTarget(weekStart, targetPence);
-    await this.repository.saveWeekWeights(weekStart, weights);
+    const sumPence = [...amTargets, ...pmTargets].reduce((a, b) => a + b, 0);
+    await this.repository.updateWeeklyTarget(weekStart, sumPence);
+    await this.repository.saveAmPmPlan(weekStart, amTargets, pmTargets);
     return this.getDashboard(today);
   }
+
 
   async getWeeklySummary(weekStart: LocalDate): Promise<WeeklySummary | null> {
     const plan = await this.repository.getWeekPlan(weekStart);
@@ -111,8 +114,8 @@ export class UberWeekService {
   }
 
   
-  async startShift(today = londonToday(), startEarnings = 0): Promise<UberDashboard | null> {
-    await this.repository.startShift(today, startEarnings);
+  async startShift(shiftType: 'am' | 'pm', today = londonToday(), startEarnings = 0): Promise<UberDashboard | null> {
+    await this.repository.startShift(today, startEarnings, shiftType);
     return this.getDashboard(today);
   }
 

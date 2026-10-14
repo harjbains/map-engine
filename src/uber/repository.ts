@@ -11,10 +11,10 @@ type SessionRow = Database["public"]["Tables"]["uber_sessions"]["Row"];
 type ShiftRow = Database["public"]["Tables"]["uber_shifts"]["Row"];
 
 const planFromRow = (row: PlanRow): WeekPlan => ({ weekStart: row.week_start as LocalDate, weeklyTargetPence: penceFromGbp(row.weekly_target), createdAt: row.created_at, updatedAt: row.updated_at });
-const planDayFromRow = (row: PlanDayRow): WeekPlanDay => ({ weekStart: row.week_start as LocalDate, date: row.date as LocalDate, isWorking: row.is_working, workWeight: row.work_weight, createdAt: row.created_at, updatedAt: row.updated_at });
+const planDayFromRow = (row: PlanDayRow): WeekPlanDay => ({ weekStart: row.week_start as LocalDate, date: row.date as LocalDate, isWorking: row.is_working, workWeight: row.work_weight, amTargetPence: (row as any).am_target_pence ?? 0, pmTargetPence: (row as any).pm_target_pence ?? 0, createdAt: row.created_at, updatedAt: row.updated_at });
 const recordFromRow = (row: DayRecordRow): DayRecord => ({ date: row.date as LocalDate, grossEarningsPence: penceFromGbp(row.gross_earnings), businessMilesTenths: tenthsFromMiles(row.business_miles), trips: row.trips, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at });
 const sessionFromRow = (row: SessionRow): UberSession => ({ date: row.date as LocalDate, status: row.status, lastResumedAt: row.last_resumed_at, activeSeconds: row.active_seconds });
-const shiftFromRow = (row: ShiftRow): UberShift => ({ id: row.id, date: row.date as LocalDate, status: row.status, startTimestamp: row.start_timestamp, endTimestamp: row.end_timestamp, startEarningsPence: row.start_earnings_pence, endEarningsPence: row.end_earnings_pence });
+const shiftFromRow = (row: ShiftRow): UberShift => ({ id: row.id, date: row.date as LocalDate, status: row.status, startTimestamp: row.start_timestamp, endTimestamp: row.end_timestamp, startEarningsPence: row.start_earnings_pence, endEarningsPence: row.end_earnings_pence, shiftType: (row as any).shift_type });
 
 function throwOnError<T>(result: { data: T | null; error: { message: string } | null }): T {
   if (result.error) throw new Error(result.error.message);
@@ -39,6 +39,13 @@ export class UberRepository {
   async setPlanDay(weekStart: LocalDate, date: LocalDate, isWorking: boolean): Promise<WeekPlanDay> {
     const result = await this.client.rpc("set_uber_week_plan_day", { p_week_start: weekStart, p_date: date, p_is_working: isWorking });
     return planDayFromRow(throwOnError(result));
+  }
+
+  
+  async saveAmPmPlan(weekStart: LocalDate, amTargets: number[], pmTargets: number[]): Promise<WeekPlanDay[]> {
+    if (amTargets.length !== 7 || pmTargets.length !== 7) throw new Error("targets must contain Monday through Sunday");
+    const result = await (this.client as any).rpc("set_uber_week_plan_am_pm_targets", { p_week_start: weekStart, p_am_targets: amTargets, p_pm_targets: pmTargets });
+    if (result.error) throw new Error(result.error.message); return (result.data ?? []).map(planDayFromRow);
   }
 
   async saveWeekWeights(weekStart: LocalDate, weights: Array<WorkWeight | null>): Promise<WeekPlanDay[]> {
@@ -108,10 +115,11 @@ export class UberRepository {
     return (result.data ?? []).map(shiftFromRow);
   }
 
-  async startShift(date: LocalDate, startEarnings: number): Promise<UberShift> {
-    const result = await this.client.from("uber_shifts").insert({
+  async startShift(date: LocalDate, startEarnings: number, shiftType: 'am' | 'pm'): Promise<UberShift> {
+    const result = await (this.client as any).from("uber_shifts").insert({
       date,
       start_earnings_pence: startEarnings,
+      shift_type: shiftType,
       status: 'active'
     }).select().single();
     if (result.error) throw new Error(result.error.message);

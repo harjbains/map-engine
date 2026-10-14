@@ -60,15 +60,14 @@ type SafetyCacheEntry = {
   data: SafetyFeatureCollection;
 };
 
-const CACHE_KEY = "map-engine-safety-overlay-v14";
+const CACHE_KEY = "map-engine-safety-overlay-v15";
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const CACHE_MAX_AREAS = 10;
 const OVERPASS_MIRRORS = [
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-  "https://overpass.uninett.no/api/interpreter",
-  "https://overpass-osm.mowna.systems/api/interpreter",
   "https://overpass-api.de/api/interpreter",
+  "https://z.overpass-api.de/api/interpreter",
+  "https://lz4.overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
 ];
 const OVERPASS_URLS = typeof __STATIC_BUILD__ !== "undefined" && __STATIC_BUILD__
   ? OVERPASS_MIRRORS
@@ -325,14 +324,14 @@ async function requestOverpass(endpoint: string, query: string, delayMs: number,
     });
   }
   const declaredTimeout = query ? (query.match(/\[timeout:(\d+)\]/)?.[1] ?? "") : "";
-  const timeoutCap = declaredTimeout ? Number(declaredTimeout) * 1_000 + 3_000 : 20_000;
+  const timeoutCap = declaredTimeout ? Number(declaredTimeout) * 1_000 + 5_000 : 20_000;
   const timeout = window.setTimeout(() => controller.abort(), Math.min(30_000, hardTimeoutMs ?? timeoutCap));
   try {
     await acquireOverpassSlot();
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: new URLSearchParams({ data: query }),
+      headers: { "Accept": "application/json, */*", "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: `data=${encodeURIComponent(query)}`,
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`Overpass ${response.status}`);
@@ -343,7 +342,7 @@ async function requestOverpass(endpoint: string, query: string, delayMs: number,
   }
 }
 
-export async function fetchOverpass(query: string, initialDelayMs = 0, fallbackDelayMs = 1_400, parentSignal?: AbortSignal, hardTimeoutMs?: number) {
+export async function fetchOverpass(query: string, initialDelayMs = 0, fallbackDelayMs = 2_000, parentSignal?: AbortSignal, hardTimeoutMs?: number) {
   const controllers: AbortController[] = [];
   try {
     if (parentSignal?.aborted) throw new DOMException("Request cancelled", "AbortError");
@@ -452,8 +451,8 @@ function roadRuleFeatures(elements: OverpassElement[]): SafetyFeatureCollection 
     if (element.type === "node") {
       const sign = `${tags.traffic_sign ?? ""};${tags["traffic_sign:forward"] ?? ""};${tags["traffic_sign:backward"] ?? ""}`;
       if (/no[_ ]?entry|GB:601/i.test(sign)) add(pointFeature(element, "no_entry", "NO ENTRY"));
-      const calming = tags.traffic_calming ? /^(bump|table|hump|cushion)$/.test(tags.traffic_calming) : false;
-      if (calming || tags.barrier === "bump") add(pointFeature(element, "speed_bump", "BUMP"));
+      const calming = tags.traffic_calming ? /^(bump|table|hump|cushion|yes|rumble_strip|chicanes?|island)$/i.test(tags.traffic_calming) : false;
+      if (calming || tags.barrier === "bump" || /557/i.test(sign)) add(pointFeature(element, "speed_bump", "BUMP"));
       if (tags.railway === "level_crossing" || tags.railway === "tram_crossing") {
         add(pointFeature(element, "rail_crossing", tags.railway === "tram_crossing" ? "TRAM" : "RAIL"));
       }
@@ -512,12 +511,18 @@ function roadClosureFeatures(elements: OverpassElement[]): SafetyFeatureCollecti
 function roadWorksFeatures(elements: OverpassElement[]): SafetyFeatureCollection {
   const features: SafetyFeatureCollection["features"] = [];
   for (const element of elements) {
-    if (element.type !== "way") continue;
     const tags = element.tags ?? {};
-    if (tags.highway !== "construction" && !tags.construction) continue;
-    const label = tags.name ? `WORKS · ${tags.name}` : "ROAD WORKS";
-    const feature = wayFeature(element, "roadworks", label);
-    if (feature) features.push(feature);
+    if (element.type === "way") {
+      if (tags.highway !== "construction" && !tags.construction && tags.highway !== "roadworks") continue;
+      const label = tags.name ? `WORKS · ${tags.name}` : "ROAD WORKS";
+      const feature = wayFeature(element, "roadworks", label);
+      if (feature) features.push(feature);
+    } else if (element.type === "node") {
+      if (tags.highway !== "construction" && tags.highway !== "roadworks" && tags.hazard !== "roadworks") continue;
+      const label = tags.name ? `WORKS · ${tags.name}` : "ROAD WORKS";
+      const feature = pointFeature(element, "roadworks", label);
+      if (feature) features.push(feature);
+    }
   }
   return { type: "FeatureCollection", features };
 }
@@ -588,89 +593,52 @@ function detailFeatures(elements: OverpassElement[]): SafetyFeatureCollection["f
 
 export async function fetchSafetyFeatures(
   centre: Point,
-  radiusMetres = 2_800,
+  radiusMetres = 2_400,
   onTrafficSignals?: (signals: SafetyFeatureCollection) => void,
   onRestrictions?: (restrictions: SafetyFeatureCollection) => void,
   onRoadRules?: (rules: SafetyFeatureCollection) => void,
   onAmenities?: (amenities: SafetyFeatureCollection) => void,
   onClosures?: (closures: SafetyFeatureCollection) => void,
 ): Promise<SafetyFeatureCollection> {
-  const around = `(around:${Math.round(radiusMetres)},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})`;
-  const restrictionAround = `(around:${Math.round(Math.min(radiusMetres, 2_400))},${centre.latitude.toFixed(6)},${centre.longitude.toFixed(6)})`;
-  const trafficQuery = `[out:json][timeout:7];node${around}["highway"="traffic_signals"];out body qt;`;
-  const cameraQuery = `[out:json][timeout:6];(node${around}["highway"="speed_camera"];nwr${around}["enforcement"~"^(speed|maximum_speed|maxspeed|average_speed)$"];);out body qt;`;
-  const closureQuery = `[out:json][timeout:8];(
-way${restrictionAround}["highway"]["construction"]["access"~"^(no|private)$"];
-way${restrictionAround}["highway"]["construction"]["vehicle"~"^(no|private)$"];
-way${restrictionAround}["highway"]["construction"]["motor_vehicle"~"^(no|private)$"];
-way${restrictionAround}["highway"]["construction"]["motorcar"~"^(no|private)$"];
+  const radius = Math.min(radiusMetres, 2_400);
+  const dLat = radius / 111_320;
+  const dLon = radius / (111_320 * Math.cos(centre.latitude * Math.PI / 180));
+  const minLat = (centre.latitude - dLat).toFixed(5);
+  const maxLat = (centre.latitude + dLat).toFixed(5);
+  const minLon = (centre.longitude - dLon).toFixed(5);
+  const maxLon = (centre.longitude + dLon).toFixed(5);
+  const bbox = `(${minLat},${minLon},${maxLat},${maxLon})`;
+
+  // Primary fast hazards query: Traffic signals, road humps/calming, roadworks, speed cameras, closures, crossings
+  const hazardsQuery = `[out:json][timeout:15];(
+  node${bbox}["highway"="traffic_signals"];
+  node${bbox}["traffic_calming"];
+  node${bbox}["barrier"="bump"];
+  node${bbox}["highway"="speed_camera"];
+  nwr${bbox}["enforcement"~"^(speed|maximum_speed|maxspeed|average_speed)$"];
+  way${bbox}["highway"="construction"];
+  way${bbox}["construction"];
+  node${bbox}["highway"="construction"];
+  node${bbox}["highway"="roadworks"];
+  node${bbox}["traffic_sign"~"(no[_ ]?entry|GB:601)",i];
+  node${bbox}["traffic_sign:forward"~"(no[_ ]?entry|GB:601)",i];
+  node${bbox}["traffic_sign:backward"~"(no[_ ]?entry|GB:601)",i];
+  node${bbox}["railway"~"^(level_crossing|tram_crossing)$"];
+  way${bbox}["highway"~"^(pedestrian|living_street)$"];
+  way${bbox}["junction"="roundabout"]["highway"];
 );out body geom qt;`;
-  const roadworksQuery = `[out:json][timeout:10];(
-way${around}["highway"="construction"];
-way${around}["highway"]["construction"];
+
+  // Secondary regulations query: Bus lanes, turn restrictions, speed limits, parking/EV
+  const regulationsQuery = `[out:json][timeout:15];(
+  way${bbox}["highway"]["busway"~"^(lane|opposite|opposite_lane)$"];
+  way${bbox}["highway"]["bus:lanes"~"(designated|yes)"];
+  way${bbox}["highway"]["access"~"^(no|private)$"]["bus"~"^(yes|designated|permissive)$"];
+  node${bbox}["barrier"="bus_trap"];
+  relation${bbox}["type"="restriction"];
+  way${bbox}["highway"]["maxspeed"];
+  node${bbox}["amenity"~"^(charging_station|parking)$"];
 );out body geom qt;`;
-  const busLaneQuery = `[out:json][timeout:8];(
-way${restrictionAround}["highway"]["busway"~"^(lane|opposite|opposite_lane)$"];
-way${restrictionAround}["highway"]["busway:left"~"^(lane|opposite|opposite_lane)$"];
-way${restrictionAround}["highway"]["busway:right"~"^(lane|opposite|opposite_lane)$"];
-way${restrictionAround}["highway"]["busway:both"~"^(lane|opposite|opposite_lane)$"];
-way${restrictionAround}["highway"]["bus:lanes"~"(designated|yes)"]["access:lanes"~"(no|private)"];
-way${restrictionAround}["highway"]["bus:lanes"~"(designated|yes)"]["vehicle:lanes"~"(no|private)"];
-way${restrictionAround}["highway"]["bus:lanes"~"(designated|yes)"]["motor_vehicle:lanes"~"(no|private)"];
-way${restrictionAround}["highway"]["bus:lanes"~"(designated|yes)"]["motorcar:lanes"~"(no|private)"];
-way${restrictionAround}["highway"]["psv:lanes"~"(designated|yes)"]["access:lanes"~"(no|private)"];
-way${restrictionAround}["highway"]["psv:lanes"~"(designated|yes)"]["vehicle:lanes"~"(no|private)"];
-way${restrictionAround}["highway"]["psv:lanes"~"(designated|yes)"]["motor_vehicle:lanes"~"(no|private)"];
-way${restrictionAround}["highway"]["psv:lanes"~"(designated|yes)"]["motorcar:lanes"~"(no|private)"];
-);out body geom qt;`;
-  const restrictionQuery = `[out:json][timeout:8];(
-way${restrictionAround}["highway"]["access"~"^(no|private)$"]["bus"~"^(yes|designated|permissive)$"];
-way${restrictionAround}["highway"]["access"~"^(no|private)$"]["psv"~"^(yes|designated|permissive)$"];
-way${restrictionAround}["highway"]["vehicle"~"^(no|private)$"]["bus"~"^(yes|designated|permissive)$"];
-way${restrictionAround}["highway"]["vehicle"~"^(no|private)$"]["psv"~"^(yes|designated|permissive)$"];
-way${restrictionAround}["highway"]["motor_vehicle"~"^(no|private)$"]["bus"~"^(yes|designated|permissive)$"];
-way${restrictionAround}["highway"]["motor_vehicle"~"^(no|private)$"]["psv"~"^(yes|designated|permissive)$"];
-way${restrictionAround}["highway"]["motorcar"~"^(no|private)$"]["bus"~"^(yes|designated|permissive)$"];
-way${restrictionAround}["highway"]["motorcar"~"^(no|private)$"]["psv"~"^(yes|designated|permissive)$"];
-node${restrictionAround}["barrier"="bus_trap"];
-node${restrictionAround}["access"~"^(no|private)$"]["bus"~"^(yes|designated|permissive)$"];
-node${restrictionAround}["access"~"^(no|private)$"]["psv"~"^(yes|designated|permissive)$"];
-node${restrictionAround}["vehicle"~"^(no|private)$"]["bus"~"^(yes|designated|permissive)$"];
-node${restrictionAround}["vehicle"~"^(no|private)$"]["psv"~"^(yes|designated|permissive)$"];
-node${restrictionAround}["motor_vehicle"~"^(no|private)$"]["bus"~"^(yes|designated|permissive)$"];
-node${restrictionAround}["motor_vehicle"~"^(no|private)$"]["psv"~"^(yes|designated|permissive)$"];
-node${restrictionAround}["motorcar"~"^(no|private)$"]["bus"~"^(yes|designated|permissive)$"];
-node${restrictionAround}["motorcar"~"^(no|private)$"]["psv"~"^(yes|designated|permissive)$"];
-);out body geom qt;`;
-  const detailQuery = `[out:json][timeout:12];(
-way${around}["junction"="roundabout"]["highway"];
-node${around}["highway"="speed_camera"];
-nwr${around}["enforcement"~"^(speed|maximum_speed|maxspeed|average_speed)$"];
-relation${around}["type"="enforcement"]["enforcement"~"^(speed|maximum_speed|maxspeed|average_speed)$"];
-);out body geom qt;`;
-  const roadRuleQuery = `[out:json][timeout:12];(
-way${around}["highway"~"^(pedestrian|living_street)$"];
-way${around}["highway"]["maxheight"];
-way${around}["highway"]["maxwidth"];
-way${around}["highway"]["maxweight"];
-node${around}["traffic_sign"~"(no[_ ]?entry|GB:601)",i];
-node${around}["traffic_sign:forward"~"(no[_ ]?entry|GB:601)",i];
-node${around}["traffic_sign:backward"~"(no[_ ]?entry|GB:601)",i];
-  node${around}["traffic_calming"~"^(bump|table|hump|cushion)$"];
-  node${around}["barrier"="bump"];
-  node${around}["railway"~"^(level_crossing|tram_crossing)$"];
-node${around}["maxheight"];
-node${around}["maxwidth"];
-node${around}["maxweight"];
-);out body geom qt;`;
-  const turnQuery = `[out:json][timeout:12];relation${around}["type"="restriction"];out body geom qt;`;
-  const speedQuery = `[out:json][timeout:14];way${around}["highway"]["maxspeed"];out body geom qt;`;
-  const amenityQuery = `[out:json][timeout:15];(
-node${around}["amenity"~"^(charging_station|parking)$"];
-way${around}["amenity"~"^(charging_station|parking)$"];
-relation${around}["boundary"="low_emission_zone"];
-way${around}["boundary"="low_emission_zone"];
-);out body center qt;`;
+
   const curated = curatedRestrictions(centre, radiusMetres);
   const progressiveRestrictions = [...curated.features];
   const publishRestrictions = (collection: SafetyFeatureCollection) => {
@@ -680,98 +648,75 @@ way${around}["boundary"="low_emission_zone"];
     onRestrictions?.({ type: "FeatureCollection", features: progressiveRestrictions });
   };
   if (curated.features.length) publishRestrictions(curated);
-  const signalRequest = fetchOverpass(trafficQuery, 0, 550).then((payload) => {
-    const signalElements = payload.elements ?? [];
-    const signals = trafficSignalFeatures(signalElements);
-    onTrafficSignals?.(signals);
-    return signalElements;
-  });
-  const cameraRequest = fetchOverpass(cameraQuery, 60, 500).then((payload) => {
-    const cameras: SafetyFeatureCollection = { type: "FeatureCollection", features: detailFeatures(payload.elements ?? []) };
-    if (cameras.features.length) onRoadRules?.(cameras);
-    return cameras;
-  });
-  const closureRequest = fetchOverpass(closureQuery, 80, 600).then((payload) => {
-    const closures = roadClosureFeatures(payload.elements ?? []);
-    onClosures?.(closures);
-    return closures;
-  });
-  const roadworksRequest = fetchOverpass(roadworksQuery, 100, 600).then((payload) => {
-    const works = roadWorksFeatures(payload.elements ?? []);
-    if (works.features.length) onRoadRules?.(works);
-    return works;
-  });
-  const busLaneRequest = fetchOverpass(busLaneQuery, 40, 550).then((payload) => {
-    const busLanes: SafetyFeatureCollection = { type: "FeatureCollection", features: detailFeatures(payload.elements ?? []) };
-    publishRestrictions(busLanes);
-    return busLanes;
-  });
-  const restrictionRequest = fetchOverpass(restrictionQuery, 120, 650).then((payload) => {
-    const restrictions: SafetyFeatureCollection = {
-      type: "FeatureCollection",
-      features: detailFeatures(payload.elements ?? []),
-    };
-    publishRestrictions(restrictions);
-    return restrictions;
-  });
-  const detailRequest = fetchOverpass(detailQuery, 180, 600).then((payload) => {
+
+  const hazardRequest = fetchOverpass(hazardsQuery, 0, 1_500).then((payload) => {
     const elements = payload.elements ?? [];
-    const details: SafetyFeatureCollection = { type: "FeatureCollection", features: detailFeatures(elements) };
-    if (details.features.length) onRoadRules?.(details);
-    return elements;
+    const signals = trafficSignalFeatures(elements);
+    if (signals.features.length) onTrafficSignals?.(signals);
+
+    const rules = roadRuleFeatures(elements);
+    if (rules.features.length) onRoadRules?.(rules);
+
+    const closures = roadClosureFeatures(elements);
+    if (closures.features.length) onClosures?.(closures);
+
+    const works = roadWorksFeatures(elements);
+    if (works.features.length) onRoadRules?.(works);
+
+    const cameras: SafetyFeatureCollection = { type: "FeatureCollection", features: detailFeatures(elements) };
+    if (cameras.features.length) onRoadRules?.(cameras);
+
+    return { signals, rules, closures, works, cameras };
   });
-  const roadRuleRequest = fetchOverpass(roadRuleQuery, 240, 750).then((payload) => {
-    const rules = roadRuleFeatures(payload.elements ?? []);
-    onRoadRules?.(rules);
-    return rules;
+
+  const regulationRequest = fetchOverpass(regulationsQuery, 300, 1_800).then((payload) => {
+    const elements = payload.elements ?? [];
+    const busLanes: SafetyFeatureCollection = { type: "FeatureCollection", features: detailFeatures(elements) };
+    publishRestrictions(busLanes);
+
+    const turns = roadRuleFeatures(elements);
+    if (turns.features.length) onRoadRules?.(turns);
+
+    const speedLimits = speedLimitFeatures(elements);
+    if (speedLimits.features.length) onRoadRules?.(speedLimits);
+
+    const amenities = driverAmenityFeatures(elements);
+    if (amenities.features.length) onAmenities?.(amenities);
+
+    return { busLanes, turns, speedLimits, amenities };
   });
-  const turnRequest = fetchOverpass(turnQuery, 650, 850).then((payload) => {
-    const rules = roadRuleFeatures(payload.elements ?? []);
-    onRoadRules?.(rules);
-    return rules;
-  });
-  const speedRequest = fetchOverpass(speedQuery, 1_050, 900).then((payload) => {
-    const limits = speedLimitFeatures(payload.elements ?? []);
-    onRoadRules?.(limits);
-    return limits;
-  });
-  const amenityRequest = fetchOverpass(amenityQuery, 700, 900).then((payload) => {
-    const amenities = driverAmenityFeatures(payload.elements ?? []);
-    onAmenities?.(amenities);
-    return amenities;
-  });
-  const [signals, closures, roadworks, busLanes, restrictions, cameras, details, roadRules, turns, speedLimits, amenities] = await Promise.allSettled([
-    signalRequest,
-    closureRequest,
-    roadworksRequest,
-    busLaneRequest,
-    restrictionRequest,
-    cameraRequest,
-    detailRequest,
-    roadRuleRequest,
-    turnRequest,
-    speedRequest,
-    amenityRequest,
+
+  const [hazardsResult, regulationsResult] = await Promise.allSettled([
+    hazardRequest,
+    regulationRequest,
   ]);
-  if ([signals, closures, roadworks, busLanes, restrictions, cameras, details, roadRules, turns, speedLimits, amenities].every((result) => result.status === "rejected")) throw new Error("Safety overlay unavailable");
-  const signalFeatures = signals.status === "fulfilled"
-    ? trafficSignalFeatures([...signals.value, ...(details.status === "fulfilled" ? details.value : [])])
-    : { type: "FeatureCollection" as const, features: [] };
-  if (signalFeatures.features.length) onTrafficSignals?.(signalFeatures);
-  const features = [
-    ...signalFeatures.features,
-    ...(closures.status === "fulfilled" ? closures.value.features : []),
-    ...(roadworks.status === "fulfilled" ? roadworks.value.features : []),
-    ...curated.features,
-    ...(busLanes.status === "fulfilled" ? busLanes.value.features : []),
-    ...(restrictions.status === "fulfilled" ? restrictions.value.features : []),
-    ...(cameras.status === "fulfilled" ? cameras.value.features : []),
-    ...(details.status === "fulfilled" ? detailFeatures(details.value) : []),
-    ...(roadRules.status === "fulfilled" ? roadRules.value.features : []),
-    ...(turns.status === "fulfilled" ? turns.value.features : []),
-    ...(speedLimits.status === "fulfilled" ? speedLimits.value.features : []),
-    ...(amenities.status === "fulfilled" ? amenities.value.features : []),
-  ];
+
+  if (hazardsResult.status === "rejected" && regulationsResult.status === "rejected") {
+    throw new Error("Safety overlay unavailable");
+  }
+
+  const features: SafetyFeatureCollection["features"] = [...curated.features];
+
+  if (hazardsResult.status === "fulfilled") {
+    const { signals, rules, closures, works, cameras } = hazardsResult.value;
+    features.push(
+      ...signals.features,
+      ...rules.features,
+      ...closures.features,
+      ...works.features,
+      ...cameras.features,
+    );
+  }
+
+  if (regulationsResult.status === "fulfilled") {
+    const { busLanes, turns, speedLimits, amenities } = regulationsResult.value;
+    features.push(
+      ...busLanes.features,
+      ...turns.features,
+      ...speedLimits.features,
+      ...amenities.features,
+    );
+  }
 
   const data: SafetyFeatureCollection = { type: "FeatureCollection", features };
   saveSafetyFeatures(centre, radiusMetres, data);

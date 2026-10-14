@@ -335,7 +335,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
         };
         const completeSafety = await fetchSafetyFeatures(
           point,
-          4_200,
+          2_400,
           (trafficSignals) => showPartialSafety(trafficSignals, new Set(["traffic_signal"])),
           (restrictions) => showPartialSafety(restrictions, new Set(["restricted", "restriction_entrance"])),
           (roadRules) => showPartialSafety(roadRules, new Set(roadRules.features.map((feature) => feature.properties.kind))),

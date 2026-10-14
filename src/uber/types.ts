@@ -20,6 +20,7 @@ export interface UberShift {
   endTimestamp: string | null;
   startEarningsPence: Pence;
   endEarningsPence: Pence | null;
+  shiftType: 'am' | 'pm' | null;
 }
 
 export type SessionStatus = "active" | "paused" | "completed";
@@ -42,7 +43,7 @@ export interface WeekPlanDay {
   weekStart: LocalDate;
   date: LocalDate;
   isWorking: boolean;
-  workWeight: WorkWeight;
+  workWeight: WorkWeight; amTargetPence: Pence; pmTargetPence: Pence;
   createdAt: string;
   updatedAt: string;
 }
@@ -78,6 +79,8 @@ export interface DashboardDay {
   actualPence: Pence | null;
   actualMilesTenths: number | null;
   targetPence: Pence | null;
+  amTargetPence: Pence | null;
+  pmTargetPence: Pence | null;
   status: DayStatus | "unrecorded";
 }
 

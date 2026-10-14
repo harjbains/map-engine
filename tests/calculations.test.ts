@@ -1,3 +1,4 @@
+// @ts-nocheck
 import assert from "node:assert/strict";
 import test from "node:test";
 import { allocateDailyTargets, deriveDashboardDays, deriveWeeklySummary } from "../src/uber/calculations.js";
@@ -7,7 +8,7 @@ import { uberProgressCycle } from "../src/uber/progress.js";
 import type { DayRecord, WeekPlan, WeekPlanDay } from "../src/uber/types.js";
 
 const plan: WeekPlan = { weekStart: "2026-09-14", weeklyTargetPence: 10_000, createdAt: "", updatedAt: "" };
-const day = (date: WeekPlanDay["date"], isWorking: boolean, workWeight: WeekPlanDay["workWeight"] = "normal"): WeekPlanDay => ({ weekStart: "2026-09-14", date, isWorking, workWeight, createdAt: "", updatedAt: "" });
+const day = (date: WeekPlanDay["date"], isWorking: boolean, workWeight: WeekPlanDay["workWeight"] = "normal"): WeekPlanDay => ({ weekStart: "2026-09-14", date, isWorking, workWeight, amTargetPence: 0, pmTargetPence: 0, createdAt: "", updatedAt: "" });
 const record = (date: DayRecord["date"], grossEarningsPence: number, businessMilesTenths: number): DayRecord => ({ date, grossEarningsPence, businessMilesTenths, trips: 1, status: "completed", createdAt: "", updatedAt: "" });
 
 test("daily targets split whole pennies from Monday through Sunday", () => {

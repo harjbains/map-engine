@@ -91,7 +91,7 @@
 .settings-button span::before, .settings-button span::after { content:""; position:absolute; width:5px; height:5px; top:-1.5px; border:1px solid #70b7ff; border-radius:50%; background:#172126; }
 .settings-button span::before { left:3px; transform:translateY(-6px); }
 .settings-button span::after { right:2px; transform:translateY(6px); }
-.zoom-controls { position:absolute; right:18px; bottom:84px; z-index:6; display:flex; flex-direction:row; gap:10px; border:0; background:transparent; box-shadow:none; }
+.zoom-controls { position:absolute; right:12px; bottom:12px; z-index:6; display:flex; flex-direction:row; gap:8px; border:0; background:transparent; box-shadow:none; }
 .zoom-controls button { width:56px; height:56px; border:2px solid #3179b9; border-radius:50%; background:rgba(250,250,246,.3); color:#1d2a31; box-shadow:0 8px 28px rgba(42,48,50,.16); font-size:28px; font-weight:650; line-height:1; cursor:pointer; }
 .zoom-controls button + button { border-top-width:2px; }
 .zoom-controls button:hover { background:rgba(49,121,185,.1); }
@@ -217,13 +217,13 @@
   .compass-strip > i { bottom:2px; border-right-width:5px; border-left-width:5px; border-top-width:6px; }
   .destination-search-toggle { top:88px; left:16px; width:56px; height:56px; }
   .destination-search-panel { top:88px; left:16px; max-height:calc(100dvh - 104px); }
-  .zoom-controls { top:auto; right:18px; bottom:84px; }
-  .permission-card { left:16px; bottom:24px; width:min(350px,calc(100vw - 156px)); padding:15px 17px; }
+  .zoom-controls { top:auto; right:12px; bottom:12px; }
+  .permission-card { left:16px; bottom:12px; width:min(350px,calc(100vw - 156px)); padding:15px 17px; }
   .permission-card h1 { margin-top:5px; font-size:22px; }
   .permission-card p { margin-bottom:11px; font-size:13px; }
   .permission-card button { padding:9px 13px; }
   .permission-card small { margin-top:8px; }
-  .location-card { left:16px; bottom:70px; width:min(290px,calc(100vw - 140px)); padding:9px 12px 10px; }
+  .location-card { left:16px; bottom:12px; width:min(290px,calc(100vw - 140px)); padding:9px 12px 10px; }
   .location-card.with-route { width:min(350px,calc(100vw - 140px)); }
   .active-route-panel { left:16px; width:min(340px,calc(100vw - 140px)); }
   .location-card strong { font-size:16px; }
@@ -236,7 +236,7 @@
   .postcode-dock button { width:auto; min-width:58px; flex-basis:auto; }
   .postcode-range-label { font-size:16px; }
 }
-@media (max-width:700px) and (orientation:portrait) { .status-icon { display:none; } .top-bar { inset:12px; } .brand-lockup { width:145px; gap:6px; padding:6px 14px 6px 8px; } .brand-lockup strong { font-size:13px; } .brand-version { font-size:9px; } .brand-lockup span:not(.brand-mark) { font-size:10px; } .header-actions { gap:6px; } .icon-button { width:46px; height:46px; } .zoom-controls { top:auto; right:12px; bottom:84px; } .postcode-dock { width:auto; display:flex; flex-wrap:nowrap; justify-content:flex-start; gap:6px; padding:6px 8px; overflow-x:auto; -webkit-overflow-scrolling:touch; } .postcode-dock button { width:auto; min-width:58px; height:44px; flex:0 0 auto; } .postcode-dock button .postcode-range-label { font-size:15px; } .postcode-lookup-panel { bottom:180px; width:auto; } .postcode-lookup-panel p { display:none; } .map-alert { top:124px; width:calc(100% - 32px); } .camera-alert { top:176px; } .compass-strip { top:128px; left:50%; right:auto; width:calc(100vw - 110px); transform:translateX(-50%); } .destination-search-toggle { top:126px; left:12px; } .destination-search-panel { top:126px; left:12px; width:calc(100vw - 24px); } .location-card.with-route, .active-route-panel { left:12px; width:calc(100vw - 88px); } .active-route-panel { bottom:198px; } }
+@media (max-width:700px) and (orientation:portrait) { .status-icon { display:none; } .top-bar { inset:12px; } .brand-lockup { width:145px; gap:6px; padding:6px 14px 6px 8px; } .brand-lockup strong { font-size:13px; } .brand-version { font-size:9px; } .brand-lockup span:not(.brand-mark) { font-size:10px; } .header-actions { gap:6px; } .icon-button { width:46px; height:46px; } .zoom-controls { top:auto; right:12px; bottom:12px; } .postcode-dock { width:auto; display:flex; flex-wrap:nowrap; justify-content:flex-start; gap:6px; padding:6px 8px; overflow-x:auto; -webkit-overflow-scrolling:touch; } .postcode-dock button { width:auto; min-width:58px; height:44px; flex:0 0 auto; } .postcode-dock button .postcode-range-label { font-size:15px; } .postcode-lookup-panel { bottom:180px; width:auto; } .postcode-lookup-panel p { display:none; } .map-alert { top:124px; width:calc(100% - 32px); } .camera-alert { top:176px; } .compass-strip { top:128px; left:50%; right:auto; width:calc(100vw - 110px); transform:translateX(-50%); } .destination-search-toggle { top:126px; left:12px; } .destination-search-panel { top:126px; left:12px; width:calc(100vw - 24px); } .location-card, .location-card.with-route, .active-route-panel { left:12px; width:calc(100vw - 88px); } .location-card { bottom:12px; } .active-route-panel { bottom:198px; } }
 @media (max-width:700px) and (orientation:portrait) { .pickup-notice { top:176px; width:calc(100% - 32px); } }
 @media (max-width:700px) and (orientation:portrait) { }
 @media (max-height:920px) {

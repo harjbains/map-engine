@@ -63,8 +63,8 @@ export default function App() {
     return refreshed;
   }, [service, dashboard]);
 
-  const savePlan = useCallback(async (targetPence: number, weights: Array<WorkWeight | null>) => {
-    const refreshed = await service.saveCurrentWeekPlan(targetPence, weights, dashboard?.today);
+  const savePlan = useCallback(async (amTargets: number[], pmTargets: number[]) => {
+    const refreshed = await service.saveAmPmPlan(amTargets, pmTargets, dashboard?.today);
     if (!refreshed) throw new Error("No current week plan exists");
     setDashboard(refreshed);
     return refreshed;
@@ -90,8 +90,8 @@ export default function App() {
     return refreshed;
   }, [service, dashboard]);
 
-  const startShift = useCallback(async (startEarnings: number) => {
-    const refreshed = await service.startShift(dashboard?.today, startEarnings);
+  const startShift = useCallback(async (shiftType: 'am' | 'pm', startEarnings: number) => {
+    const refreshed = await service.startShift(shiftType, dashboard?.today, startEarnings);
     if (!refreshed) throw new Error("No current week plan exists");
     setDashboard(refreshed);
     return refreshed;
