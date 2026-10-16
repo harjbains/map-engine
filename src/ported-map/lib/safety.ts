@@ -60,14 +60,14 @@ type SafetyCacheEntry = {
   data: SafetyFeatureCollection;
 };
 
-const CACHE_KEY = "map-engine-safety-overlay-v15";
+const CACHE_KEY = "map-engine-safety-overlay-v16";
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
-const CACHE_MAX_AREAS = 10;
+const CACHE_MAX_AREAS = 30;
 const OVERPASS_MIRRORS = [
+  "https://overpass.openstreetmap.fr/api/interpreter",
   "https://overpass-api.de/api/interpreter",
   "https://z.overpass-api.de/api/interpreter",
   "https://lz4.overpass-api.de/api/interpreter",
-  "https://overpass.private.coffee/api/interpreter",
 ];
 const OVERPASS_URLS = typeof __STATIC_BUILD__ !== "undefined" && __STATIC_BUILD__
   ? OVERPASS_MIRRORS
@@ -399,7 +399,7 @@ function saveSafetyFeatures(centre: Point, radiusMetres: number, data: SafetyFea
 function trafficSignalFeatures(elements: OverpassElement[]): SafetyFeatureCollection {
   const trafficSignals: TrafficSignalPoint[] = [];
   const roundabouts = elements
-    .filter((element) => element.type === "way" && element.tags?.junction === "roundabout")
+    .filter((element) => element.type === "way" && (element.tags?.junction === "roundabout" || element.tags?.junction === "circular"))
     .map((element) => (element.geometry ?? []).map(({ lat, lon }) => ({ latitude: lat, longitude: lon })))
     .filter((path) => path.length >= 2);
 
@@ -412,7 +412,7 @@ function trafficSignalFeatures(elements: OverpassElement[]): SafetyFeatureCollec
   const roundaboutSignals = trafficSignals.filter((signal) => roundabouts.some((path) => distanceToPathMetres(signal, path) <= ROUNDABOUT_ASSOCIATION_METRES));
   const ordinarySignals = trafficSignals.filter((signal) => !roundaboutSignals.includes(signal));
   const signalIcons = [
-    ...clusterTrafficSignals(ordinarySignals),
+    ...clusterTrafficSignals(ordinarySignals, 35, false),
     ...clusterTrafficSignals(roundaboutSignals, ROUNDABOUT_SIGNAL_CLUSTER_METRES, false),
   ];
   return {
@@ -443,6 +443,9 @@ function roadRuleFeatures(elements: OverpassElement[]): SafetyFeatureCollection 
       if (pedestrian || generalAccessRestricted) {
         add(wayFeature(element, "access_zone", pedestrian ? "PEDESTRIAN" : "ACCESS"));
       }
+
+      const calming = tags.traffic_calming ? /^(bump|table|hump|cushion|yes|rumble_strip|chicanes?|island)$/i.test(tags.traffic_calming) : false;
+      if (calming) add(pointFeature(element, "speed_bump", "BUMP"));
 
       const dimension = dimensionLabel(tags);
       if (dimension) add(pointFeature(element, "dimension_limit", dimension));
@@ -613,6 +616,7 @@ export async function fetchSafetyFeatures(
   const hazardsQuery = `[out:json][timeout:15];(
   node${bbox}["highway"="traffic_signals"];
   node${bbox}["traffic_calming"];
+  way${bbox}["traffic_calming"];
   node${bbox}["barrier"="bump"];
   node${bbox}["highway"="speed_camera"];
   nwr${bbox}["enforcement"~"^(speed|maximum_speed|maxspeed|average_speed)$"];
@@ -625,7 +629,7 @@ export async function fetchSafetyFeatures(
   node${bbox}["traffic_sign:backward"~"(no[_ ]?entry|GB:601)",i];
   node${bbox}["railway"~"^(level_crossing|tram_crossing)$"];
   way${bbox}["highway"~"^(pedestrian|living_street)$"];
-  way${bbox}["junction"="roundabout"]["highway"];
+  way${bbox}["junction"~"^(roundabout|circular)$"]["highway"];
 );out body geom qt;`;
 
   // Secondary regulations query: Bus lanes, turn restrictions, speed limits, parking/EV

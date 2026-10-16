@@ -76,6 +76,8 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   const safetyDataRef = useRef<SafetyFeatureCollection | null>(null);
   const cameraAlertRef = useRef<{ id: string; since: number; distanceM: number; averageSpeed: boolean } | null>(null);
   const currentRoadRef = useRef<string | null>(null);
+  const scheduleSafetyRefreshRef = useRef<((delayMs?: number) => void) | null>(null);
+  const lastSafetyCentreRef = useRef<Point | null>(null);
   const deviatedSinceRef = useRef(0);
   const reroutingRef = useRef(false);
   const rerouteCooldownUntilRef = useRef(0);
@@ -290,18 +292,9 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     let visibleSafety: SafetyFeatureCollection | null = null;
     let safetyRetryTimer: number | null = null;
     const showSafety = (data: SafetyFeatureCollection) => {
-      const latest = latestFixRef.current;
-      const visible = latest && latest.speedMph >= 5
-        ? filterSignalsToTravelCorridor(data, {
-            position: latest,
-            bearing: latest.bearing,
-            currentRoad: currentRoadRef.current,
-            roadNameAt: (point) => nearestRoadLabelNear(map, point),
-          })
-        : data;
-      visibleSafety = visible;
-      safetyDataRef.current = visible;
-      setSafetyData(map, visible);
+      visibleSafety = data;
+      safetyDataRef.current = data;
+      setSafetyData(map, data);
     };
     const scheduleSafetyRefresh = (delayMs = 0) => {
       if (safetyRetryTimer !== null) window.clearTimeout(safetyRetryTimer);
@@ -310,8 +303,9 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
         void refreshSafety();
       }, delayMs);
     };
+    scheduleSafetyRefreshRef.current = scheduleSafetyRefresh;
     const refreshSafety = async () => {
-      if (!navigator.onLine || safetyPending || map.getZoom() < 12.5) return;
+      if (!navigator.onLine || safetyPending || map.getZoom() < 11.0) return;
       if (!map.isStyleLoaded()) {
         scheduleSafetyRefresh(180);
         return;
@@ -319,11 +313,12 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       const centre = map.getCenter();
       const point = { latitude: centre.lat, longitude: centre.lng };
       const nearbyCached = readCachedSafetyFeatures(point);
-      const withinThrottle = lastSafetyCentre !== null && distanceKm(point, lastSafetyCentre) < 1.8 && Date.now() - lastSafetyTime < 600_000;
+      const withinThrottle = lastSafetyCentre !== null && distanceKm(point, lastSafetyCentre) < 0.8 && Date.now() - lastSafetyTime < 120_000;
       if (withinThrottle) return;
       if (nearbyCached && !visibleSafety) showSafety(nearbyCached);
       safetyPending = true;
       lastSafetyCentre = point;
+      lastSafetyCentreRef.current = point;
       lastSafetyTime = Date.now();
       try {
         const showPartialSafety = (partial: SafetyFeatureCollection, replacedKinds: Set<string>) => {
@@ -400,6 +395,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       canvasContainer.removeEventListener("keydown", manualInput);
       map.off("moveend", refreshSafety);
       map.off("idle", onMapIdle);
+      scheduleSafetyRefreshRef.current = null;
       if (safetyRetryTimer !== null) window.clearTimeout(safetyRetryTimer);
       map.remove();
       mapRef.current = null;
@@ -461,6 +457,9 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       const pointerFix = latestFixRef.current ?? nextFix;
       setSpeedLimitMph(speedLimitNearPoint(safetyDataRef.current, pointerFix));
       resolveRoadAndLocality(map, pointerFix);
+      if (lastSafetyCentreRef.current === null || distanceKm(pointerFix, lastSafetyCentreRef.current) >= 0.8) {
+        scheduleSafetyRefreshRef.current?.(250);
+      }
     }, 90);
   }, [resolveRoadAndLocality]);
 
