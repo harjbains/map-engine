@@ -19,9 +19,15 @@ button { font:inherit; }
 .icon-button, .mode-button { pointer-events:auto; border:1px solid rgba(161,190,205,.18); color:#fff; background:var(--panel); box-shadow:0 8px 30px rgba(0,0,0,.2); }
 .icon-button { width:46px; height:46px; border-radius:50%; font-size:20px; cursor:pointer; }
 .drive-controls { position:absolute; right:12px; bottom:74px; display:flex; flex-direction:column; align-items:flex-end; gap:10px; z-index:6; }
-.landmark-chip { display:flex; flex-direction:column; align-items:center; gap:1px; padding:4px 10px 5px; border:2px solid #111820; border-radius:6px; background:#ffffff; color:#111820; box-shadow:0 3px 10px rgba(0,0,0,.28); line-height:1.15; pointer-events:none; transform:translateY(-4px); }
-.landmark-chip strong { font-size:12px; font-weight:850; letter-spacing:.01em; white-space:nowrap; }
-.landmark-chip span { font-size:10px; font-weight:800; color:#1a5c33; white-space:nowrap; }
+.landmark-chip { display:inline-flex; flex-direction:row; align-items:center; gap:5px; padding:2px 7px 2px 5px; border:1px solid rgba(25,35,42,.18); border-radius:5px; background:rgba(248,249,250,.86); color:#2b353c; box-shadow:0 1px 4px rgba(0,0,0,.14); backdrop-filter:blur(4px); line-height:1.15; pointer-events:none; transform:translateY(-3px); }
+.landmark-chip strong { font-size:10.5px; font-weight:650; letter-spacing:.01em; white-space:nowrap; }
+.landmark-dot { width:5px; height:5px; border-radius:50%; flex:0 0 auto; background:#607684; }
+.landmark-dot[data-category="petrol"] { background:#3a82c4; }
+.landmark-dot[data-category="supermarket"], .landmark-dot[data-category="garden_centre"] { background:#3b9460; }
+.landmark-dot[data-category="fast_food"], .landmark-dot[data-category="restaurant"], .landmark-dot[data-category="pub"] { background:#d47b35; }
+.landmark-dot[data-category="pharmacy"] { background:#2a9d8f; }
+.landmark-dot[data-category="retail_park"], .landmark-dot[data-category="large_shop"], .landmark-dot[data-category="car_dealer"] { background:#597596; }
+.landmark-dot[data-category="hotel"], .landmark-dot[data-category="leisure"] { background:#7b68a8; }
 .mode-button { width:46px; height:46px; border:2px solid #3179b9; border-radius:50%; font-weight:850; cursor:pointer; }
 .location-refresh-icon { width:22px; height:22px; margin:auto; display:block; }
 .speed-card { display:grid; width:86px; height:86px; align-content:center; padding:7px; border:3px solid #398957; border-radius:50%; background:rgba(8,13,16,.93); text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.25); }

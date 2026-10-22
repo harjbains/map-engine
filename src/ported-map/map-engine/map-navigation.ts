@@ -1,4 +1,4 @@
-﻿import type maplibregl from "maplibre-gl";
+import type maplibregl from "maplibre-gl";
 import type { CalculatedRoute } from "../lib/routing";
 import { dynamicZoom, type Point } from "../lib/driving.ts";
 import type { ActiveRoute, VehicleFix } from "./config";
@@ -79,6 +79,7 @@ export function mapCentre(map: maplibregl.Map): Point {
   const centre = map.unproject([canvas.clientWidth / 2, canvas.clientHeight / 2]);
   return { latitude: centre.lat, longitude: centre.lng };
 }
+
 export function bearingBetween(a: Point, b: Point) {
   const latitudeDelta = (b.latitude - a.latitude) * Math.PI / 180;
   const longitudeDelta = (b.longitude - a.longitude) * Math.PI / 180;
@@ -104,102 +105,200 @@ export type VisibleLandmark = {
   score: number;
 };
 
-const PRIORITY_WEIGHT = 1.4;
-const DISTANCE_WEIGHT = 0.35;
-const ALIGNMENT_WEIGHT = 0.25;
+const PRIORITY_WEIGHT = 1.1;
+const DISTANCE_WEIGHT = 0.55;
+const ALIGNMENT_WEIGHT = 0.35;
+
+const KEEP_CONE_DEGREES = 72;
+const ROUTE_CORRIDOR_METRES = 70;
+const MAX_MILES = 1.25;
+const MAX_CROSS_TRACK_SAME_ROAD_METRES = 135;
+const MAX_CROSS_TRACK_UNNAMED_METRES = 42;
+
+export const LANDMARK_CHIP_LIMIT = 24;
+const LANDMARK_MIN_SPACING_METRES = 38;
+
+function normalizeRoadTokens(label: string): { full: string; withoutRef: string; refs: string[] } {
+  const cleaned = label.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  const refs = cleaned.match(/\b([abm]\d{1,4}(?:\s*m)?)\b/g)?.map((r) => r.replace(/\s+/g, "")) ?? [];
+  const withoutRef = cleaned.replace(/\b([abm]\d{1,4}(?:\s*m)?)\b/g, " ").replace(/\s+/g, " ").trim();
+  return { full: cleaned, withoutRef, refs };
+}
+
+export function matchesRoadOfTravel(
+  currentRoad: string | null,
+  landmark: { roadName?: string | null; roadCandidates?: string[] },
+): boolean {
+  if (!currentRoad) return false;
+  const candidates = new Set<string>();
+  if (landmark.roadName) candidates.add(landmark.roadName);
+  if (Array.isArray(landmark.roadCandidates)) {
+    for (const candidate of landmark.roadCandidates) {
+      if (candidate) candidates.add(candidate);
+    }
+  }
+  if (candidates.size === 0) return false;
+
+  const target = normalizeRoadTokens(currentRoad);
+  for (const rawCandidate of candidates) {
+    const cand = normalizeRoadTokens(rawCandidate);
+    if (!cand.full) continue;
+    if (cand.full === target.full) return true;
+    if (target.withoutRef.length >= 4 && cand.withoutRef.length >= 4) {
+      if (target.withoutRef === cand.withoutRef) return true;
+      if (target.withoutRef.includes(cand.withoutRef) || cand.withoutRef.includes(target.withoutRef)) return true;
+    }
+    if (target.refs.length > 0 && cand.refs.some((r) => target.refs.includes(r))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function trackOffsetsMetres(fix: Point & { bearing: number }, target: Point) {
+  const totalMetres = distanceKm(fix, target) * 1000;
+  const relDeg = headingDifference(bearingBetween(fix, target), fix.bearing);
+  const relRad = relDeg * Math.PI / 180;
+  return {
+    totalMetres,
+    relativeDegrees: relDeg,
+    alongTrackMetres: totalMetres * Math.cos(relRad),
+    crossTrackMetres: Math.abs(totalMetres * Math.sin(relRad)),
+  };
+}
 
 export function landmarksAhead(
   fix: VehicleFix,
-  landmarks: Array<{ id: string; name: string; category: string; priority: number; latitude: number; longitude: number; roadName?: string | null }>,
+  landmarks: Array<{
+    id: string;
+    name: string;
+    category: string;
+    priority: number;
+    latitude: number;
+    longitude: number;
+    roadName?: string | null;
+    roadCandidates?: string[];
+  }>,
   limit = LANDMARK_CHIP_LIMIT,
-  coneDegrees = 45,
-  maxMiles = 5,
+  coneDegrees = 32,
+  maxMiles = MAX_MILES,
   minimumSpacingMetres = LANDMARK_MIN_SPACING_METRES,
   route: Pick<CalculatedRoute, "geometry"> | null = null,
   roadName: string | null = null,
 ) {
-  const effectiveConeDegrees = fix.speedMph < 8 ? 180 : coneDegrees;
+  const stationary = fix.speedMph < 5;
+  const effectiveConeDegrees = stationary ? 75 : coneDegrees;
   const visible: VisibleLandmark[] = [];
+
   for (const landmark of landmarks) {
-    if (roadName !== null && landmark.roadName && landmark.roadName !== roadName) continue;
     const miles = distanceKm(fix, landmark) * 0.621371;
     if (miles > maxMiles) continue;
-    if (route !== null && distanceFromRouteMetres(route, landmark) > ROUTE_CORRIDOR_METRES) continue;
-    const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
-    if (Math.abs(relativeDegrees) > effectiveConeDegrees) continue;
+
+    const { totalMetres, relativeDegrees, alongTrackMetres, crossTrackMetres } = trackOffsetsMetres(fix, landmark);
+    const absAngle = Math.abs(relativeDegrees);
+
+    if (route !== null) {
+      if (distanceFromRouteMetres(route, landmark) > ROUTE_CORRIDOR_METRES) continue;
+      if (!stationary && absAngle > 70) continue;
+    } else {
+      const closeCone = totalMetres < 110 ? Math.max(effectiveConeDegrees, 52) : effectiveConeDegrees;
+      if (absAngle > closeCone) continue;
+      if (!stationary && alongTrackMetres < 8) continue;
+
+      const hasLandmarkRoadInfo = Boolean(landmark.roadName || (landmark.roadCandidates && landmark.roadCandidates.length > 0));
+      if (roadName !== null) {
+        const onSameRoad = matchesRoadOfTravel(roadName, landmark);
+        if (hasLandmarkRoadInfo) {
+          if (!onSameRoad) continue;
+          if (crossTrackMetres > MAX_CROSS_TRACK_SAME_ROAD_METRES) continue;
+        } else {
+          if (crossTrackMetres > MAX_CROSS_TRACK_UNNAMED_METRES) continue;
+        }
+      } else {
+        if (crossTrackMetres > MAX_CROSS_TRACK_UNNAMED_METRES) continue;
+      }
+    }
+
     const distanceScore = (1 - miles / maxMiles) * DISTANCE_WEIGHT;
-    const alignmentScore = (1 - Math.abs(relativeDegrees) / effectiveConeDegrees) * ALIGNMENT_WEIGHT;
+    const alignmentScore = (1 - Math.min(1, absAngle / Math.max(1, effectiveConeDegrees))) * ALIGNMENT_WEIGHT;
     const score = (4 - landmark.priority) * PRIORITY_WEIGHT + distanceScore + alignmentScore;
     visible.push({ ...landmark, miles, relativeDegrees, score });
   }
+
   visible.sort((left, right) => {
-    const scoreOrder = right.score - left.score;
-    if (scoreOrder !== 0) return scoreOrder;
     const distanceOrder = left.miles - right.miles;
+    const scoreOrder = right.score - left.score;
+    if (Math.abs(scoreOrder) > 0.25) return scoreOrder;
     if (distanceOrder !== 0) return distanceOrder;
     return left.id.localeCompare(right.id);
   });
+
   const minimumSpacingKm = minimumSpacingMetres / 1000;
   const selected: VisibleLandmark[] = [];
-  const chosenCategories = new Set<string>();
-  const place = (candidate: VisibleLandmark): void => {
+  for (const candidate of visible) {
+    if (selected.length >= limit) break;
     const overlaps = selected.some((kept) => distanceKm(candidate, kept) < minimumSpacingKm);
-    if (overlaps) return;
+    if (overlaps) continue;
     selected.push(candidate);
-    chosenCategories.add(candidate.category);
-  };
-
-  for (const candidate of visible) {
-    if (candidate.priority !== 1) continue;
-    if (chosenCategories.has(candidate.category)) continue;
-    place(candidate);
-    if (selected.length >= limit) break;
-  }
-  for (const candidate of visible) {
-    if (selected.length >= limit) break;
-    place(candidate);
   }
   return selected;
 }
 
-const KEEP_CONE_DEGREES = 135;
-const ROUTE_CORRIDOR_METRES = 400;
-const MAX_MILES = 5;
-
-export const LANDMARK_CHIP_LIMIT = 14;
-const LANDMARK_MIN_SPACING_METRES = 100;
-
 export function stickyLandmarksAhead(
   fix: VehicleFix,
-  landmarks: Array<{ id: string; name: string; category: string; priority: number; latitude: number; longitude: number; roadName?: string | null }>,
+  landmarks: Array<{
+    id: string;
+    name: string;
+    category: string;
+    priority: number;
+    latitude: number;
+    longitude: number;
+    roadName?: string | null;
+    roadCandidates?: string[];
+  }>,
   previous: VisibleLandmark[],
   limit = LANDMARK_CHIP_LIMIT,
   route: Pick<CalculatedRoute, "geometry"> | null = null,
   roadName: string | null = null,
 ) {
-  const ranked = landmarksAhead(fix, landmarks, Infinity, 45, 5, LANDMARK_MIN_SPACING_METRES, route, roadName);
+  const ranked = landmarksAhead(fix, landmarks, Infinity, 32, MAX_MILES, LANDMARK_MIN_SPACING_METRES, route, roadName);
   const rankedById = new Map(ranked.map((landmark) => [landmark.id, landmark]));
   const knownById = new Map(landmarks.map((landmark) => [landmark.id, landmark]));
-  const keepConeDegrees = fix.speedMph < 8 ? 180 : KEEP_CONE_DEGREES;
+  const keepConeDegrees = fix.speedMph < 5 ? 85 : KEEP_CONE_DEGREES;
   const kept: VisibleLandmark[] = [];
   const keptIds = new Set<string>();
+
   for (const prev of previous) {
     if (kept.length >= limit) break;
     const landmark = knownById.get(prev.id);
     if (!landmark) continue;
-    if (route !== null && distanceFromRouteMetres(route, landmark) > ROUTE_CORRIDOR_METRES) continue;
     const miles = distanceKm(fix, landmark) * 0.621371;
-    const relativeDegrees = headingDifference(bearingBetween(fix, landmark), fix.bearing);
+    if (miles > MAX_MILES) continue;
+
+    if (route !== null) {
+      if (distanceFromRouteMetres(route, landmark) > ROUTE_CORRIDOR_METRES) continue;
+    } else if (roadName !== null) {
+      const hasRoadInfo = Boolean(landmark.roadName || (landmark.roadCandidates && landmark.roadCandidates.length > 0));
+      if (hasRoadInfo && !matchesRoadOfTravel(roadName, landmark)) continue;
+    }
+
+    const { relativeDegrees, crossTrackMetres } = trackOffsetsMetres(fix, landmark);
     if (Math.abs(relativeDegrees) > keepConeDegrees) continue;
+    if (route === null && crossTrackMetres > MAX_CROSS_TRACK_SAME_ROAD_METRES) continue;
+
     const current = rankedById.get(prev.id) ?? {
       ...landmark,
       miles,
       relativeDegrees,
-      score: (4 - landmark.priority) * PRIORITY_WEIGHT + (1 - miles / MAX_MILES) * DISTANCE_WEIGHT + (1 - Math.abs(relativeDegrees) / 45) * ALIGNMENT_WEIGHT,
+      score:
+        (4 - landmark.priority) * PRIORITY_WEIGHT +
+        (1 - miles / MAX_MILES) * DISTANCE_WEIGHT +
+        (1 - Math.min(1, Math.abs(relativeDegrees) / keepConeDegrees)) * ALIGNMENT_WEIGHT,
     };
     kept.push(current);
     keptIds.add(current.id);
   }
+
   for (const candidate of ranked) {
     if (kept.length >= limit) break;
     if (keptIds.has(candidate.id)) continue;
@@ -347,5 +446,3 @@ export function distanceFromRouteMetres(route: Pick<CalculatedRoute, "geometry">
   }
   return nearestMetres;
 }
-
-

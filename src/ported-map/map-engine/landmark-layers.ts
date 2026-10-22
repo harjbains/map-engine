@@ -1,18 +1,16 @@
 import maplibregl from "maplibre-gl";
 import type { VisibleLandmark } from "./map-navigation";
 
-const chipsById = new Map<string, { marker: maplibregl.Marker; name: HTMLElement; miles: HTMLElement }>();
-
-function milesText(miles: number) {
-  return `${miles < 0.1 ? "<0.1" : miles.toFixed(1)} mi`;
-}
+const chipsById = new Map<string, { marker: maplibregl.Marker; dot: HTMLElement; name: HTMLElement }>();
 
 function buildChip() {
   const element = document.createElement("div");
   element.className = "landmark-chip";
+  const dot = document.createElement("i");
+  dot.className = "landmark-dot";
   const name = document.createElement("strong");
-  element.append(name);
-  return { element, name };
+  element.append(dot, name);
+  return { element, dot, name };
 }
 
 export function setLandmarkChips(map: maplibregl.Map, landmarks: VisibleLandmark[]) {
@@ -29,13 +27,14 @@ export function setLandmarkChips(map: maplibregl.Map, landmarks: VisibleLandmark
       const built = buildChip();
       chip = {
         marker: new maplibregl.Marker({ element: built.element, anchor: "bottom" }),
+        dot: built.dot,
         name: built.name,
-        miles: document.createElement("span"), // unused stub
       };
       chip.marker.setLngLat([landmark.longitude, landmark.latitude]).addTo(map);
       chipsById.set(landmark.id, chip);
     }
-    const trimmed = landmark.name.length > 30 ? landmark.name.substring(0, 30) + "..." : landmark.name;
+    chip.dot.dataset.category = landmark.category;
+    const trimmed = landmark.name.length > 24 ? `${landmark.name.substring(0, 23).trimEnd()}…` : landmark.name;
     chip.name.textContent = trimmed;
   }
 }

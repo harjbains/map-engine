@@ -13,10 +13,10 @@ type UseLandmarksOptions = {
   route: ActiveRoute | null;
 };
 
-const REFETCH_INTERVAL_MS = 45_000;
-const REFETCH_MOVEMENT_KM = 0.9;
-const FETCH_RADIUS_METRES = 4_000;
-const FETCH_AHEAD_METRES = 800;
+const REFETCH_INTERVAL_MS = 20_000;
+const REFETCH_MOVEMENT_KM = 0.45;
+const FETCH_RADIUS_METRES = 2_000;
+const FETCH_AHEAD_METRES = 550;
 
 export function useLandmarks({ fix, roadName, mapReady, enabled, online, route }: UseLandmarksOptions) {
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
