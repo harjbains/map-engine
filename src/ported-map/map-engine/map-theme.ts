@@ -1,8 +1,8 @@
 import type maplibregl from "maplibre-gl";
 
-export const ROAD_WIDTH_SCALE = 0.75;
-export const B_ROAD_WIDTH_SCALE = 0.56;
-export const MOTORWAY_WIDTH_SCALE = 0.45;
+export const ROAD_WIDTH_SCALE = 0.48;
+export const B_ROAD_WIDTH_SCALE = 0.48;
+export const MOTORWAY_WIDTH_SCALE = 0.48;
 export const LOCAL_ROAD_WIDTH_SCALE = 0.48;
 
 export const ROAD_HIERARCHY_MIN_ZOOM = [
@@ -39,17 +39,18 @@ const scaleRoadWidthOutput = (value: unknown, scale: number): unknown => {
   return value;
 };
 
-const scaleRoadWidth = (width: unknown[], scale = ROAD_WIDTH_SCALE) => width.map((value, index) => index >= 4 && index % 2 === 0 ? scaleRoadWidthOutput(value, scale) : value);
-const IS_RAMP = ["==", ["get", "ramp"], 1];
-const MOTORWAY_CASING_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, ["case", IS_RAMP, 1.5, 3], 8, ["case", IS_RAMP, 2.75, 5.5], 10, ["case", IS_RAMP, 4.25, 8.5], 12, ["case", IS_RAMP, 6, 12], 14, ["case", IS_RAMP, 9.5, 19], 17, ["case", IS_RAMP, 17, 34], 19, ["case", IS_RAMP, 24, 48]], MOTORWAY_WIDTH_SCALE);
-const MOTORWAY_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, ["case", IS_RAMP, 0.9, 1.8], 8, ["case", IS_RAMP, 1.75, 3.5], 10, ["case", IS_RAMP, 3, 6], 12, ["case", IS_RAMP, 4.5, 9], 14, ["case", IS_RAMP, 7.5, 15], 17, ["case", IS_RAMP, 14, 28], 19, ["case", IS_RAMP, 20, 40]], MOTORWAY_WIDTH_SCALE);
-const A_ROAD_CASING_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, ["case", IS_RAMP, 1.5, 2.25], 8, ["case", IS_RAMP, 2.75, 4.1], 10, ["case", IS_RAMP, 4.25, 6.4], 12, ["case", IS_RAMP, 6, 9], 14, ["case", IS_RAMP, 9.5, 14.25], 17, ["case", IS_RAMP, 17, 25.5], 19, ["case", IS_RAMP, 24, 36]]);
-const A_ROAD_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, ["case", IS_RAMP, 0.9, 1.35], 8, ["case", IS_RAMP, 1.75, 2.6], 10, ["case", IS_RAMP, 3, 4.5], 12, ["case", IS_RAMP, 4.5, 6.75], 14, ["case", IS_RAMP, 7.5, 11.25], 17, ["case", IS_RAMP, 14, 21], 19, ["case", IS_RAMP, 20, 30]]);
-const B_ROAD_CASING_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, 3, 8, 5.5, 10, 8.5, 12, 12, 14, 19, 17, 34, 19, 48], B_ROAD_WIDTH_SCALE);
-const B_ROAD_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, 1.8, 8, 3.5, 10, 6, 12, 9, 14, 15, 17, 28, 19, 40], B_ROAD_WIDTH_SCALE);
+const scaleRoadWidth = (width: unknown[], scale = LOCAL_ROAD_WIDTH_SCALE) => width.map((value, index) => index >= 4 && index % 2 === 0 ? scaleRoadWidthOutput(value, scale) : value);
+const UNIFORM_CASING_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, 3, 8, 5.5, 10, 8.5, 12, 12, 14, 19, 17, 34, 19, 48], LOCAL_ROAD_WIDTH_SCALE);
+const UNIFORM_ROAD_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, 1.8, 8, 3.5, 10, 6, 12, 9, 14, 15, 17, 28, 19, 40], LOCAL_ROAD_WIDTH_SCALE);
+const MOTORWAY_CASING_WIDTH = UNIFORM_CASING_WIDTH;
+const MOTORWAY_WIDTH = UNIFORM_ROAD_WIDTH;
+const A_ROAD_CASING_WIDTH = UNIFORM_CASING_WIDTH;
+const A_ROAD_WIDTH = UNIFORM_ROAD_WIDTH;
+const B_ROAD_CASING_WIDTH = UNIFORM_CASING_WIDTH;
+const B_ROAD_WIDTH = UNIFORM_ROAD_WIDTH;
 const SERVICE_ROAD = ["==", ["get", "class"], "service"];
-const LOCAL_ROAD_CASING_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, 3, 8, 5.5, 10, 8.5, 12, 12, 14, 19, 17, 34, 19, 48], LOCAL_ROAD_WIDTH_SCALE);
-const LOCAL_ROAD_WIDTH = scaleRoadWidth(["interpolate", ["exponential", 1.3], ["zoom"], 5, 1.8, 8, 3.5, 10, 6, 12, 9, 14, 15, 17, 28, 19, 40], LOCAL_ROAD_WIDTH_SCALE);
+const LOCAL_ROAD_CASING_WIDTH = UNIFORM_CASING_WIDTH;
+const LOCAL_ROAD_WIDTH = UNIFORM_ROAD_WIDTH;
 
 const NIGHT_LOCAL_FILL = ["match", ["get", "class"],
   "tertiary", "#687278",
