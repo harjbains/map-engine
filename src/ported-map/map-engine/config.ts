@@ -4,12 +4,41 @@ import type { CalculatedRoute } from "../lib/routing";
 import type { Point } from "../lib/driving";
 import type { RouteProfile } from "../lib/route-engine-core";
 
+export type SafetyOverlayToggleKey =
+  | "showTrafficSignals"
+  | "showSpeedCameras"
+  | "showRoadClosures"
+  | "showRoadworks"
+  | "showBusLanes"
+  | "showSpeedBumps"
+  | "showOneWayArrows"
+  | "showTurnRestrictions"
+  | "showNoEntry"
+  | "showRailCrossings"
+  | "showDimensionLimits"
+  | "showAccessZones"
+  | "showRoadSpeedLimits"
+  | "showDriverAmenities";
+
 export type Settings = {
   darkMode: boolean;
   default3d: boolean;
   autoZoom: boolean;
   showSpeed: boolean;
   showBuildings: boolean;
+  showTrafficSignals: boolean;
+  showSpeedCameras: boolean;
+  showRoadClosures: boolean;
+  showRoadworks: boolean;
+  showBusLanes: boolean;
+  showSpeedBumps: boolean;
+  showOneWayArrows: boolean;
+  showTurnRestrictions: boolean;
+  showNoEntry: boolean;
+  showRailCrossings: boolean;
+  showDimensionLimits: boolean;
+  showAccessZones: boolean;
+  showRoadSpeedLimits: boolean;
   showDriverAmenities: boolean;
   showLandmarks: boolean;
   showPickups: boolean;
@@ -42,6 +71,19 @@ export const DEFAULT_SETTINGS: Settings = {
   autoZoom: true,
   showSpeed: true,
   showBuildings: true,
+  showTrafficSignals: true,
+  showSpeedCameras: true,
+  showRoadClosures: true,
+  showRoadworks: true,
+  showBusLanes: true,
+  showSpeedBumps: false,
+  showOneWayArrows: false,
+  showTurnRestrictions: false,
+  showNoEntry: false,
+  showRailCrossings: false,
+  showDimensionLimits: false,
+  showAccessZones: false,
+  showRoadSpeedLimits: false,
   showDriverAmenities: false,
   showLandmarks: true,
   showPickups: true,

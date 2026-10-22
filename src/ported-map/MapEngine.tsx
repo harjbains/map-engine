@@ -21,7 +21,7 @@ import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, 
 import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setAreaViewMode, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
-import { ensureSafetyLayers, filterSignalsToTravelCorridor, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
+import { applySafetyLayerVisibility, ensureSafetyLayers, filterSignalsToTravelCorridor, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
 import { useLandmarks } from "./map-engine/useLandmarks";
 import { useViewDebugHud } from "./map-engine/useViewDebugHud";
@@ -230,7 +230,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
         if (map.getLayer("building-3d")) {
           map.setLayoutProperty("building-3d", "visibility", settings.showBuildings && is3d ? "visible" : "none");
         }
-        setDriverAmenitiesVisibility(map, settings.showDriverAmenities);
+        applySafetyLayerVisibility(map, settings);
         if (followRef.current) map.easeTo({ pitch: is3d ? settings.pitch : 0, duration: 350 });
       }
     }
@@ -347,7 +347,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       ensureTrafficLayer(map);
       setTrafficVisibility(map, false);
       ensureSafetyLayers(map);
-      setDriverAmenitiesVisibility(map, settingsRef.current.showDriverAmenities);
+      applySafetyLayerVisibility(map, settingsRef.current);
       const initialCentre = map.getCenter();
       const cachedSafety = readCachedSafetyFeatures({ latitude: initialCentre.lat, longitude: initialCentre.lng });
       if (cachedSafety) showSafety(cachedSafety);
@@ -532,7 +532,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       return;
     }
     const data = safetyDataRef.current;
-    if (!data || fix.speedMph < 6) {
+    if (!data || fix.speedMph < 6 || !settingsRef.current.showSpeedCameras) {
       if (active) {
         cameraAlertRef.current = null;
         setCameraAlert(null);
@@ -1191,6 +1191,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
           onCancelDownload={() => abortPackRef.current?.abort()}
           onSaveOfflineArea={() => void saveOfflineArea()}
           onToggle={(key, value) => updateSettings({ [key]: value })}
+          onBatchSettings={updateSettings}
           onDefault3d={(value) => { updateSettings({ default3d: value }); is3dRef.current = value; setIs3d(value); }}
           onAutoZoom={(value) => { if (value) manualZoomRef.current = null; updateSettings({ autoZoom: value }); }}
           onLiveTraffic={(value) => {

@@ -1,6 +1,7 @@
 import type maplibregl from "maplibre-gl";
 import type { Point } from "../lib/driving";
 import type { SafetyFeatureCollection } from "../lib/safety";
+import type { SafetyOverlayToggleKey, Settings } from "./config";
 import { bearingBetween, distanceKm, headingDifference } from "./map-navigation.ts";
 
 const EMPTY_SAFETY_DATA: SafetyFeatureCollection = { type: "FeatureCollection", features: [] };
@@ -224,6 +225,34 @@ export function ensureSafetyLayers(map: maplibregl.Map) {
   add({ id: "safety-camera", type: "circle", source: "safety-overlays", minzoom: 12.5, filter: ["==", ["get", "kind"], "speed_camera"], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12.5, 9, 17, 13], "circle-color": "#ffd34d", "circle-stroke-color": "#20272b", "circle-stroke-width": 2.5 } });
   add({ id: "safety-camera-lens", type: "circle", source: "safety-overlays", minzoom: 12.5, filter: ["==", ["get", "kind"], "speed_camera"], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12.5, 3, 17, 5], "circle-color": "#20272b", "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
   if (map.getLayer("safety-signal-icon")) map.moveLayer("safety-signal-icon");
+}
+
+const SAFETY_LAYER_GROUPS: Array<[SafetyOverlayToggleKey, string[]]> = [
+  ["showTrafficSignals", ["safety-signal-icon"]],
+  ["showSpeedCameras", ["safety-camera", "safety-camera-lens"]],
+  ["showRoadClosures", ["safety-road-closure-casing", "safety-road-closure-line", "safety-road-closure-markers"]],
+  ["showRoadworks", ["safety-roadworks-casing", "safety-roadworks-line", "safety-roadworks-markers"]],
+  ["showBusLanes", ["safety-restricted-casing", "safety-restricted-line", "safety-restricted-label", "safety-restriction-entry", "safety-restriction-entry-label"]],
+  ["showSpeedBumps", ["safety-speed-bump"]],
+  ["showOneWayArrows", ["safety-one-way-arrows"]],
+  ["showTurnRestrictions", ["safety-turn-restriction"]],
+  ["showNoEntry", ["safety-no-entry-disc", "safety-no-entry-bar"]],
+  ["showRailCrossings", ["safety-rail-crossing"]],
+  ["showDimensionLimits", ["safety-dimension-limit"]],
+  ["showAccessZones", ["safety-access-zone", "safety-access-zone-label"]],
+  ["showRoadSpeedLimits", ["safety-speed-limit"]],
+  ["showDriverAmenities", DRIVER_AMENITY_LAYERS],
+];
+
+export function applySafetyLayerVisibility(map: maplibregl.Map, settings: Settings) {
+  for (const [settingKey, layerIds] of SAFETY_LAYER_GROUPS) {
+    const visibility = settings[settingKey] ? "visible" : "none";
+    for (const layerId of layerIds) {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", visibility);
+      }
+    }
+  }
 }
 
 export function setDriverAmenitiesVisibility(map: maplibregl.Map, visible: boolean) {
