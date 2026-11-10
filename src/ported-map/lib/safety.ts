@@ -5,6 +5,7 @@ export type SafetyKind =
   | "restriction_entrance"
   | "traffic_signal"
   | "speed_camera"
+  | "average_speed_zone"
   | "road_closure"
   | "roadworks"
   | "speed_bump"
@@ -28,7 +29,7 @@ export type SafetyFeatureCollection = {
   features: Array<{
     type: "Feature";
     id: string;
-    properties: { kind: SafetyKind; label: string; direction?: number };
+    properties: { kind: SafetyKind; label: string; direction?: number; roadName?: string; speedLimit?: number };
     geometry: SafetyGeometry;
   }>;
 };
@@ -60,7 +61,7 @@ type SafetyCacheEntry = {
   data: SafetyFeatureCollection;
 };
 
-const CACHE_KEY = "map-engine-safety-overlay-v16";
+const CACHE_KEY = "map-engine-safety-overlay-v17";
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const CACHE_MAX_AREAS = 30;
 const OVERPASS_MIRRORS = [
@@ -288,7 +289,6 @@ function distanceToPathMetres(point: TrafficSignalPoint, path: TrafficSignalPoin
   return nearest;
 }
 
-
 const overpassQueue: (() => void)[] = [];
 let overpassActive = 0;
 
@@ -495,6 +495,181 @@ function speedLimitFeatures(elements: OverpassElement[]): SafetyFeatureCollectio
   return { type: "FeatureCollection", features };
 }
 
+function isExplicitAverageSpeedElement(tags: Record<string, string>) {
+  return (
+    tags.enforcement === "average_speed" ||
+    tags["camera:type"] === "average_speed" ||
+    tags.speed_camera === "average_speed" ||
+    tags.safety_camera === "average_speed" ||
+    /average|specs|vector|hadecs/i.test(`${tags.name ?? ""} ${tags.description ?? ""} ${tags["maxspeed:type"] ?? ""} ${tags["source:maxspeed"] ?? ""}`)
+  );
+}
+
+function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationElements: OverpassElement[]): SafetyFeatureCollection {
+  const features: SafetyFeatureCollection["features"] = [];
+  const seenIds = new Set<string>();
+
+  const addZoneWay = (element: OverpassElement, speedStr: string | null, roadLabel: string | null) => {
+    const id = `way/${element.id}/average_speed_zone`;
+    if (seenIds.has(id)) return;
+    const coordinates = (element.geometry ?? []).map(({ lon, lat }) => [lon, lat] as [number, number]);
+    if (coordinates.length < 2) return;
+    seenIds.add(id);
+    const speedLimit = speedStr ? Number(speedStr) : undefined;
+    const label = speedStr ? `AVG ${speedStr} MPH` : "AVG SPEED ZONE";
+    features.push({
+      type: "Feature",
+      id,
+      properties: {
+        kind: "average_speed_zone",
+        label,
+        roadName: roadLabel ?? undefined,
+        speedLimit: Number.isFinite(speedLimit) ? speedLimit : undefined,
+      },
+      geometry: { type: "LineString", coordinates },
+    });
+  };
+
+  // Collect all speed camera points
+  const cameraPoints: Array<{ point: TrafficSignalPoint; explicitAvg: boolean; speed: string | null }> = [];
+  const allElements = [...hazardElements, ...regulationElements];
+
+  for (const element of allElements) {
+    const tags = element.tags ?? {};
+    const speedEnforcement = /^(speed|maximum_speed|maxspeed|average_speed)$/.test(tags.enforcement ?? "");
+    const explicitAvg = isExplicitAverageSpeedElement(tags);
+
+    if (element.type === "way" && explicitAvg && Array.isArray(element.geometry) && element.geometry.length >= 2) {
+      const speed = normaliseSpeedLimit(tags.maxspeed);
+      const roadLabel = tags.ref && tags.name ? `${tags.ref} ${tags.name}` : tags.name ?? tags.ref ?? null;
+      addZoneWay(element, speed, roadLabel);
+    }
+
+    if (element.type === "relation" && explicitAvg && Array.isArray(element.members)) {
+      const speed = normaliseSpeedLimit(tags.maxspeed);
+      for (const member of element.members) {
+        if (member.type === "way" && Array.isArray(member.geometry) && member.geometry.length >= 2) {
+          addZoneWay(
+            { type: "way", id: member.ref, geometry: member.geometry, tags },
+            speed,
+            tags.name ?? tags.ref ?? null,
+          );
+        }
+      }
+    }
+
+    if (tags.highway === "speed_camera" || speedEnforcement) {
+      const pt = elementPoint(element);
+      if (pt) {
+        cameraPoints.push({
+          point: pt,
+          explicitAvg,
+          speed: normaliseSpeedLimit(tags.maxspeed),
+        });
+      }
+    }
+  }
+
+  if (cameraPoints.length === 0) return { type: "FeatureCollection", features };
+
+  // Collect candidate road ways from regulationElements (which has way["highway"]["maxspeed"])
+  const roadWays = regulationElements.filter(
+    (el) => el.type === "way" && el.tags?.highway && Array.isArray(el.geometry) && el.geometry.length >= 2,
+  );
+
+  type RoadWayInfo = {
+    element: OverpassElement;
+    path: TrafficSignalPoint[];
+    roadKeys: string[];
+    roadLabel: string | null;
+    speed: string | null;
+    nearCameraIndices: Set<number>;
+    nearExplicitAvg: boolean;
+  };
+
+  const wayInfos: RoadWayInfo[] = roadWays.map((element) => {
+    const tags = element.tags ?? {};
+    const path = (element.geometry ?? []).map(({ lat, lon }) => ({ latitude: lat, longitude: lon }));
+    const keys: string[] = [];
+    if (tags.ref) {
+      for (const part of tags.ref.split(/[;/,]+/)) {
+        const cleaned = part.trim().toUpperCase();
+        if (cleaned) keys.push(`ref:${cleaned}`);
+      }
+    }
+    if (tags.name) {
+      keys.push(`name:${tags.name.trim().toLowerCase()}`);
+    }
+    const roadLabel = tags.ref && tags.name && !tags.name.includes(tags.ref)
+      ? `${tags.ref} ${tags.name}`
+      : tags.name ?? tags.ref ?? null;
+    const speed = normaliseSpeedLimit(tags.maxspeed);
+    const nearCameraIndices = new Set<number>();
+    let nearExplicitAvg = isExplicitAverageSpeedElement(tags);
+
+    for (let i = 0; i < cameraPoints.length; i += 1) {
+      const cam = cameraPoints[i];
+      const dist = distanceToPathMetres(cam.point, path);
+      if (dist <= 42) {
+        nearCameraIndices.add(i);
+        if (cam.explicitAvg) nearExplicitAvg = true;
+      }
+    }
+
+    return { element, path, roadKeys: keys, roadLabel, speed, nearCameraIndices, nearExplicitAvg };
+  });
+
+  // Group cameras by road key (ref or name) to find roads with >= 2 speed cameras or >= 1 explicit average speed camera
+  const roadKeyCameras = new Map<string, Set<number>>();
+  const roadKeyExplicitAvg = new Set<string>();
+
+  for (const info of wayInfos) {
+    if (info.nearCameraIndices.size === 0 && !info.nearExplicitAvg) continue;
+    for (const key of info.roadKeys) {
+      let set = roadKeyCameras.get(key);
+      if (!set) {
+        set = new Set<number>();
+        roadKeyCameras.set(key, set);
+      }
+      for (const idx of info.nearCameraIndices) set.add(idx);
+      if (info.nearExplicitAvg) roadKeyExplicitAvg.add(key);
+    }
+  }
+
+  const activeAverageZoneRoadKeys = new Set<string>();
+  for (const [key, camIndices] of roadKeyCameras.entries()) {
+    if (camIndices.size >= 2 || roadKeyExplicitAvg.has(key)) {
+      activeAverageZoneRoadKeys.add(key);
+    }
+  }
+
+  // Highlight ways that belong to an active average speed road (within 1,100m of any camera on that road)
+  // OR ways directly touching an explicit average speed camera
+  for (const info of wayInfos) {
+    if (info.nearExplicitAvg) {
+      addZoneWay(info.element, info.speed, info.roadLabel);
+      continue;
+    }
+    const matchingKey = info.roadKeys.find((k) => activeAverageZoneRoadKeys.has(k));
+    if (!matchingKey) continue;
+    const camIndices = roadKeyCameras.get(matchingKey);
+    if (!camIndices || camIndices.size === 0) continue;
+    const midPoint = info.path[Math.floor(info.path.length / 2)];
+    let withinZoneSpan = false;
+    for (const camIdx of camIndices) {
+      if (distanceMetres(midPoint, cameraPoints[camIdx].point) <= 1_150) {
+        withinZoneSpan = true;
+        break;
+      }
+    }
+    if (withinZoneSpan) {
+      addZoneWay(info.element, info.speed, info.roadLabel);
+    }
+  }
+
+  return { type: "FeatureCollection", features };
+}
+
 function roadClosureFeatures(elements: OverpassElement[]): SafetyFeatureCollection {
   const features: SafetyFeatureCollection["features"] = [];
   for (const element of elements) {
@@ -564,7 +739,7 @@ function detailFeatures(elements: OverpassElement[]): SafetyFeatureCollection["f
     const speedEnforcement = /^(speed|maximum_speed|maxspeed|average_speed)$/.test(tags.enforcement ?? "");
     if (tags.highway === "speed_camera" || speedEnforcement) {
       kind = "speed_camera";
-      label = tags.enforcement === "average_speed" ? "Average speed" : "Speed camera";
+      label = isExplicitAverageSpeedElement(tags) ? "Average speed" : "Speed camera";
     } else if (element.type === "way") {
       kind = "restricted";
       label = isBusAccessOnly(tags) || isExplicitBusLane(tags) ? "BUS LANE" : "";
@@ -653,8 +828,12 @@ export async function fetchSafetyFeatures(
   };
   if (curated.features.length) publishRestrictions(curated);
 
+  let rawHazardElements: OverpassElement[] = [];
+  let rawRegulationElements: OverpassElement[] = [];
+
   const hazardRequest = fetchOverpass(hazardsQuery, 0, 1_500).then((payload) => {
     const elements = payload.elements ?? [];
+    rawHazardElements = elements;
     const signals = trafficSignalFeatures(elements);
     if (signals.features.length) onTrafficSignals?.(signals);
 
@@ -675,6 +854,7 @@ export async function fetchSafetyFeatures(
 
   const regulationRequest = fetchOverpass(regulationsQuery, 300, 1_800).then((payload) => {
     const elements = payload.elements ?? [];
+    rawRegulationElements = elements;
     const busLanes: SafetyFeatureCollection = { type: "FeatureCollection", features: detailFeatures(elements) };
     publishRestrictions(busLanes);
 
@@ -720,6 +900,12 @@ export async function fetchSafetyFeatures(
       ...speedLimits.features,
       ...amenities.features,
     );
+  }
+
+  const avgZones = averageSpeedZoneFeatures(rawHazardElements, rawRegulationElements);
+  if (avgZones.features.length) {
+    onRoadRules?.(avgZones);
+    features.push(...avgZones.features);
   }
 
   const data: SafetyFeatureCollection = { type: "FeatureCollection", features };

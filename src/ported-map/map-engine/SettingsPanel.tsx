@@ -1,8 +1,10 @@
-import type { InstallPromptEvent, OfflinePack, SafetyOverlayToggleKey, Settings } from "./config";
+import type { AverageSpeedZoneColor, InstallPromptEvent, OfflinePack, SafetyOverlayToggleKey, Settings } from "./config";
+import { AVERAGE_SPEED_ZONE_PALETTES } from "./safety-layers";
 
 type ToggleableSettingKey =
   | SafetyOverlayToggleKey
   | "darkMode"
+  | "autoRefreshLocation"
   | "showSpeed"
   | "showBuildings"
   | "showLandmarks"
@@ -34,6 +36,7 @@ type SettingsPanelProps = {
 const ESSENTIAL_OVERLAYS: Record<SafetyOverlayToggleKey, boolean> = {
   showTrafficSignals: true,
   showSpeedCameras: true,
+  showAverageSpeedZones: true,
   showRoadClosures: true,
   showRoadworks: true,
   showBusLanes: true,
@@ -51,6 +54,7 @@ const ESSENTIAL_OVERLAYS: Record<SafetyOverlayToggleKey, boolean> = {
 const ALL_OVERLAYS_ON: Record<SafetyOverlayToggleKey, boolean> = {
   showTrafficSignals: true,
   showSpeedCameras: true,
+  showAverageSpeedZones: true,
   showRoadClosures: true,
   showRoadworks: true,
   showBusLanes: true,
@@ -64,6 +68,8 @@ const ALL_OVERLAYS_ON: Record<SafetyOverlayToggleKey, boolean> = {
   showRoadSpeedLimits: true,
   showDriverAmenities: true,
 };
+
+const ZONE_COLOR_KEYS: AverageSpeedZoneColor[] = ["amber", "cyan", "magenta", "lime"];
 
 export function SettingsPanel({ settings, offlinePack, packRadius, packProgress, packError, trafficConfigured, installPrompt, onClose, onRemoveOfflineArea, onSetPackRadius, onCancelDownload, onSaveOfflineArea, onToggle, onBatchSettings, onDefault3d, onAutoZoom, onLiveTraffic, onPitch, onInstall, onShowLegend }: SettingsPanelProps) {
   const progressPercent = packProgress?.total ? Math.round(packProgress.done / packProgress.total * 100) : 0;
@@ -95,6 +101,30 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
             </div>
             <Toggle label="Traffic lights" checked={settings.showTrafficSignals} onChange={(value) => onToggle("showTrafficSignals", value)} />
             <Toggle label="Speed cameras" checked={settings.showSpeedCameras} onChange={(value) => onToggle("showSpeedCameras", value)} />
+            <Toggle label="Average speed check zones" checked={settings.showAverageSpeedZones} onChange={(value) => onToggle("showAverageSpeedZones", value)} />
+            {settings.showAverageSpeedZones && (
+              <div className="avg-zone-color-picker" role="group" aria-label="Average speed zone road colour">
+                <span>Average speed road colour</span>
+                <div className="avg-zone-color-options">
+                  {ZONE_COLOR_KEYS.map((colorKey) => {
+                    const palette = AVERAGE_SPEED_ZONE_PALETTES[colorKey];
+                    const selected = settings.averageSpeedZoneColor === colorKey;
+                    return (
+                      <button
+                        key={colorKey}
+                        type="button"
+                        className={selected ? "selected" : ""}
+                        aria-pressed={selected}
+                        onClick={() => onBatchSettings({ averageSpeedZoneColor: colorKey })}
+                      >
+                        <i className="avg-color-swatch" style={{ background: palette.swatch, borderColor: palette.casing }} aria-hidden="true" />
+                        <b>{palette.label}</b>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <Toggle label="Road closures" checked={settings.showRoadClosures} onChange={(value) => onToggle("showRoadClosures", value)} />
             <Toggle label="Roadworks" checked={settings.showRoadworks} onChange={(value) => onToggle("showRoadworks", value)} />
             <Toggle label="Bus lanes &amp; bus gates" checked={settings.showBusLanes} onChange={(value) => onToggle("showBusLanes", value)} />
@@ -116,6 +146,7 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
 
           <section className="settings-group">
             <h3>Driving view</h3>
+            <Toggle label="Auto-refresh &amp; auto-centre GPS" checked={settings.autoRefreshLocation} onChange={(value) => onToggle("autoRefreshLocation", value)} />
             <Toggle label="Night map mode" checked={settings.darkMode} onChange={(value) => onToggle("darkMode", value)} />
             <Toggle label="Default 3D view" checked={settings.default3d} onChange={onDefault3d} />
             <Toggle label="Automatic zoom" checked={settings.autoZoom} onChange={onAutoZoom} />
@@ -124,11 +155,31 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
             <Toggle label="Show landmarks ahead" checked={settings.showLandmarks} onChange={(value) => onToggle("showLandmarks", value)} />
             <Toggle label="Show recorded pickups" checked={settings.showPickups} onChange={(value) => onToggle("showPickups", value)} />
             <Toggle label="Live traffic congestion" checked={settings.liveTraffic} onChange={onLiveTraffic} />
-            {settings.liveTraffic && trafficConfigured && <div className="traffic-legend" aria-label="Live traffic colour key"><span><i className="delay" />Delay</span><span><i className="heavy" />Heavy</span><span><i className="severe" />Severe</span><span><i className="incident" />Incident</span></div>}
+            {settings.liveTraffic && trafficConfigured && (
+              <>
+                <div className="traffic-legend" aria-label="Live traffic colour key">
+                  <span><i className="delay" />Delay</span>
+                  <span><i className="heavy" />Heavy</span>
+                  <span><i className="severe" />Severe</span>
+                  <span><i className="incident" />Incident</span>
+                </div>
+                <label className="range-setting">
+                  <span>Traffic density sensitivity <b>{Math.round(settings.trafficSensitivity)}%</b></span>
+                  <input
+                    type="range"
+                    min="15"
+                    max="100"
+                    step="5"
+                    value={settings.trafficSensitivity}
+                    onChange={(event) => onBatchSettings({ trafficSensitivity: Number(event.target.value) })}
+                  />
+                </label>
+                <p className="settings-note">Lower sensitivity (20–45%) hides minor slowdowns so only real queues show up; higher sensitivity (70–100%) highlights lighter delays.</p>
+              </>
+            )}
             {settings.liveTraffic && !trafficConfigured && <p className="settings-note traffic-setup-note">Live traffic is ready for a TomTom connection. Add the traffic service key to activate it.</p>}
             <p className="settings-note">Choose how routes are calculated when picking a destination — Fast, Short, or Avoid narrow lanes. Routes are still allowed to finish on any road at the start or destination, and if a route cannot be calculated the fastest route is used instead.</p>
             <label className="range-setting"><span>3D pitch <b>{Math.round(settings.pitch)}°</b></span><input type="range" min="35" max="65" step="5" value={settings.pitch} onChange={(event) => onPitch(Number(event.target.value))} /></label>
-            <p className="settings-note">Landmarks ahead lists up to three recognised roadside places — petrol stations, supermarkets, pubs, hotels and large stores — inside the 45° view in front of you while driving.</p>
           </section>
 
           <section className="settings-group offline-group">

@@ -4,9 +4,12 @@ import type { CalculatedRoute } from "../lib/routing";
 import type { Point } from "../lib/driving";
 import type { RouteProfile } from "../lib/route-engine-core";
 
+export type AverageSpeedZoneColor = "amber" | "cyan" | "magenta" | "lime";
+
 export type SafetyOverlayToggleKey =
   | "showTrafficSignals"
   | "showSpeedCameras"
+  | "showAverageSpeedZones"
   | "showRoadClosures"
   | "showRoadworks"
   | "showBusLanes"
@@ -24,10 +27,13 @@ export type Settings = {
   darkMode: boolean;
   default3d: boolean;
   autoZoom: boolean;
+  autoRefreshLocation: boolean;
   showSpeed: boolean;
   showBuildings: boolean;
   showTrafficSignals: boolean;
   showSpeedCameras: boolean;
+  showAverageSpeedZones: boolean;
+  averageSpeedZoneColor: AverageSpeedZoneColor;
   showRoadClosures: boolean;
   showRoadworks: boolean;
   showBusLanes: boolean;
@@ -43,6 +49,7 @@ export type Settings = {
   showLandmarks: boolean;
   showPickups: boolean;
   liveTraffic: boolean;
+  trafficSensitivity: number;
   routeProfile: RouteProfile;
   pitch: number;
 };
@@ -69,10 +76,13 @@ export const DEFAULT_SETTINGS: Settings = {
   darkMode: false,
   default3d: true,
   autoZoom: true,
+  autoRefreshLocation: true,
   showSpeed: true,
   showBuildings: true,
   showTrafficSignals: true,
   showSpeedCameras: true,
+  showAverageSpeedZones: true,
+  averageSpeedZoneColor: "amber",
   showRoadClosures: true,
   showRoadworks: true,
   showBusLanes: true,
@@ -88,6 +98,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showLandmarks: true,
   showPickups: true,
   liveTraffic: true,
+  trafficSensitivity: 55,
   routeProfile: "fast",
   pitch: 55,
 };
@@ -98,9 +109,10 @@ export const STORAGE_KEYS = {
   destinationHistory: "map-engine-destination-history-v1",
   destinationFavourites: "map-engine-destination-favourites-v1",
   pickupHistory: "map-engine-pickup-history-v1",
+  locationGranted: "map-engine-location-granted-v1",
 } as const;
 
-export const APP_VERSION = "v3.3.5";
+export const APP_VERSION = "v3.3.6";
 export const ROUTE_TIMEOUT_MS = 18_000;
 export const DEFAULT_START = { longitude: -2.152557, latitude: 52.556476, zoom: 15.3 } as const;
 

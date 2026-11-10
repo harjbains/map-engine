@@ -9,7 +9,60 @@ const TRAFFIC_FLOW_LAYER = "tomtom-live-traffic-flow";
 const TRAFFIC_INCIDENT_LAYER = "tomtom-traffic-incidents-flow";
 const TRAFFIC_LAYERS = [TRAFFIC_FLOW_LAYER, TRAFFIC_INCIDENT_LAYER];
 
-export function ensureTrafficLayer(map: maplibregl.Map) {
+let currentTrafficSensitivity = 55;
+
+export function trafficSensitivityThresholds(sensitivity = currentTrafficSensitivity) {
+  const clamped = Math.max(15, Math.min(100, sensitivity));
+  const factor = (clamped - 15) / 85; // 0.0 at 15%, 1.0 at 100%
+  const severeCutoff = Number((0.20 + factor * 0.21).toFixed(3));
+  const heavyCutoff = Number((0.36 + factor * 0.32).toFixed(3));
+  const delayCutoff = Number((0.50 + factor * 0.39).toFixed(3));
+  const opacity = Number((0.76 + factor * 0.20).toFixed(2));
+  // Also return equivalent delay-% thresholds for the road status card (1 - traffic_level) * 100
+  const minDelayPercent = Math.round((1 - delayCutoff) * 100);
+  const heavyDelayPercent = Math.round((1 - heavyCutoff) * 100);
+  const severeDelayPercent = Math.round((1 - severeCutoff) * 100);
+  return {
+    severeCutoff,
+    heavyCutoff,
+    delayCutoff,
+    opacity,
+    minDelayPercent,
+    heavyDelayPercent,
+    severeDelayPercent,
+  };
+}
+
+function trafficFlowColorExpression(sensitivity = currentTrafficSensitivity) {
+  const { severeCutoff, heavyCutoff, delayCutoff } = trafficSensitivityThresholds(sensitivity);
+  return [
+    "case",
+    ["==", ["get", "road_closure"], true],
+    "#6b0f1c",
+    [
+      "step",
+      ["get", "traffic_level"],
+      "#6b0f1c",
+      severeCutoff,
+      "#e0242d",
+      heavyCutoff,
+      "#f2a513",
+      delayCutoff,
+      "rgba(0,0,0,0)",
+    ],
+  ];
+}
+
+export function applyTrafficSensitivity(map: maplibregl.Map, sensitivity: number) {
+  currentTrafficSensitivity = Math.max(15, Math.min(100, sensitivity));
+  if (!map.isStyleLoaded() || !map.getLayer(TRAFFIC_FLOW_LAYER)) return;
+  const { opacity } = trafficSensitivityThresholds(currentTrafficSensitivity);
+  map.setPaintProperty(TRAFFIC_FLOW_LAYER, "line-color", trafficFlowColorExpression(currentTrafficSensitivity) as never);
+  map.setPaintProperty(TRAFFIC_FLOW_LAYER, "line-opacity", opacity);
+}
+
+export function ensureTrafficLayer(map: maplibregl.Map, sensitivity = currentTrafficSensitivity) {
+  currentTrafficSensitivity = Math.max(15, Math.min(100, sensitivity));
   addTrafficGeometry(map, false);
 }
 
@@ -17,7 +70,7 @@ function addTrafficGeometry(map: maplibregl.Map, visible: boolean) {
   if (!map.isStyleLoaded()) return;
   if (!tomTomKey()) return;
   const visibility = visible ? "visible" : "none";
-  
+
   const tileUrl = trafficTileUrl();
   if (tileUrl && !map.getSource(TRAFFIC_SOURCE)) {
     map.addSource(TRAFFIC_SOURCE, {
@@ -47,6 +100,8 @@ function addTrafficGeometry(map: maplibregl.Map, visible: boolean) {
         ? "road-name"
         : undefined;
 
+  const { opacity } = trafficSensitivityThresholds(currentTrafficSensitivity);
+
   if (map.getSource(TRAFFIC_SOURCE) && !map.getLayer(TRAFFIC_FLOW_LAYER)) {
     map.addLayer({
       id: TRAFFIC_FLOW_LAYER,
@@ -56,24 +111,9 @@ function addTrafficGeometry(map: maplibregl.Map, visible: boolean) {
       minzoom: 7,
       layout: { visibility, "line-cap": "round", "line-join": "round" },
       paint: {
-        "line-color": [
-          "case",
-          ["==", ["get", "road_closure"], true],
-          "#6b0f1c", // severe (road closure)
-          [
-            "step",
-            ["get", "traffic_level"],
-            "#6b0f1c", // 0 to 0.35: severe
-            0.35,
-            "#e0242d", // 0.35 to 0.60: heavy
-            0.60,
-            "#f2a513", // 0.60 to 0.80: delay / moderate
-            0.80,
-            "rgba(0,0,0,0)", // > 0.80: normal free flow
-          ],
-        ],
+        "line-color": trafficFlowColorExpression(currentTrafficSensitivity) as never,
         "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.5, 12, 4.5, 15, 8, 18, 14],
-        "line-opacity": 0.95,
+        "line-opacity": opacity,
       },
     }, before);
   }

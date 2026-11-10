@@ -1,8 +1,8 @@
 import type maplibregl from "maplibre-gl";
 import type { Point } from "../lib/driving";
 import type { SafetyFeatureCollection } from "../lib/safety";
-import type { SafetyOverlayToggleKey, Settings } from "./config";
-import { bearingBetween, distanceKm, headingDifference } from "./map-navigation.ts";
+import type { AverageSpeedZoneColor, SafetyOverlayToggleKey, Settings } from "./config";
+import { bearingBetween, distanceKm, headingDifference, matchesRoadOfTravel } from "./map-navigation.ts";
 
 const EMPTY_SAFETY_DATA: SafetyFeatureCollection = { type: "FeatureCollection", features: [] };
 const TRAFFIC_LIGHT_IMAGE = "map-engine-traffic-light";
@@ -11,6 +11,44 @@ const ROAD_CLOSURE_IMAGE = "map-engine-road-closure";
 const ROADWORKS_IMAGE = "map-engine-roadworks";
 const SPEED_BUMP_IMAGE = "map-engine-speed-bump";
 const DRIVER_AMENITY_LAYERS = ["safety-clean-air-zone", "safety-ev-charger", "safety-parking"];
+
+export const AVERAGE_SPEED_ZONE_PALETTES: Record<
+  AverageSpeedZoneColor,
+  { label: string; line: string; casing: string; text: string; halo: string; swatch: string }
+> = {
+  amber: {
+    label: "Amber",
+    line: "#f59e0b",
+    casing: "#78350f",
+    text: "#451a03",
+    halo: "#fef3c7",
+    swatch: "#f59e0b",
+  },
+  cyan: {
+    label: "Cyan",
+    line: "#06b6d4",
+    casing: "#164e63",
+    text: "#083344",
+    halo: "#cffafe",
+    swatch: "#06b6d4",
+  },
+  magenta: {
+    label: "Magenta",
+    line: "#e843f5",
+    casing: "#6b1575",
+    text: "#3b0742",
+    halo: "#fae8ff",
+    swatch: "#e843f5",
+  },
+  lime: {
+    label: "Lime",
+    line: "#84cc16",
+    casing: "#365314",
+    text: "#1a2e05",
+    halo: "#ecfccb",
+    swatch: "#84cc16",
+  },
+};
 
 function pointToSegmentMetres(point: Point, start: [number, number], end: [number, number]) {
   const metresPerLatitudeDegree = 111_320;
@@ -43,6 +81,39 @@ export function speedLimitNearPoint(data: SafetyFeatureCollection | null, point:
     }
   }
   return nearestLimit;
+}
+
+export function activeAverageSpeedZoneNearPoint(
+  data: SafetyFeatureCollection | null,
+  point: Point,
+  currentRoad: string | null,
+  maximumDistanceMetres = 42,
+): { label: string; speedLimit: number | null; roadName: string | null } | null {
+  if (!data) return null;
+  let bestDistance = maximumDistanceMetres;
+  let bestMatch: { label: string; speedLimit: number | null; roadName: string | null } | null = null;
+
+  for (const feature of data.features) {
+    if (feature.properties.kind !== "average_speed_zone" || feature.geometry.type !== "LineString") continue;
+    const featureRoad = feature.properties.roadName ?? null;
+    if (currentRoad && featureRoad && !matchesRoadOfTravel(currentRoad, { roadName: featureRoad })) {
+      continue;
+    }
+    const coords = feature.geometry.coordinates;
+    for (let index = 1; index < coords.length; index += 1) {
+      const distance = pointToSegmentMetres(point, coords[index - 1], coords[index]);
+      if (distance <= bestDistance) {
+        bestDistance = distance;
+        const parsedLimit = feature.properties.speedLimit ?? (Number(feature.properties.label.match(/\b(\d{2})\b/)?.[1]) || null);
+        bestMatch = {
+          label: feature.properties.label || "AVERAGE SPEED ZONE",
+          speedLimit: parsedLimit,
+          roadName: featureRoad ?? currentRoad,
+        };
+      }
+    }
+  }
+  return bestMatch;
 }
 
 function createTrafficLightImage() {
@@ -197,6 +268,10 @@ export function ensureSafetyLayers(map: maplibregl.Map) {
   const add = (layer: maplibregl.LayerSpecification) => {
     if (!map.getLayer(layer.id)) map.addLayer(layer, before);
   };
+  const avgPalette = AVERAGE_SPEED_ZONE_PALETTES.amber;
+  add({ id: "safety-average-speed-casing", type: "line", source: "safety-overlays", minzoom: 10.5, filter: ["==", ["get", "kind"], "average_speed_zone"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": avgPalette.casing, "line-width": ["interpolate", ["linear"], ["zoom"], 10.5, 5, 14, 10, 17, 18], "line-opacity": 0.9 } });
+  add({ id: "safety-average-speed-line", type: "line", source: "safety-overlays", minzoom: 10.5, filter: ["==", ["get", "kind"], "average_speed_zone"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": avgPalette.line, "line-width": ["interpolate", ["linear"], ["zoom"], 10.5, 3, 14, 6.5, 17, 12], "line-dasharray": [2.2, 1.1], "line-opacity": 0.95 } });
+  add({ id: "safety-average-speed-label", type: "symbol", source: "safety-overlays", minzoom: 12.5, filter: ["==", ["get", "kind"], "average_speed_zone"], layout: { "symbol-placement": "line", "symbol-spacing": 280, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 12.5, 8.5, 17, 11], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": avgPalette.text, "text-halo-color": avgPalette.halo, "text-halo-width": 4 } });
   add({ id: "safety-restricted-casing", type: "line", source: "safety-overlays", minzoom: 13, filter: ["==", ["get", "kind"], "restricted"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#8a5965", "line-width": ["interpolate", ["linear"], ["zoom"], 13, 6, 17, 18], "line-opacity": 0.82 } });
   add({ id: "safety-restricted-line", type: "line", source: "safety-overlays", minzoom: 13, filter: ["==", ["get", "kind"], "restricted"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ef9db0", "line-width": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 17, 11], "line-opacity": 0.86 } });
   add({ id: "safety-restricted-label", type: "symbol", source: "safety-overlays", minzoom: 13.5, filter: ["==", ["get", "kind"], "restricted"], layout: { "symbol-placement": "line", "symbol-spacing": 300, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13.5, 7, 17, 10], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#59313c", "text-halo-color": "#f6becb", "text-halo-width": 4.5 } });
@@ -230,6 +305,7 @@ export function ensureSafetyLayers(map: maplibregl.Map) {
 const SAFETY_LAYER_GROUPS: Array<[SafetyOverlayToggleKey, string[]]> = [
   ["showTrafficSignals", ["safety-signal-icon"]],
   ["showSpeedCameras", ["safety-camera", "safety-camera-lens"]],
+  ["showAverageSpeedZones", ["safety-average-speed-casing", "safety-average-speed-line", "safety-average-speed-label"]],
   ["showRoadClosures", ["safety-road-closure-casing", "safety-road-closure-line", "safety-road-closure-markers"]],
   ["showRoadworks", ["safety-roadworks-casing", "safety-roadworks-line", "safety-roadworks-markers"]],
   ["showBusLanes", ["safety-restricted-casing", "safety-restricted-line", "safety-restricted-label", "safety-restriction-entry", "safety-restriction-entry-label"]],
@@ -252,6 +328,17 @@ export function applySafetyLayerVisibility(map: maplibregl.Map, settings: Settin
         map.setLayoutProperty(layerId, "visibility", visibility);
       }
     }
+  }
+  const palette = AVERAGE_SPEED_ZONE_PALETTES[settings.averageSpeedZoneColor] ?? AVERAGE_SPEED_ZONE_PALETTES.amber;
+  if (map.getLayer("safety-average-speed-casing")) {
+    map.setPaintProperty("safety-average-speed-casing", "line-color", palette.casing);
+  }
+  if (map.getLayer("safety-average-speed-line")) {
+    map.setPaintProperty("safety-average-speed-line", "line-color", palette.line);
+  }
+  if (map.getLayer("safety-average-speed-label")) {
+    map.setPaintProperty("safety-average-speed-label", "text-color", palette.text);
+    map.setPaintProperty("safety-average-speed-label", "text-halo-color", palette.halo);
   }
 }
 

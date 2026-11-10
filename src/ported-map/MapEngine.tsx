@@ -14,26 +14,29 @@ import { MapLegend } from "./map-engine/MapLegend";
 import { PostcodeLookup } from "./map-engine/PostcodeLookup";
 import { SettingsPanel } from "./map-engine/SettingsPanel";
 import { V3UberOverlay } from "../map/V3UberOverlay";
-import type { UberDashboard, WeeklySummary, WorkWeight } from "../uber/types";
+import type { UberDashboard, WeeklySummary } from "../uber/types";
 import type { EarningsTransition } from "../uber/milestones";
 import { DEFAULT_SETTINGS, DEFAULT_START, ROUTE_TIMEOUT_MS, STORAGE_KEYS, type ActiveRoute, type Destination, type DestinationFavourites, type InstallPromptEvent, type OfflinePack, type Settings, type VehicleFix } from "./map-engine/config";
-import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, getAreaViewActive, headingDifference, liveRouteProgress, mapCentre, nearestLocality, nearestNamedRoad, nearestRoadLabelNear, positionVehicleMarker, roadFeatureLabel, subscribeAreaView, toggleAreaView, vehicleScreenOffset } from "./map-engine/map-navigation";
-import { collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setAreaViewMode, setRouteData, setTrafficVisibility, waitForMapStyle } from "./map-engine/map-routing-layers";
+import { bearingBetween, distanceFromRouteMetres, distanceKm, followZoomTarget, getAreaViewActive, headingDifference, liveRouteProgress, mapCentre, matchesRoadOfTravel, nearestLocality, nearestNamedRoad, positionVehicleMarker, roadFeatureLabel, subscribeAreaView, toggleAreaView, vehicleScreenOffset } from "./map-engine/map-navigation";
+import { applyTrafficSensitivity, collapseAttributionControl, ensureRouteLayers, ensureTrafficLayer, formatMiles, setAreaViewMode, setRouteData, setTrafficVisibility, trafficSensitivityThresholds, waitForMapStyle } from "./map-engine/map-routing-layers";
 import { applyMapTheme } from "./map-engine/map-theme";
 import { ensurePostcodeLayers, postcodeGroupBounds, setPostcodeOverlay } from "./map-engine/postcode-layers";
-import { applySafetyLayerVisibility, ensureSafetyLayers, filterSignalsToTravelCorridor, mergeSafetyData, setDriverAmenitiesVisibility, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
+import { activeAverageSpeedZoneNearPoint, applySafetyLayerVisibility, ensureSafetyLayers, mergeSafetyData, setSafetyData, speedLimitNearPoint } from "./map-engine/safety-layers";
 import { useTraffic } from "./map-engine/useTraffic";
 import { useLandmarks } from "./map-engine/useLandmarks";
 import { useViewDebugHud } from "./map-engine/useViewDebugHud";
 import { clearLandmarkChips, setLandmarkChips } from "./map-engine/landmark-layers";
 import type { RouteOptionEntry } from "./lib/route-graph";
 import type { RouteProfile } from "./lib/route-engine-core";
-
-const ROUTE_PROFILE_LABELS: Record<RouteProfile, string> = { fast: "Fast", short: "Short", "avoid-lanes": "Avoid lanes" };
 import { styleJsonUrl } from "./lib/mapbox-client";
 import { mapResourceUrl } from "./lib/map-resource-url";
+
+const ROUTE_PROFILE_LABELS: Record<RouteProfile, string> = { fast: "Fast", short: "Short", "avoid-lanes": "Avoid lanes" };
 const ROAD_LAYERS = ["road-motorway", "road-a", "road-b", "road-local"];
 const MAX_ACCEPTED_ACCURACY_METRES = 160;
+const AUTO_RECENTER_IDLE_MS = 8_000;
+const GPS_STALE_WATCHDOG_MS = 10_000;
+
 export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onSaveMileage, onSavePlan, onLoadHistory, onChangeDate, onSignOut, onStartShift, onEndShift, onUpdateShift, onDeleteShift, transition }: {
   dashboard: UberDashboard | null; preview: boolean;
   onSaveTodayEarnings: (previewPence: number) => Promise<UberDashboard>;
@@ -59,6 +62,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   const orientationBoundRef = useRef(false);
   const locationActiveRef = useRef(false);
   const roadQueryTimerRef = useRef<number | null>(null);
+  const autoRecenterTimerRef = useRef<number | null>(null);
   const deviceHeadingRef = useRef<number | null>(null);
   const smoothedRef = useRef<{ lat: number | null; lon: number | null; speed: number | null; bearing: number | null }>({ lat: null, lon: null, speed: null, bearing: null });
   const settingsRef = useRef(DEFAULT_SETTINGS);
@@ -75,7 +79,9 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   const manualZoomRef = useRef<number | null>(null);
   const safetyDataRef = useRef<SafetyFeatureCollection | null>(null);
   const cameraAlertRef = useRef<{ id: string; since: number; distanceM: number; averageSpeed: boolean } | null>(null);
+  const avgZoneHoldRef = useRef<{ zone: { label: string; speedLimit: number | null; roadName: string | null }; until: number } | null>(null);
   const currentRoadRef = useRef<string | null>(null);
+  const openPostcodeGroupRef = useRef<PostcodeGroupId | null>(null);
   const scheduleSafetyRefreshRef = useRef<((delayMs?: number) => void) | null>(null);
   const lastSafetyCentreRef = useRef<Point | null>(null);
   const deviatedSinceRef = useRef(0);
@@ -95,6 +101,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   const [currentRoad, setCurrentRoad] = useState<string | null>(null);
   const [currentLocality, setCurrentLocality] = useState<string | null>(null);
   const [speedLimitMph, setSpeedLimitMph] = useState<number | null>(null);
+  const [averageSpeedZone, setAverageSpeedZone] = useState<{ label: string; speedLimit: number | null; roadName: string | null } | null>(null);
   const [cameraAlert, setCameraAlert] = useState<{ id: string; since: number; distanceM: number; averageSpeed: boolean } | null>(null);
   const [mapMessage, setMapMessage] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
@@ -122,6 +129,8 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   const [pickupNotice, setPickupNotice] = useState<string | null>(null);
   const [pickupClock, setPickupClock] = useState(0);
 
+  openPostcodeGroupRef.current = openPostcodeGroup;
+
   const traffic = useTraffic({ mapRef, latestFixRef, mapReady, enabled: settings.liveTraffic, online });
   const landmarks = useLandmarks({ fix, roadName: currentRoad, mapReady, enabled: settings.showLandmarks, online, route: activeRoute });
   useViewDebugHud(mapRef, mapReady);
@@ -142,7 +151,45 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   const changeFollow = useCallback((next: boolean) => {
     followRef.current = next;
     setFollow(next);
+    if (next && autoRecenterTimerRef.current !== null) {
+      window.clearTimeout(autoRecenterTimerRef.current);
+      autoRecenterTimerRef.current = null;
+    }
   }, []);
+
+  const recenterToLatestFix = useCallback(() => {
+    const map = mapRef.current;
+    const latest = latestFixRef.current;
+    if (!latest || !map) return;
+    manualZoomRef.current = null;
+    changeFollow(true);
+    map.stop();
+    map.easeTo({
+      center: [latest.longitude, latest.latitude],
+      offset: vehicleScreenOffset(map),
+      bearing: latest.bearing,
+      pitch: is3dRef.current ? settingsRef.current.pitch : 0,
+      zoom: settingsRef.current.autoZoom ? dynamicZoom(latest.speedMph) : map.getZoom(),
+      duration: 420,
+      essential: true,
+    });
+  }, [changeFollow]);
+
+  const scheduleAutoRecenter = useCallback(() => {
+    if (autoRecenterTimerRef.current !== null) {
+      window.clearTimeout(autoRecenterTimerRef.current);
+      autoRecenterTimerRef.current = null;
+    }
+    if (!settingsRef.current.autoRefreshLocation) return;
+    autoRecenterTimerRef.current = window.setTimeout(() => {
+      autoRecenterTimerRef.current = null;
+      if (!settingsRef.current.autoRefreshLocation) return;
+      if (getAreaViewActive() || openPostcodeGroupRef.current !== null) return;
+      if (!followRef.current && latestFixRef.current) {
+        recenterToLatestFix();
+      }
+    }, AUTO_RECENTER_IDLE_MS);
+  }, [recenterToLatestFix]);
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
     setSettings((current) => {
@@ -224,6 +271,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     settingsRef.current = settings;
     const map = mapRef.current;
     if (map) {
+      applyTrafficSensitivity(map, settings.trafficSensitivity);
       setTrafficVisibility(map, settings.liveTraffic && traffic.configured === true && online);
       if (map.isStyleLoaded()) {
         reapplyMapTheme();
@@ -234,7 +282,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
         if (followRef.current) map.easeTo({ pitch: is3d ? settings.pitch : 0, duration: 350 });
       }
     }
-  }, [settings, is3d, traffic.configured, online, mapReady]);
+  }, [settings, is3d, traffic.configured, online, mapReady, reapplyMapTheme]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setPickupClock(Date.now()), 60_000);
@@ -261,6 +309,31 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     const timer = window.setInterval(() => setRouteClock(Date.now()), 15_000);
     return () => window.clearInterval(timer);
   }, [activeRoute]);
+
+  const evaluateAverageSpeedZone = useCallback((point: Point) => {
+    if (!settingsRef.current.showAverageSpeedZones) {
+      avgZoneHoldRef.current = null;
+      setAverageSpeedZone(null);
+      return;
+    }
+    const detected = activeAverageSpeedZoneNearPoint(safetyDataRef.current, point, currentRoadRef.current, 42);
+    const now = Date.now();
+    if (detected) {
+      avgZoneHoldRef.current = { zone: detected, until: now + 7_500 };
+      setAverageSpeedZone(detected);
+      return;
+    }
+    const held = avgZoneHoldRef.current;
+    if (held && now < held.until) {
+      const sameRoad = !currentRoadRef.current || !held.zone.roadName || matchesRoadOfTravel(currentRoadRef.current, { roadName: held.zone.roadName });
+      if (sameRoad) {
+        setAverageSpeedZone(held.zone);
+        return;
+      }
+    }
+    avgZoneHoldRef.current = null;
+    setAverageSpeedZone(null);
+  }, []);
 
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
@@ -295,6 +368,10 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       visibleSafety = data;
       safetyDataRef.current = data;
       setSafetyData(map, data);
+      if (latestFixRef.current) {
+        setSpeedLimitMph(speedLimitNearPoint(data, latestFixRef.current));
+        evaluateAverageSpeedZone(latestFixRef.current);
+      }
     };
     const scheduleSafetyRefresh = (delayMs = 0) => {
       if (safetyRetryTimer !== null) window.clearTimeout(safetyRetryTimer);
@@ -344,7 +421,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     map.on("load", () => {
       collapseAttributionControl(map);
       ensureRouteLayers(map);
-      ensureTrafficLayer(map);
+      ensureTrafficLayer(map, settingsRef.current.trafficSensitivity);
       setTrafficVisibility(map, false);
       ensureSafetyLayers(map);
       applySafetyLayerVisibility(map, settingsRef.current);
@@ -368,6 +445,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     const manualInput = () => {
       map.stop();
       changeFollow(false);
+      scheduleAutoRecenter();
     };
     canvasContainer.addEventListener("pointerdown", manualInput, { passive: true });
     canvasContainer.addEventListener("wheel", manualInput, { passive: true });
@@ -400,11 +478,12 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       map.remove();
       mapRef.current = null;
     };
-  }, [changeFollow]);
+  }, [changeFollow, scheduleAutoRecenter, reapplyMapTheme, evaluateAverageSpeedZone]);
 
   useEffect(() => () => {
     if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
     if (roadQueryTimerRef.current !== null) window.clearTimeout(roadQueryTimerRef.current);
+    if (autoRecenterTimerRef.current !== null) window.clearTimeout(autoRecenterTimerRef.current);
     abortPackRef.current?.abort();
     destinationSearchAbortRef.current?.abort();
     routeAbortRef.current?.abort();
@@ -457,11 +536,12 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       const pointerFix = latestFixRef.current ?? nextFix;
       setSpeedLimitMph(speedLimitNearPoint(safetyDataRef.current, pointerFix));
       resolveRoadAndLocality(map, pointerFix);
+      evaluateAverageSpeedZone(pointerFix);
       if (lastSafetyCentreRef.current === null || distanceKm(pointerFix, lastSafetyCentreRef.current) >= 0.8) {
         scheduleSafetyRefreshRef.current?.(250);
       }
     }, 90);
-  }, [resolveRoadAndLocality]);
+  }, [resolveRoadAndLocality, evaluateAverageSpeedZone]);
 
   useEffect(() => {
     if (!mapReady) return;
@@ -516,6 +596,9 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     locationActiveRef.current = true;
     setLocationState("active");
     setMapMessage(null);
+    try {
+      localStorage.setItem(STORAGE_KEYS.locationGranted, "1");
+    } catch { /* ignore storage quota errors */ }
   }, []);
 
   useEffect(() => {
@@ -581,19 +664,25 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     }
   }, [fix]);
 
-  const startLocation = useCallback(async () => {
+  const startLocation = useCallback(async (silent = false) => {
     if (!navigator.geolocation) {
       setLocationState("unavailable");
       return;
     }
-    setLocationState("requesting");
-    locationActiveRef.current = false;
+    if (!silent && !locationActiveRef.current) {
+      const previouslyGranted = (() => {
+        try { return localStorage.getItem(STORAGE_KEYS.locationGranted) === "1"; } catch { return false; }
+      })();
+      setLocationState(previouslyGranted ? "active" : "requesting");
+    }
     locationFailedRef.current = false;
-    setMapMessage(null);
-    changeFollow(true);
+    if (!silent) {
+      setMapMessage(null);
+      changeFollow(true);
+    }
     if (typeof DeviceOrientationEvent !== "undefined" && !orientationBoundRef.current) {
       const orientationType = DeviceOrientationEvent as typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
-      if (orientationType.requestPermission) {
+      if (!silent && orientationType.requestPermission) {
         try { await orientationType.requestPermission(); } catch { /* GPS bearing remains available while moving. */ }
       }
       bindCompassHeading((heading) => { deviceHeadingRef.current = heading; });
@@ -603,6 +692,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     const locationError = (error: GeolocationPositionError) => {
       if (error.code === error.PERMISSION_DENIED) {
         locationActiveRef.current = false;
+        try { localStorage.removeItem(STORAGE_KEYS.locationGranted); } catch { /* ignore */ }
         setLocationState("denied");
         setMapMessage("Location is blocked for this site. Allow it from the address-bar site controls, then try again.");
         changeFollow(false);
@@ -611,38 +701,77 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       if (latestFixRef.current !== null) return;
       if (locationFailedRef.current) return;
       locationFailedRef.current = true;
-      setMapMessage("GPS is taking a while to lock on. Keep moving or sit near a window — the map keeps trying automatically.");
+      if (!silent) {
+        setMapMessage("GPS is taking a while to lock on. Keep moving or sit near a window — the map keeps trying automatically.");
+      }
     };
     navigator.geolocation.getCurrentPosition(applyPosition, locationError, {
       enableHighAccuracy: false,
-      maximumAge: 5_000,
-      timeout: 15_000,
+      maximumAge: 4_000,
+      timeout: 12_000,
     });
     watchRef.current = navigator.geolocation.watchPosition(
       applyPosition,
       locationError,
-      { enableHighAccuracy: true, maximumAge: 1_000, timeout: 30_000 },
+      { enableHighAccuracy: true, maximumAge: 1_000, timeout: 25_000 },
     );
   }, [applyPosition, changeFollow]);
 
-  const recenter = () => {
-    const map = mapRef.current;
-    if (!fix || !map) return;
-    manualZoomRef.current = null;
-    changeFollow(true);
-    map.stop();
-    map.easeTo({ center: [fix.longitude, fix.latitude], offset: vehicleScreenOffset(map), bearing: fix.bearing, pitch: is3d ? settings.pitch : 0, zoom: settings.autoZoom ? dynamicZoom(fix.speedMph) : map.getZoom(), duration: 400, essential: true });
-  };
+  const recenter = useCallback(() => {
+    recenterToLatestFix();
+  }, [recenterToLatestFix]);
 
   const refreshLocation = useCallback(async () => {
     lastPositionTimestampRef.current = 0;
     lastGoodFixAtRef.current = performance.now();
     smoothedRef.current = { lat: null, lon: null, speed: null, bearing: null };
-    await startLocation();
-    if (fix && mapRef.current) {
-      recenter();
+    await startLocation(false);
+    if (latestFixRef.current && mapRef.current) {
+      recenterToLatestFix();
     }
-  }, [startLocation, fix]);
+  }, [startLocation, recenterToLatestFix]);
+
+  // Automatic initial GPS start + self-healing GPS watchdog (Uber / Tesla auto-refresh behavior)
+  useEffect(() => {
+    if (!mapReady) return;
+    if (settings.autoRefreshLocation && locationState === "idle") {
+      changeFollow(true);
+      void startLocation(false);
+    }
+  }, [mapReady, settings.autoRefreshLocation, locationState, startLocation, changeFollow]);
+
+  useEffect(() => {
+    if (!settings.autoRefreshLocation) return;
+    const checkAndHealGps = () => {
+      if (document.visibilityState === "hidden") return;
+      if (locationState === "denied" || locationState === "unavailable") return;
+      const elapsedSinceFix = performance.now() - lastGoodFixAtRef.current;
+      if (lastGoodFixAtRef.current === 0 || elapsedSinceFix >= GPS_STALE_WATCHDOG_MS) {
+        lastPositionTimestampRef.current = 0;
+        void startLocation(true);
+      }
+      if (!followRef.current && autoRecenterTimerRef.current === null && latestFixRef.current && !getAreaViewActive() && openPostcodeGroupRef.current === null) {
+        scheduleAutoRecenter();
+      }
+    };
+    const interval = window.setInterval(checkAndHealGps, 6_000);
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        lastPositionTimestampRef.current = 0;
+        void startLocation(true);
+        if (latestFixRef.current && !getAreaViewActive() && openPostcodeGroupRef.current === null) {
+          recenterToLatestFix();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityOrFocus);
+    window.addEventListener("focus", onVisibilityOrFocus);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityOrFocus);
+      window.removeEventListener("focus", onVisibilityOrFocus);
+    };
+  }, [settings.autoRefreshLocation, locationState, startLocation, recenterToLatestFix, scheduleAutoRecenter]);
 
   const toggle3d = () => {
     const next = !is3d;
@@ -674,6 +803,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       });
     } else {
       map.easeTo({ zoom: nextZoom, duration: 180, essential: true });
+      scheduleAutoRecenter();
     }
   };
 
@@ -925,8 +1055,9 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
         duration: 0,
         essential: true,
       });
+      scheduleAutoRecenter();
     }
-  }, [activeRoute, updateSettings, changeFollow]);
+  }, [activeRoute, updateSettings, changeFollow, scheduleAutoRecenter]);
 
   useEffect(() => {
     if (!mapReady || !activeRoute || !fix || fix.speedMph < 8) return;
@@ -1026,7 +1157,11 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
 
   const routeJourney = activeRoute && fix ? liveRouteProgress(activeRoute, fix, routeClock) : null;
   const currentSpeedMph = Math.round(fix?.speedMph ?? 0);
-  const speedWarning = speedLimitMph !== null && (fix?.speedMph ?? 0) > speedLimitMph + 4;
+  const effectiveZoneLimit = averageSpeedZone?.speedLimit ?? speedLimitMph;
+  const inAverageZoneDisplay = settings.showAverageSpeedZones && (averageSpeedZone !== null || Boolean(cameraAlert?.averageSpeed));
+  const zoneOverspeed = inAverageZoneDisplay && effectiveZoneLimit !== null && currentSpeedMph > effectiveZoneLimit + 2;
+  const trafficCutoffs = trafficSensitivityThresholds(settings.trafficSensitivity);
+
   const cameraDistanceLabel = (metres: number) => {
     const feet = metres / 0.3048;
     return feet < 1_000 ? `${Math.max(10, Math.round(feet / 10) * 10)} ft` : `${(metres / 1609.344).toFixed(1)} mi`;
@@ -1091,10 +1226,37 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
 
       <CompassStrip bearing={viewBearing} />
 
+      {inAverageZoneDisplay && (
+        <div
+          className={`average-speed-zone-banner${zoneOverspeed ? " overspeed" : ""}`}
+          data-color={settings.averageSpeedZoneColor}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="avg-zone-badge" aria-hidden="true">AVG</span>
+          <div className="avg-zone-copy">
+            <strong>IN AVERAGE SPEED ZONE</strong>
+            <span>{averageSpeedZone?.roadName ?? currentRoad ?? "Enforced speed corridor"}</span>
+          </div>
+          {effectiveZoneLimit !== null && (
+            <span className="avg-zone-limit" aria-label={`Zone speed limit ${effectiveZoneLimit} mph`}>
+              {effectiveZoneLimit}
+              <small>MPH</small>
+            </span>
+          )}
+          {fix && (
+            <span className="avg-zone-current-speed" aria-label={`Current speed ${currentSpeedMph} mph`}>
+              <b>{currentSpeedMph}</b>
+              <small>NOW</small>
+            </span>
+          )}
+        </div>
+      )}
+
       {cameraAlert && (
         <div className="camera-alert" role="alert" key={cameraAlert.id}>
           <span className="camera-alert-icon" aria-hidden="true">◉</span>
-          <strong>{cameraAlert.averageSpeed ? "Average Speed Zone" : "Speed Camera Ahead"}</strong>
+          <strong>{cameraAlert.averageSpeed ? "Average Speed Camera" : "Speed Camera Ahead"}</strong>
           <span className="camera-alert-distance">{cameraDistanceLabel(cameraAlert.distanceM)}</span>
         </div>
       )}
@@ -1119,25 +1281,25 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
         </section>
       )}
 
-      {locationState !== "active" && (
+      {(locationState === "denied" || locationState === "unavailable" || (!settings.autoRefreshLocation && locationState !== "active")) && (
         <section className="permission-card">
           <span className="eyebrow">OFFLINE-READY ROAD MAP</span>
           <h1>Your road, at a glance.</h1>
           <p>{locationState === "denied" ? "Location was not allowed. Enable it in browser settings to follow the vehicle." : locationState === "unavailable" ? "A GPS fix is temporarily unavailable. You can still explore the map manually." : "Enable location to follow your position in a smooth, heading-up driving view."}</p>
-          <button onClick={startLocation}>{locationState === "requesting" ? "Waiting for GPS�" : "Start live position"}</button>
+          <button onClick={() => void startLocation(false)}>{locationState === "requesting" ? "Waiting for GPS…" : "Start live position"}</button>
           <small>GPS stays on this device. Map packs only download when you ask.</small>
         </section>
       )}
 
-      {locationState === "active" && (
+      {(locationState === "active" || (settings.autoRefreshLocation && locationState === "requesting")) && (
         <section className={`location-card ${activeRoute ? "with-route" : ""}`} aria-label={activeRoute ? "Current road and live journey progress" : "Current road and locality"} aria-live="polite">
           {activeRoute && <button className="route-details-toggle" type="button" onClick={() => setRouteDetailsOpen((current) => !current)} aria-expanded={routeDetailsOpen}>{routeDetailsOpen ? "HIDE" : "ROUTE"}</button>}
-          <strong>{currentRoad ?? "Locating current road�"}</strong>
-          <small>{currentLocality ?? "Finding locality�"}</small>
+          <strong>{currentRoad ?? "Locating current road…"}</strong>
+          <small>{currentLocality ?? "Finding locality…"}</small>
           {traffic.roadTraffic && traffic.delayPercent !== null && (traffic.state === "live" || traffic.state === "stale") && (
-            <div className={`traffic-road-status ${traffic.roadTraffic.roadClosure ? "closed" : traffic.delayPercent >= 55 ? "severe" : traffic.delayPercent >= 25 ? "heavy" : traffic.delayPercent >= 12 ? "delay" : "clear"}`} aria-label={traffic.title}>
+            <div className={`traffic-road-status ${traffic.roadTraffic.roadClosure ? "closed" : traffic.delayPercent >= trafficCutoffs.severeDelayPercent ? "severe" : traffic.delayPercent >= trafficCutoffs.heavyDelayPercent ? "heavy" : traffic.delayPercent >= trafficCutoffs.minDelayPercent ? "delay" : "clear"}`} aria-label={traffic.title}>
               <span>TRAFFIC</span>
-              <b>{traffic.roadTraffic.roadClosure ? "ROAD CLOSED" : traffic.delayPercent < 12 ? "CLEAR" : `${traffic.delayPercent}% SLOWER`}</b>
+              <b>{traffic.roadTraffic.roadClosure ? "ROAD CLOSED" : traffic.delayPercent < trafficCutoffs.minDelayPercent ? "CLEAR" : `${traffic.delayPercent}% SLOWER`}</b>
               <em>{Math.round(traffic.roadTraffic.currentSpeed)} / {Math.round(traffic.roadTraffic.freeFlowSpeed)} mph</em>
             </div>
           )}
