@@ -93,6 +93,8 @@
 .settings-button span::after { right:2px; transform:translateY(6px); }
 .zoom-controls { position:absolute; right:12px; bottom:12px; z-index:6; display:flex; flex-direction:row; gap:8px; border:0; background:transparent; box-shadow:none; }
 .zoom-controls button { width:56px; height:56px; border:2px solid #3179b9; border-radius:50%; background:rgba(250,250,246,.3); color:#1d2a31; box-shadow:0 8px 28px rgba(42,48,50,.16); font-size:28px; font-weight:650; line-height:1; cursor:pointer; }
+.zoom-controls button.tilt-button { font-size:15px; font-weight:900; letter-spacing:.02em; }
+.zoom-controls button.tilt-button.active { border-color:#398957; color:#246d40; background:rgba(235,248,238,.55); }
 .zoom-controls button + button { border-top-width:2px; }
 .zoom-controls button:hover { background:rgba(49,121,185,.1); }
 .zoom-controls button:focus-visible { position:relative; outline:2px solid #3179b9; outline-offset:-3px; }
@@ -148,11 +150,11 @@
 .settings-heading span { display:block; margin-bottom:2px; color:#6eafd9; font-size:9px; font-weight:900; letter-spacing:.18em; }
 .settings-heading h2 { margin:0; font-size:25px; letter-spacing:-.03em; }
 .settings-heading button { width:39px; height:39px; border:1px solid rgba(139,168,182,.18); border-radius:50%; background:#1a2328; color:#e7edef; font-size:25px; line-height:1; cursor:pointer; }
-.settings-scroll { flex:1; min-height:0; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#39484f transparent; }
+.settings-scroll { position:relative; flex:1; min-height:0; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#39484f transparent; }
 .settings-group { padding:18px 22px; border-bottom:1px solid rgba(139,168,182,.12); }
 .settings-group h3 { margin:0 0 10px; color:#b8c4ca; font-size:11px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
-.toggle-row { min-height:43px; display:flex; align-items:center; justify-content:space-between; gap:14px; color:#ecf1f3; font-size:14px; cursor:pointer; }
-.toggle-row input { position:absolute; opacity:0; pointer-events:none; }
+.toggle-row { position:relative; overflow:hidden; min-height:43px; display:flex; align-items:center; justify-content:space-between; gap:14px; color:#ecf1f3; font-size:14px; cursor:pointer; }
+.toggle-row input { position:absolute; top:50%; right:10px; width:1px; height:1px; margin:0; opacity:0; pointer-events:none; clip:rect(0 0 0 0); }
 .toggle-row i { position:relative; flex:0 0 auto; width:38px; height:22px; border:1px solid #43535b; border-radius:999px; background:#202b30; transition:.2s ease; }
 .toggle-row i::after { content:""; position:absolute; width:16px; height:16px; left:2px; top:2px; border-radius:50%; background:#8d9aa1; transition:.2s ease; }
 .toggle-row input:checked + i { border-color:#4e98d6; background:#285f89; }
@@ -194,7 +196,7 @@
 .traffic-legend i { width:18px; height:4px; border-radius:5px; background:#f2a513; }
 .traffic-legend i.heavy { background:#e0242d; }
 .traffic-legend i.severe { background:#6b0f1c; }
-.traffic-legend i.incident { width:9px; height:9px; border:2px solid #fff; border-radius:50%; background:#c8322d; box-shadow:0 0 0 1px rgba(48,64,72,.2); }
+.traffic-legend i.incident { width:9px; height:9px; border:2px solid #fff; border-radius:50%; background:#c8322d; border-color:#fff; box-shadow:0 0 0 1px rgba(48,64,72,.2); }
 .traffic-setup-note { margin:5px 0 10px; padding:8px 10px; border-radius:8px; background:rgba(218,169,55,.1); color:#755e22; }
 .settings-panel footer { flex:none; padding:13px 22px; border-top:1px solid rgba(139,168,182,.12); color:#65737a; font-size:9px; letter-spacing:.04em; }
 @media (max-height:650px) and (orientation:landscape) { .settings-heading { height:70px; padding-top:12px; padding-bottom:11px; } .settings-group { padding-top:13px; padding-bottom:13px; } .toggle-row { min-height:37px; } .permission-card { padding:15px 18px; } .permission-card h1 { font-size:21px; } .destination-list { max-height:280px; } }
@@ -333,6 +335,7 @@
 .drive-shell.dark .route-instruction small { color:#b6afcf; }
 .drive-shell.dark .zoom-controls { border-color:transparent; background:transparent; box-shadow:none; }
 .drive-shell.dark .zoom-controls button { border-color:#70b7ff; background:rgba(49,59,66,.4); color:#f1f5f6; }
+.drive-shell.dark .zoom-controls button.tilt-button.active { border-color:#69c985; color:#8ae0a2; background:rgba(18,47,29,.55); }
 .drive-shell.dark .zoom-controls button + button { border-color:#70b7ff; }
 .drive-shell.dark .zoom-controls button:hover { background:rgba(85,167,247,.14); }
 .drive-shell.dark .postcode-dock { border-color:rgba(161,190,205,.18); background:rgba(49,59,66,.88); box-shadow:0 12px 38px rgba(0,0,0,.36); }
@@ -427,6 +430,7 @@
 .drive-shell.classic .settings-button { border-color:#3179b9; background:rgba(235,246,252,.3); }
 .drive-shell.classic .zoom-controls { border-color:transparent; background:transparent; }
 .drive-shell.classic .zoom-controls button { border-color:#3179b9; background:rgba(255,253,247,.3); color:#24231f; }
+.drive-shell.classic .zoom-controls button.tilt-button.active { border-color:#398957; color:#246d40; background:rgba(235,248,238,.55); }
 .drive-shell.classic .speed-card { border-color:#398957; }
 .drive-shell.classic .header-actions button.active { border-color:#398957; background:rgba(239,249,241,.3); color:#287848; }
 .speed-card.speed-warning { border-color:#c52f2c; background:#fff1ee; color:#a91f1d; animation:speed-warning-flash .72s ease-in-out infinite alternate; }
@@ -527,7 +531,7 @@
   gap: 10px;
   max-width: min(440px, calc(100vw - 24px));
   padding: 7px 12px 7px 9px;
-  border: 2px solid #f59e0b;
+  border: 2px solid #d946ef;
   border-radius: 12px;
   background: rgba(20, 25, 29, 0.94);
   color: #f8fafc;
@@ -543,8 +547,8 @@
   place-items: center;
   padding: 4px 7px;
   border-radius: 7px;
-  background: #f59e0b;
-  color: #1c1302;
+  background: #d946ef;
+  color: #29032e;
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.08em;
@@ -616,10 +620,12 @@
   font-weight: 850;
   letter-spacing: 0.06em;
 }
+.average-speed-zone-banner[data-color="amber"] { border-color: #f59e0b; }
+.average-speed-zone-banner[data-color="amber"] .avg-zone-badge { background: #f59e0b; color: #1c1302; }
 .average-speed-zone-banner[data-color="cyan"] { border-color: #06b6d4; }
 .average-speed-zone-banner[data-color="cyan"] .avg-zone-badge { background: #06b6d4; color: #042029; }
-.average-speed-zone-banner[data-color="magenta"] { border-color: #e843f5; }
-.average-speed-zone-banner[data-color="magenta"] .avg-zone-badge { background: #e843f5; color: #29032e; }
+.average-speed-zone-banner[data-color="magenta"] { border-color: #d946ef; }
+.average-speed-zone-banner[data-color="magenta"] .avg-zone-badge { background: #d946ef; color: #29032e; }
 .average-speed-zone-banner[data-color="lime"] { border-color: #84cc16; }
 .average-speed-zone-banner[data-color="lime"] .avg-zone-badge { background: #84cc16; color: #142402; }
 .average-speed-zone-banner.overspeed {

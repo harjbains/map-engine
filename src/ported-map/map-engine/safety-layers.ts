@@ -16,6 +16,14 @@ export const AVERAGE_SPEED_ZONE_PALETTES: Record<
   AverageSpeedZoneColor,
   { label: string; line: string; casing: string; text: string; halo: string; swatch: string }
 > = {
+  magenta: {
+    label: "Magenta",
+    line: "#d946ef",
+    casing: "#581c87",
+    text: "#3b0764",
+    halo: "#fae8ff",
+    swatch: "#d946ef",
+  },
   amber: {
     label: "Amber",
     line: "#f59e0b",
@@ -31,14 +39,6 @@ export const AVERAGE_SPEED_ZONE_PALETTES: Record<
     text: "#083344",
     halo: "#cffafe",
     swatch: "#06b6d4",
-  },
-  magenta: {
-    label: "Magenta",
-    line: "#e843f5",
-    casing: "#6b1575",
-    text: "#3b0742",
-    halo: "#fae8ff",
-    swatch: "#e843f5",
   },
   lime: {
     label: "Lime",
@@ -87,7 +87,7 @@ export function activeAverageSpeedZoneNearPoint(
   data: SafetyFeatureCollection | null,
   point: Point,
   currentRoad: string | null,
-  maximumDistanceMetres = 42,
+  maximumDistanceMetres = 38,
 ): { label: string; speedLimit: number | null; roadName: string | null } | null {
   if (!data) return null;
   let bestDistance = maximumDistanceMetres;
@@ -268,10 +268,11 @@ export function ensureSafetyLayers(map: maplibregl.Map) {
   const add = (layer: maplibregl.LayerSpecification) => {
     if (!map.getLayer(layer.id)) map.addLayer(layer, before);
   };
-  const avgPalette = AVERAGE_SPEED_ZONE_PALETTES.amber;
-  add({ id: "safety-average-speed-casing", type: "line", source: "safety-overlays", minzoom: 10.5, filter: ["==", ["get", "kind"], "average_speed_zone"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": avgPalette.casing, "line-width": ["interpolate", ["linear"], ["zoom"], 10.5, 5, 14, 10, 17, 18], "line-opacity": 0.9 } });
-  add({ id: "safety-average-speed-line", type: "line", source: "safety-overlays", minzoom: 10.5, filter: ["==", ["get", "kind"], "average_speed_zone"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": avgPalette.line, "line-width": ["interpolate", ["linear"], ["zoom"], 10.5, 3, 14, 6.5, 17, 12], "line-dasharray": [2.2, 1.1], "line-opacity": 0.95 } });
-  add({ id: "safety-average-speed-label", type: "symbol", source: "safety-overlays", minzoom: 12.5, filter: ["==", ["get", "kind"], "average_speed_zone"], layout: { "symbol-placement": "line", "symbol-spacing": 280, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 12.5, 8.5, 17, 11], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": avgPalette.text, "text-halo-color": avgPalette.halo, "text-halo-width": 4 } });
+  const avgPalette = AVERAGE_SPEED_ZONE_PALETTES.magenta;
+  // Smooth continuous solid Magenta highlight for Average Speed Zones (no dashed segments)
+  add({ id: "safety-average-speed-casing", type: "line", source: "safety-overlays", minzoom: 10.5, filter: ["==", ["get", "kind"], "average_speed_zone"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": avgPalette.casing, "line-width": ["interpolate", ["linear"], ["zoom"], 10.5, 4.5, 14, 9, 17, 15], "line-opacity": 0.85 } });
+  add({ id: "safety-average-speed-line", type: "line", source: "safety-overlays", minzoom: 10.5, filter: ["==", ["get", "kind"], "average_speed_zone"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": avgPalette.line, "line-width": ["interpolate", ["linear"], ["zoom"], 10.5, 3, 14, 6.2, 17, 11], "line-opacity": 0.92 } });
+  add({ id: "safety-average-speed-label", type: "symbol", source: "safety-overlays", minzoom: 12.5, filter: ["==", ["get", "kind"], "average_speed_zone"], layout: { "symbol-placement": "line", "symbol-spacing": 320, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 12.5, 8.5, 17, 10.5], "text-allow-overlap": false, "text-ignore-placement": false }, paint: { "text-color": avgPalette.text, "text-halo-color": avgPalette.halo, "text-halo-width": 3.5 } });
   add({ id: "safety-restricted-casing", type: "line", source: "safety-overlays", minzoom: 13, filter: ["==", ["get", "kind"], "restricted"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#8a5965", "line-width": ["interpolate", ["linear"], ["zoom"], 13, 6, 17, 18], "line-opacity": 0.82 } });
   add({ id: "safety-restricted-line", type: "line", source: "safety-overlays", minzoom: 13, filter: ["==", ["get", "kind"], "restricted"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ef9db0", "line-width": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 17, 11], "line-opacity": 0.86 } });
   add({ id: "safety-restricted-label", type: "symbol", source: "safety-overlays", minzoom: 13.5, filter: ["==", ["get", "kind"], "restricted"], layout: { "symbol-placement": "line", "symbol-spacing": 300, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13.5, 7, 17, 10], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#59313c", "text-halo-color": "#f6becb", "text-halo-width": 4.5 } });
@@ -287,7 +288,7 @@ export function ensureSafetyLayers(map: maplibregl.Map) {
   add({ id: "safety-roadworks-markers", type: "symbol", source: "safety-overlays", minzoom: 11.5, filter: ["==", ["get", "kind"], "roadworks"], layout: { "symbol-placement": "line", "symbol-spacing": ["interpolate", ["linear"], ["zoom"], 11.5, 110, 18, 170], "icon-image": ROADWORKS_IMAGE, "icon-size": ["interpolate", ["linear"], ["zoom"], 11.5, 0.68, 18, 0.95], "icon-rotation-alignment": "viewport", "icon-pitch-alignment": "viewport", "icon-allow-overlap": true, "icon-ignore-placement": true } });
   add({ id: "safety-speed-bump", type: "symbol", source: "safety-overlays", minzoom: 12.5, filter: ["==", ["get", "kind"], "speed_bump"], layout: { "icon-image": SPEED_BUMP_IMAGE, "icon-size": ["interpolate", ["linear"], ["zoom"], 12.5, 0.85, 18, 1.1], "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport" } });
   add({ id: "safety-one-way-arrows", type: "symbol", source: "openmaptiles", "source-layer": "transportation", minzoom: 13.5, filter: ["all", ["has", "oneway"], ["match", ["to-string", ["get", "oneway"]], ["1", "-1", "true", "yes"], true, false], ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary"], false, true]], layout: { "symbol-placement": "line", "symbol-spacing": ["interpolate", ["linear"], ["zoom"], 13.5, 74, 18, 120], "icon-image": ONE_WAY_ARROW_IMAGE, "icon-size": ["interpolate", ["linear"], ["zoom"], 13.5, 0.8, 18, 1.05], "icon-rotate": ["case", ["==", ["to-string", ["get", "oneway"]], "-1"], 180, 0], "icon-rotation-alignment": "map", "icon-pitch-alignment": "map", "icon-keep-upright": false, "icon-allow-overlap": true, "icon-ignore-placement": true } });
-  add({ id: "safety-speed-limit", type: "symbol", source: "safety-overlays", minzoom: 14.5, filter: ["==", ["get", "kind"], "speed_limit"], layout: { "symbol-placement": "line", "symbol-spacing": 760, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14.5, 8, 18, 11], "text-allow-overlap": false, "text-ignore-placement": false }, paint: { "text-color": "#15191c", "text-halo-color": "#ffffff", "text-halo-width": 3.5 } });
+  add({ id: "safety-speed-limit", type: "symbol", source: "safety-overlays", minzoom: 14.5, filter: ["==", ["get", "kind"], "speed_limit"], layout: { "symbol-placement": "line", "symbol-spacing": 640, "text-field": ["concat", ["get", "label"], " mph"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14.5, 8.5, 18, 11], "text-allow-overlap": false, "text-ignore-placement": false }, paint: { "text-color": "#15191c", "text-halo-color": "#ffffff", "text-halo-width": 3.5 } });
   add({ id: "safety-no-entry-disc", type: "circle", source: "safety-overlays", minzoom: 14, filter: ["==", ["get", "kind"], "no_entry"], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 5, 18, 8], "circle-color": "#d93636", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });
   add({ id: "safety-no-entry-bar", type: "symbol", source: "safety-overlays", minzoom: 14, filter: ["==", ["get", "kind"], "no_entry"], layout: { "text-field": "−", "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 10, 18, 15], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#ffffff" } });
   add({ id: "safety-turn-restriction", type: "symbol", source: "safety-overlays", minzoom: 15, filter: ["==", ["get", "kind"], "turn_restriction"], layout: { "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": 8, "text-offset": [0, 1.1], "text-allow-overlap": false }, paint: { "text-color": "#9c2028", "text-halo-color": "#fff6f6", "text-halo-width": 3 } });
@@ -329,7 +330,7 @@ export function applySafetyLayerVisibility(map: maplibregl.Map, settings: Settin
       }
     }
   }
-  const palette = AVERAGE_SPEED_ZONE_PALETTES[settings.averageSpeedZoneColor] ?? AVERAGE_SPEED_ZONE_PALETTES.amber;
+  const palette = AVERAGE_SPEED_ZONE_PALETTES[settings.averageSpeedZoneColor] ?? AVERAGE_SPEED_ZONE_PALETTES.magenta;
   if (map.getLayer("safety-average-speed-casing")) {
     map.setPaintProperty("safety-average-speed-casing", "line-color", palette.casing);
   }

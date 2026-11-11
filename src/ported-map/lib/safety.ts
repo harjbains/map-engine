@@ -61,7 +61,8 @@ type SafetyCacheEntry = {
   data: SafetyFeatureCollection;
 };
 
-const CACHE_KEY = "map-engine-safety-overlay-v17";
+const CACHE_KEY = "map-engine-safety-overlay-v18";
+const LEGACY_CACHE_KEYS = ["map-engine-safety-overlay-v17", "map-engine-safety-overlay-v16"];
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const CACHE_MAX_AREAS = 30;
 const OVERPASS_MIRRORS = [
@@ -76,6 +77,9 @@ const OVERPASS_URLS = typeof __STATIC_BUILD__ !== "undefined" && __STATIC_BUILD_
 const SIGNAL_CLUSTER_METRES = 60;
 const ROUNDABOUT_SIGNAL_CLUSTER_METRES = 24;
 const ROUNDABOUT_ASSOCIATION_METRES = 45;
+const MOTOR_ROAD_CLASS_RE = /^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service|road)(?:_link)?$/;
+const NON_ROAD_CONSTRUCTION_RE = /\b(hs2|high\s*speed\s*2|railway|rail\s*line|metro|tramway|canal|footway|cycleway|bridleway)\b/i;
+
 // Council enforcement records confirm Pipers Row and the adjoining Victoria Square bus gate;
 // the present OSM Pipers Row ways omit vehicle-access tags, so retain this narrow fallback.
 const WOLVERHAMPTON_RESTRICTION_CENTRE = { latitude: 52.5857, longitude: -2.1230 };
@@ -137,6 +141,29 @@ function isExplicitBusLane(tags: Record<string, string>) {
   const carsExcludedFromLane = [tags["access:lanes"], tags["vehicle:lanes"], tags["motor_vehicle:lanes"], tags["motorcar:lanes"]]
     .some((value) => /(no|private)/.test(value ?? ""));
   return signedBusway || (busesHaveLane && carsExcludedFromLane);
+}
+
+function isNonRoadProject(tags: Record<string, string>) {
+  if (tags.railway || tags.building || tags.landuse || tags.waterway || tags.aeroway) return true;
+  if (/^(rail|railway|light_rail|subway|tram|monorail|high_speed_rail|yes)$/i.test(tags.construction ?? "") && !tags.highway) {
+    return true;
+  }
+  const meta = `${tags.name ?? ""} ${tags.description ?? ""} ${tags.note ?? ""} ${tags.operator ?? ""} ${tags.project ?? ""} ${tags.ref ?? ""}`;
+  return NON_ROAD_CONSTRUCTION_RE.test(meta);
+}
+
+function isMotorRoadWayConstruction(tags: Record<string, string>) {
+  if (isNonRoadProject(tags)) return false;
+  if (tags.highway === "construction") {
+    // Only include if the planned highway class is a motor vehicle road (or unspecified motor road, not footway/cycleway/path/rail)
+    if (!tags.construction) return true;
+    return MOTOR_ROAD_CLASS_RE.test(tags.construction);
+  }
+  if (tags.highway === "roadworks") return true;
+  if (MOTOR_ROAD_CLASS_RE.test(tags.highway ?? "")) {
+    return Boolean(tags.construction && !/^(no|false)$/i.test(tags.construction)) || Boolean(tags.roadworks);
+  }
+  return false;
 }
 
 function distanceMetres(a: TrafficSignalPoint, b: TrafficSignalPoint) {
@@ -358,6 +385,9 @@ export async function fetchOverpass(query: string, initialDelayMs = 0, fallbackD
 
 function readSafetyCacheEntries() {
   try {
+    for (const oldKey of LEGACY_CACHE_KEYS) {
+      localStorage.removeItem(oldKey);
+    }
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return [];
     const cached = JSON.parse(raw) as { entries?: SafetyCacheEntry[] };
@@ -501,19 +531,99 @@ function isExplicitAverageSpeedElement(tags: Record<string, string>) {
     tags["camera:type"] === "average_speed" ||
     tags.speed_camera === "average_speed" ||
     tags.safety_camera === "average_speed" ||
-    /average|specs|vector|hadecs/i.test(`${tags.name ?? ""} ${tags.description ?? ""} ${tags["maxspeed:type"] ?? ""} ${tags["source:maxspeed"] ?? ""}`)
+    /average[_ -]?speed|specs\b|vector\s*sr/i.test(
+      `${tags.name ?? ""} ${tags.description ?? ""} ${tags.note ?? ""} ${tags["maxspeed:type"] ?? ""} ${tags["source:maxspeed"] ?? ""}`,
+    )
   );
+}
+
+/**
+ * Clips a road polyline to the span [0, 1] between two endpoint cameras A and B
+ * so only the road stretch strictly between the entry and exit cameras is coloured.
+ */
+function clipCoordsBetweenCameras(
+  coords: [number, number][],
+  camA: TrafficSignalPoint,
+  camB: TrafficSignalPoint,
+): [number, number][] | null {
+  if (coords.length < 2) return null;
+  const latScale = 111_320;
+  const lonScale = 111_320 * Math.cos(((camA.latitude + camB.latitude) * 0.5 * Math.PI) / 180);
+  const dx = (camB.longitude - camA.longitude) * lonScale;
+  const dy = (camB.latitude - camA.latitude) * latScale;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq < 60 * 60) return null; // Cameras must be at least 60m apart
+
+  const projectFraction = (lon: number, lat: number) => {
+    const px = (lon - camA.longitude) * lonScale;
+    const py = (lat - camA.latitude) * latScale;
+    return (px * dx + py * dy) / lenSq;
+  };
+
+  const perpendicularMetres = (lon: number, lat: number) => {
+    const px = (lon - camA.longitude) * lonScale;
+    const py = (lat - camA.latitude) * latScale;
+    const t = Math.max(0, Math.min(1, (px * dx + py * dy) / lenSq));
+    return Math.hypot(px - t * dx, py - t * dy);
+  };
+
+  // Check that the way stays within 160m laterally of the corridor between camA and camB
+  const mid = coords[Math.floor(coords.length / 2)];
+  if (perpendicularMetres(mid[0], mid[1]) > 160) return null;
+
+  const clipped: [number, number][] = [];
+  for (let i = 0; i < coords.length - 1; i += 1) {
+    const p0 = coords[i];
+    const p1 = coords[i + 1];
+    let t0 = projectFraction(p0[0], p0[1]);
+    let t1 = projectFraction(p1[0], p1[1]);
+
+    if ((t0 < 0 && t1 < 0) || (t0 > 1 && t1 > 1)) continue;
+
+    let startPt: [number, number] = p0;
+    let endPt: [number, number] = p1;
+    const dt = t1 - t0;
+
+    if (Math.abs(dt) > 1e-6) {
+      if (t0 < 0) {
+        const alpha = (0 - t0) / dt;
+        startPt = [p0[0] + alpha * (p1[0] - p0[0]), p0[1] + alpha * (p1[1] - p0[1])];
+      } else if (t0 > 1) {
+        const alpha = (1 - t0) / dt;
+        startPt = [p0[0] + alpha * (p1[0] - p0[0]), p0[1] + alpha * (p1[1] - p0[1])];
+      }
+      if (t1 < 0) {
+        const alpha = (0 - t0) / dt;
+        endPt = [p0[0] + alpha * (p1[0] - p0[0]), p0[1] + alpha * (p1[1] - p0[1])];
+      } else if (t1 > 1) {
+        const alpha = (1 - t0) / dt;
+        endPt = [p0[0] + alpha * (p1[0] - p0[0]), p0[1] + alpha * (p1[1] - p0[1])];
+      }
+    }
+
+    if (clipped.length === 0) {
+      clipped.push(startPt);
+    }
+    const last = clipped[clipped.length - 1];
+    if (Math.hypot(endPt[0] - last[0], endPt[1] - last[1]) > 1e-6) {
+      clipped.push(endPt);
+    }
+  }
+
+  return clipped.length >= 2 ? clipped : null;
 }
 
 function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationElements: OverpassElement[]): SafetyFeatureCollection {
   const features: SafetyFeatureCollection["features"] = [];
   const seenIds = new Set<string>();
 
-  const addZoneWay = (element: OverpassElement, speedStr: string | null, roadLabel: string | null) => {
-    const id = `way/${element.id}/average_speed_zone`;
-    if (seenIds.has(id)) return;
-    const coordinates = (element.geometry ?? []).map(({ lon, lat }) => [lon, lat] as [number, number]);
-    if (coordinates.length < 2) return;
+  const addZoneCoordinates = (
+    id: string,
+    coordinates: [number, number][],
+    speedStr: string | null,
+    roadLabel: string | null,
+  ) => {
+    if (seenIds.has(id) || coordinates.length < 2) return;
     seenIds.add(id);
     const speedLimit = speedStr ? Number(speedStr) : undefined;
     const label = speedStr ? `AVG ${speedStr} MPH` : "AVG SPEED ZONE";
@@ -530,66 +640,88 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
     });
   };
 
-  // Collect all speed camera points
-  const cameraPoints: Array<{ point: TrafficSignalPoint; explicitAvg: boolean; speed: string | null }> = [];
+  // Only collect EXPLICIT average speed cameras (never single spot cameras)
+  const avgCameraPoints: Array<{ point: TrafficSignalPoint; speed: string | null }> = [];
+  // Also collect explicit camera pairs defined by enforcement relations (from -> to)
+  const relationPairs: Array<{ a: TrafficSignalPoint; b: TrafficSignalPoint; speed: string | null; name: string | null }> = [];
   const allElements = [...hazardElements, ...regulationElements];
 
   for (const element of allElements) {
     const tags = element.tags ?? {};
-    const speedEnforcement = /^(speed|maximum_speed|maxspeed|average_speed)$/.test(tags.enforcement ?? "");
     const explicitAvg = isExplicitAverageSpeedElement(tags);
 
     if (element.type === "way" && explicitAvg && Array.isArray(element.geometry) && element.geometry.length >= 2) {
+      if (tags.junction === "roundabout" || tags.junction === "circular") continue;
       const speed = normaliseSpeedLimit(tags.maxspeed);
       const roadLabel = tags.ref && tags.name ? `${tags.ref} ${tags.name}` : tags.name ?? tags.ref ?? null;
-      addZoneWay(element, speed, roadLabel);
+      const coordinates = element.geometry.map(({ lon, lat }) => [lon, lat] as [number, number]);
+      addZoneCoordinates(`way/${element.id}/average_speed_zone`, coordinates, speed, roadLabel);
     }
 
     if (element.type === "relation" && explicitAvg && Array.isArray(element.members)) {
       const speed = normaliseSpeedLimit(tags.maxspeed);
+      const roadLabel = tags.name ?? tags.ref ?? null;
+      let addedMemberWay = false;
       for (const member of element.members) {
         if (member.type === "way" && Array.isArray(member.geometry) && member.geometry.length >= 2) {
-          addZoneWay(
-            { type: "way", id: member.ref, geometry: member.geometry, tags },
+          const coordinates = member.geometry.map(({ lon, lat }) => [lon, lat] as [number, number]);
+          addZoneCoordinates(`way/${member.ref}/average_speed_zone`, coordinates, speed, roadLabel);
+          addedMemberWay = true;
+        }
+      }
+      if (!addedMemberWay) {
+        const nodeMembers = element.members.filter(
+          (m) => m.type === "node" && typeof m.lat === "number" && typeof m.lon === "number",
+        );
+        if (nodeMembers.length >= 2) {
+          relationPairs.push({
+            a: { latitude: nodeMembers[0].lat!, longitude: nodeMembers[0].lon! },
+            b: { latitude: nodeMembers[nodeMembers.length - 1].lat!, longitude: nodeMembers[nodeMembers.length - 1].lon! },
             speed,
-            tags.name ?? tags.ref ?? null,
-          );
+            name: roadLabel,
+          });
         }
       }
     }
 
-    if (tags.highway === "speed_camera" || speedEnforcement) {
+    const speedEnforcement = /^(speed|maximum_speed|maxspeed|average_speed)$/.test(tags.enforcement ?? "");
+    if ((tags.highway === "speed_camera" || speedEnforcement) && explicitAvg) {
       const pt = elementPoint(element);
       if (pt) {
-        cameraPoints.push({
+        avgCameraPoints.push({
           point: pt,
-          explicitAvg,
           speed: normaliseSpeedLimit(tags.maxspeed),
         });
       }
     }
   }
 
-  if (cameraPoints.length === 0) return { type: "FeatureCollection", features };
+  if (avgCameraPoints.length < 2 && relationPairs.length === 0) {
+    return { type: "FeatureCollection", features };
+  }
 
-  // Collect candidate road ways from regulationElements (which has way["highway"]["maxspeed"])
-  const roadWays = regulationElements.filter(
-    (el) => el.type === "way" && el.tags?.highway && Array.isArray(el.geometry) && el.geometry.length >= 2,
-  );
+  // Candidate main-carriageway road ways (exclude roundabouts and link/slip roads)
+  const roadWays = regulationElements.filter((el) => {
+    if (el.type !== "way" || !el.tags?.highway || !Array.isArray(el.geometry) || el.geometry.length < 2) return false;
+    if (el.tags.junction === "roundabout" || el.tags.junction === "circular") return false;
+    if (/_link$/.test(el.tags.highway)) return false;
+    return true;
+  });
 
   type RoadWayInfo = {
     element: OverpassElement;
     path: TrafficSignalPoint[];
+    coords: [number, number][];
     roadKeys: string[];
     roadLabel: string | null;
     speed: string | null;
-    nearCameraIndices: Set<number>;
-    nearExplicitAvg: boolean;
+    nearAvgCameraIndices: number[];
   };
 
   const wayInfos: RoadWayInfo[] = roadWays.map((element) => {
     const tags = element.tags ?? {};
     const path = (element.geometry ?? []).map(({ lat, lon }) => ({ latitude: lat, longitude: lon }));
+    const coords = (element.geometry ?? []).map(({ lon, lat }) => [lon, lat] as [number, number]);
     const keys: string[] = [];
     if (tags.ref) {
       for (const part of tags.ref.split(/[;/,]+/)) {
@@ -604,66 +736,70 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
       ? `${tags.ref} ${tags.name}`
       : tags.name ?? tags.ref ?? null;
     const speed = normaliseSpeedLimit(tags.maxspeed);
-    const nearCameraIndices = new Set<number>();
-    let nearExplicitAvg = isExplicitAverageSpeedElement(tags);
+    const nearAvgCameraIndices: number[] = [];
 
-    for (let i = 0; i < cameraPoints.length; i += 1) {
-      const cam = cameraPoints[i];
-      const dist = distanceToPathMetres(cam.point, path);
-      if (dist <= 42) {
-        nearCameraIndices.add(i);
-        if (cam.explicitAvg) nearExplicitAvg = true;
+    for (let i = 0; i < avgCameraPoints.length; i += 1) {
+      if (distanceToPathMetres(avgCameraPoints[i].point, path) <= 38) {
+        nearAvgCameraIndices.push(i);
       }
     }
 
-    return { element, path, roadKeys: keys, roadLabel, speed, nearCameraIndices, nearExplicitAvg };
+    return { element, path, coords, roadKeys: keys, roadLabel, speed, nearAvgCameraIndices };
   });
 
-  // Group cameras by road key (ref or name) to find roads with >= 2 speed cameras or >= 1 explicit average speed camera
-  const roadKeyCameras = new Map<string, Set<number>>();
-  const roadKeyExplicitAvg = new Set<string>();
-
+  // Group explicit average-speed cameras by road key (ref or name)
+  const roadKeyAvgCameras = new Map<string, Set<number>>();
   for (const info of wayInfos) {
-    if (info.nearCameraIndices.size === 0 && !info.nearExplicitAvg) continue;
+    if (info.nearAvgCameraIndices.length === 0) continue;
     for (const key of info.roadKeys) {
-      let set = roadKeyCameras.get(key);
+      let set = roadKeyAvgCameras.get(key);
       if (!set) {
         set = new Set<number>();
-        roadKeyCameras.set(key, set);
+        roadKeyAvgCameras.set(key, set);
       }
-      for (const idx of info.nearCameraIndices) set.add(idx);
-      if (info.nearExplicitAvg) roadKeyExplicitAvg.add(key);
+      for (const idx of info.nearAvgCameraIndices) set.add(idx);
     }
   }
 
-  const activeAverageZoneRoadKeys = new Set<string>();
-  for (const [key, camIndices] of roadKeyCameras.entries()) {
-    if (camIndices.size >= 2 || roadKeyExplicitAvg.has(key)) {
-      activeAverageZoneRoadKeys.add(key);
+  // Build camera pairs (start camera -> end camera) for roads that have at least 2 explicit average speed cameras
+  const activePairs: Array<{ roadKey: string | null; a: TrafficSignalPoint; b: TrafficSignalPoint; speed: string | null }> = [
+    ...relationPairs.map((pair) => ({ roadKey: null, a: pair.a, b: pair.b, speed: pair.speed })),
+  ];
+
+  for (const [roadKey, camSet] of roadKeyAvgCameras.entries()) {
+    const indices = [...camSet];
+    if (indices.length < 2) continue;
+    // Find the two furthest explicit average speed cameras on this road (up to 3.5 km apart)
+    let bestPair: { a: TrafficSignalPoint; b: TrafficSignalPoint; dist: number; speed: string | null } | null = null;
+    for (let i = 0; i < indices.length; i += 1) {
+      for (let j = i + 1; j < indices.length; j += 1) {
+        const camA = avgCameraPoints[indices[i]];
+        const camB = avgCameraPoints[indices[j]];
+        const dist = distanceMetres(camA.point, camB.point);
+        if (dist >= 80 && dist <= 3_500 && (!bestPair || dist > bestPair.dist)) {
+          bestPair = { a: camA.point, b: camB.point, dist, speed: camA.speed ?? camB.speed };
+        }
+      }
+    }
+    if (bestPair) {
+      activePairs.push({ roadKey, a: bestPair.a, b: bestPair.b, speed: bestPair.speed });
     }
   }
 
-  // Highlight ways that belong to an active average speed road (within 1,100m of any camera on that road)
-  // OR ways directly touching an explicit average speed camera
+  // Colour only the road stretch strictly between camera A and camera B
   for (const info of wayInfos) {
-    if (info.nearExplicitAvg) {
-      addZoneWay(info.element, info.speed, info.roadLabel);
-      continue;
-    }
-    const matchingKey = info.roadKeys.find((k) => activeAverageZoneRoadKeys.has(k));
-    if (!matchingKey) continue;
-    const camIndices = roadKeyCameras.get(matchingKey);
-    if (!camIndices || camIndices.size === 0) continue;
-    const midPoint = info.path[Math.floor(info.path.length / 2)];
-    let withinZoneSpan = false;
-    for (const camIdx of camIndices) {
-      if (distanceMetres(midPoint, cameraPoints[camIdx].point) <= 1_150) {
-        withinZoneSpan = true;
+    for (const pair of activePairs) {
+      if (pair.roadKey !== null && !info.roadKeys.includes(pair.roadKey)) continue;
+      const clipped = clipCoordsBetweenCameras(info.coords, pair.a, pair.b);
+      if (clipped) {
+        addZoneCoordinates(
+          `way/${info.element.id}/average_speed_zone`,
+          clipped,
+          info.speed ?? pair.speed,
+          info.roadLabel,
+        );
         break;
       }
-    }
-    if (withinZoneSpan) {
-      addZoneWay(info.element, info.speed, info.roadLabel);
     }
   }
 
@@ -675,8 +811,9 @@ function roadClosureFeatures(elements: OverpassElement[]): SafetyFeatureCollecti
   for (const element of elements) {
     if (element.type !== "way") continue;
     const tags = element.tags ?? {};
+    if (isNonRoadProject(tags)) continue;
     const roadClass = tags.highway === "construction" ? (tags.construction || "road") : tags.highway;
-    const motorRoad = /^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service|road)(?:_link)?$/.test(roadClass ?? "");
+    const motorRoad = MOTOR_ROAD_CLASS_RE.test(roadClass ?? "");
     const accessClosed = [tags.access, tags.vehicle, tags.motor_vehicle, tags.motorcar]
       .some((value) => /^(no|private)$/.test(value ?? ""));
     if (!motorRoad || (tags.highway !== "construction" && !(tags.construction && accessClosed))) continue;
@@ -690,8 +827,9 @@ function roadWorksFeatures(elements: OverpassElement[]): SafetyFeatureCollection
   const features: SafetyFeatureCollection["features"] = [];
   for (const element of elements) {
     const tags = element.tags ?? {};
+    if (isNonRoadProject(tags)) continue;
     if (element.type === "way") {
-      if (tags.highway !== "construction" && !tags.construction && tags.highway !== "roadworks") continue;
+      if (!isMotorRoadWayConstruction(tags)) continue;
       const label = tags.name ? `WORKS · ${tags.name}` : "ROAD WORKS";
       const feature = wayFeature(element, "roadworks", label);
       if (feature) features.push(feature);
@@ -787,7 +925,7 @@ export async function fetchSafetyFeatures(
   const maxLon = (centre.longitude + dLon).toFixed(5);
   const bbox = `(${minLat},${minLon},${maxLat},${maxLon})`;
 
-  // Primary fast hazards query: Traffic signals, road humps/calming, roadworks, speed cameras, closures, crossings
+  // Primary fast hazards query: Traffic signals, road humps/calming, roadworks (motor highways only, no HS2/rail!), speed cameras, closures, crossings
   const hazardsQuery = `[out:json][timeout:15];(
   node${bbox}["highway"="traffic_signals"];
   node${bbox}["traffic_calming"];
@@ -796,7 +934,7 @@ export async function fetchSafetyFeatures(
   node${bbox}["highway"="speed_camera"];
   nwr${bbox}["enforcement"~"^(speed|maximum_speed|maxspeed|average_speed)$"];
   way${bbox}["highway"="construction"];
-  way${bbox}["construction"];
+  way${bbox}["highway"]["construction"];
   node${bbox}["highway"="construction"];
   node${bbox}["highway"="roadworks"];
   node${bbox}["traffic_sign"~"(no[_ ]?entry|GB:601)",i];

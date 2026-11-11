@@ -69,7 +69,7 @@ const ALL_OVERLAYS_ON: Record<SafetyOverlayToggleKey, boolean> = {
   showDriverAmenities: true,
 };
 
-const ZONE_COLOR_KEYS: AverageSpeedZoneColor[] = ["amber", "cyan", "magenta", "lime"];
+const ZONE_COLOR_KEYS: AverageSpeedZoneColor[] = ["magenta", "amber", "cyan", "lime"];
 
 export function SettingsPanel({ settings, offlinePack, packRadius, packProgress, packError, trafficConfigured, installPrompt, onClose, onRemoveOfflineArea, onSetPackRadius, onCancelDownload, onSaveOfflineArea, onToggle, onBatchSettings, onDefault3d, onAutoZoom, onLiveTraffic, onPitch, onInstall, onShowLegend }: SettingsPanelProps) {
   const progressPercent = packProgress?.total ? Math.round(packProgress.done / packProgress.total * 100) : 0;
@@ -149,6 +149,17 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
             <Toggle label="Auto-refresh &amp; auto-centre GPS" checked={settings.autoRefreshLocation} onChange={(value) => onToggle("autoRefreshLocation", value)} />
             <Toggle label="Night map mode" checked={settings.darkMode} onChange={(value) => onToggle("darkMode", value)} />
             <Toggle label="Default 3D view" checked={settings.default3d} onChange={onDefault3d} />
+            <label className="range-setting">
+              <span>3D pitch <b>{Math.round(settings.pitch)}°</b></span>
+              <input
+                type="range"
+                min="35"
+                max="65"
+                step="5"
+                value={settings.pitch}
+                onChange={(event) => onPitch(Number(event.target.value))}
+              />
+            </label>
             <Toggle label="Automatic zoom" checked={settings.autoZoom} onChange={onAutoZoom} />
             <Toggle label="Show GPS speed" checked={settings.showSpeed} onChange={(value) => onToggle("showSpeed", value)} />
             <Toggle label="Show 3D buildings" checked={settings.showBuildings} onChange={(value) => onToggle("showBuildings", value)} />
@@ -179,7 +190,6 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
             )}
             {settings.liveTraffic && !trafficConfigured && <p className="settings-note traffic-setup-note">Live traffic is ready for a TomTom connection. Add the traffic service key to activate it.</p>}
             <p className="settings-note">Choose how routes are calculated when picking a destination — Fast, Short, or Avoid narrow lanes. Routes are still allowed to finish on any road at the start or destination, and if a route cannot be calculated the fastest route is used instead.</p>
-            <label className="range-setting"><span>3D pitch <b>{Math.round(settings.pitch)}°</b></span><input type="range" min="35" max="65" step="5" value={settings.pitch} onChange={(event) => onPitch(Number(event.target.value))} /></label>
           </section>
 
           <section className="settings-group offline-group">
@@ -208,5 +218,19 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
-  return <label className="toggle-row"><span>{label}</span><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /><i aria-hidden="true" /></label>;
+  return (
+    <label className="toggle-row">
+      <span>{label}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => {
+          onChange(event.target.checked);
+          document.getElementById("root")?.scrollTo(0, 0);
+          window.scrollTo(0, 0);
+        }}
+      />
+      <i aria-hidden="true" />
+    </label>
+  );
 }

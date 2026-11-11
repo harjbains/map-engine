@@ -193,7 +193,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
     setSettings((current) => {
-      const next = { ...current, ...patch };
+      const next = { ...current, ...patch, avgColorMigratedV2: true } as Settings & { avgColorMigratedV2?: boolean };
       localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(next));
       return next;
     });
@@ -213,9 +213,14 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       try {
         const saved = localStorage.getItem(STORAGE_KEYS.settings);
         if (saved) {
+          const parsed = JSON.parse(saved) as Partial<Settings> & { mapStyle?: unknown; atlasMode?: unknown; avgColorMigratedV2?: boolean };
+          if (!parsed.avgColorMigratedV2) {
+            parsed.averageSpeedZoneColor = "magenta";
+            parsed.avgColorMigratedV2 = true;
+          }
           const next = {
             ...DEFAULT_SETTINGS,
-            ...JSON.parse(saved) as Partial<Settings>,
+            ...parsed,
           } as Settings & { mapStyle?: unknown; atlasMode?: unknown };
           delete next.mapStyle;
           delete next.atlasMode;
@@ -223,6 +228,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
           settingsRef.current = next;
           setIs3d(next.default3d);
           is3dRef.current = next.default3d;
+          localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify({ ...next, avgColorMigratedV2: true }));
         }
         const pack = localStorage.getItem(STORAGE_KEYS.offlinePack);
         if (pack) setOfflinePack(JSON.parse(pack) as OfflinePack);
@@ -279,10 +285,19 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
           map.setLayoutProperty("building-3d", "visibility", settings.showBuildings && is3d ? "visible" : "none");
         }
         applySafetyLayerVisibility(map, settings);
-        if (followRef.current) map.easeTo({ pitch: is3d ? settings.pitch : 0, duration: 350 });
       }
     }
   }, [settings, is3d, traffic.configured, online, mapReady, reapplyMapTheme]);
+
+  // Apply 3D/2D tilt pitch immediately whenever Default 3D view or 3D pitch changes (even when not actively following GPS)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || areaActive || openPostcodeGroupRef.current !== null) return;
+    const targetPitch = is3d ? settings.pitch : 0;
+    if (Math.abs(map.getPitch() - targetPitch) > 0.5) {
+      map.easeTo({ pitch: targetPitch, duration: 320, essential: true });
+    }
+  }, [mapReady, is3d, settings.pitch, areaActive]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setPickupClock(Date.now()), 60_000);
@@ -316,7 +331,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       setAverageSpeedZone(null);
       return;
     }
-    const detected = activeAverageSpeedZoneNearPoint(safetyDataRef.current, point, currentRoadRef.current, 42);
+    const detected = activeAverageSpeedZoneNearPoint(safetyDataRef.current, point, currentRoadRef.current, 38);
     const now = Date.now();
     if (detected) {
       avgZoneHoldRef.current = { zone: detected, until: now + 7_500 };
@@ -343,12 +358,14 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       transformRequest: (url) => ({ url: mapResourceUrl(url, window.location.origin, import.meta.env.DEV) }),
       center: [DEFAULT_START.longitude, DEFAULT_START.latitude],
       zoom: DEFAULT_START.zoom,
-      pitch: 55,
+      pitch: settingsRef.current.default3d ? settingsRef.current.pitch : 0,
       bearing: -12,
       attributionControl: { compact: true },
       maxPitch: 65,
       touchPitch: true,
       dragPan: true,
+      dragRotate: true,
+      pitchWithRotate: true,
       scrollZoom: true,
       touchZoomRotate: true,
       doubleClickZoom: true,
@@ -425,6 +442,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
       setTrafficVisibility(map, false);
       ensureSafetyLayers(map);
       applySafetyLayerVisibility(map, settingsRef.current);
+      map.setPitch(is3dRef.current ? settingsRef.current.pitch : 0);
       const initialCentre = map.getCenter();
       const cachedSafety = readCachedSafetyFeatures({ latitude: initialCentre.lat, longitude: initialCentre.lng });
       if (cachedSafety) showSafety(cachedSafety);
@@ -437,6 +455,20 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     const onMapIdle = () => { reapplyMapTheme(); refreshSafetyWhenSettled(); };
     map.on("style.load", () => { styleEpochRef.current += 1; reapplyMapTheme(); });
     map.on("idle", onMapIdle);
+    map.on("pitchend", (event) => {
+      if (!event.originalEvent) return;
+      const currentPitch = Math.round(map.getPitch());
+      if (currentPitch < 10) {
+        is3dRef.current = false;
+        setIs3d(false);
+      } else {
+        const clampedPitch = Math.max(35, Math.min(65, currentPitch));
+        is3dRef.current = true;
+        setIs3d(true);
+        settingsRef.current = { ...settingsRef.current, pitch: clampedPitch, default3d: true };
+        setSettings((prev) => ({ ...prev, pitch: clampedPitch, default3d: true }));
+      }
+    });
     map.on("error", (event) => {
       if (!navigator.onLine) setMapMessage("Offline map data is missing here. Reconnect and save this area first.");
       else if (event.error) setMapMessage(`Map resource failed: ${event.error.message}`);
@@ -777,10 +809,11 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     const next = !is3d;
     is3dRef.current = next;
     setIs3d(next);
+    updateSettings({ default3d: next });
     const map = mapRef.current;
-    if (map && !followRef.current) {
+    if (map) {
       map.stop();
-      map.easeTo({ pitch: next ? settings.pitch : 0, duration: 250, essential: true });
+      map.easeTo({ pitch: next ? settings.pitch : 0, duration: 280, essential: true });
     }
   };
 
@@ -1269,9 +1302,18 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
 
       {<PostcodeLookup openGroup={openPostcodeGroup} onChangeGroup={setOpenPostcodeGroup} />}
 
-      <div className="zoom-controls" aria-label="Map zoom controls">
+      <div className="zoom-controls" aria-label="Map zoom and tilt controls">
         <button onClick={() => adjustZoom(1)} aria-label="Zoom in">+</button>
         <button onClick={() => adjustZoom(-1)} aria-label="Zoom out">-</button>
+        <button
+          className={`tilt-button${is3d ? " active" : ""}`}
+          aria-pressed={is3d}
+          onClick={toggle3d}
+          aria-label={is3d ? "Switch to 2D flat view" : "Switch to 3D tilted view"}
+          title={is3d ? "3D tilt active — tap for 2D" : "2D flat view — tap for 3D tilt"}
+        >
+          {is3d ? "3D" : "2D"}
+        </button>
         <button className="area-button" aria-pressed={areaActive} onClick={() => { const m = mapRef.current; if (!m) return; manualZoomRef.current = toggleAreaView(m, latestFixRef.current ?? mapCentre(m), 10); }} aria-label="Show towns and cities within 10 miles"><svg className="icon-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></svg><svg className="icon-collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
       </div>
 
@@ -1360,7 +1402,11 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
             traffic.reset(value);
             updateSettings({ liveTraffic: value });
           }}
-          onPitch={(pitch) => updateSettings({ pitch })}
+          onPitch={(pitch) => {
+            is3dRef.current = true;
+            setIs3d(true);
+            updateSettings({ pitch, default3d: true });
+          }}
           onInstall={() => { void (async () => { if (!installPrompt) return; await installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); })(); }}
           onShowLegend={() => setLegendOpen(true)}
         />
