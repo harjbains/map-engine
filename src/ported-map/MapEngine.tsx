@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Fo
 import maplibregl from "maplibre-gl";
 import { dynamicZoom, acceptsPositionUpdate, bindCompassHeading, plausibleGpsStep, smooth, smoothBearing, toMph, type Point } from "./lib/driving";
 import type { PostcodeGroupId } from "./lib/birmingham-postcodes";
-import { fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollection } from "./lib/safety";
+import { extractTileAverageSpeedZones, fetchSafetyFeatures, readCachedSafetyFeatures, type SafetyFeatureCollection } from "./lib/safety";
 import { pickupFeatureCollection, readPickupHistory, recordPickupAt } from "./lib/pickup-history";
 import { ensurePickupLayers, setPickupData, setPickupVisibility } from "./map-engine/pickup-layers";
 import { CompassStrip } from "./map-engine/CompassStrip";
@@ -382,11 +382,22 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     let visibleSafety: SafetyFeatureCollection | null = null;
     let safetyRetryTimer: number | null = null;
     const showSafety = (data: SafetyFeatureCollection) => {
-      visibleSafety = data;
-      safetyDataRef.current = data;
-      setSafetyData(map, data);
+      let merged = data;
+      try {
+        if (map.isStyleLoaded() && map.getSource("openmaptiles")) {
+          const tileNameFeatures = map.querySourceFeatures("openmaptiles", { sourceLayer: "transportation_name" });
+          const tileRoadFeatures = map.querySourceFeatures("openmaptiles", { sourceLayer: "transportation" });
+          const tileZones = extractTileAverageSpeedZones([...tileNameFeatures, ...tileRoadFeatures]);
+          if (tileZones.features.length > 0) {
+            merged = mergeSafetyData(data, tileZones);
+          }
+        }
+      } catch { /* ignore tile query errors before style ready */ }
+      visibleSafety = merged;
+      safetyDataRef.current = merged;
+      setSafetyData(map, merged);
       if (latestFixRef.current) {
-        setSpeedLimitMph(speedLimitNearPoint(data, latestFixRef.current));
+        setSpeedLimitMph(speedLimitNearPoint(merged, latestFixRef.current));
         evaluateAverageSpeedZone(latestFixRef.current);
       }
     };
@@ -399,7 +410,14 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
     };
     scheduleSafetyRefreshRef.current = scheduleSafetyRefresh;
     const refreshSafety = async () => {
-      if (!navigator.onLine || safetyPending || map.getZoom() < 11.0) return;
+      if ( map.isStyleLoaded() ) {
+        showSafety(visibleSafety ?? { type: "FeatureCollection", features: [] });
+      }
+      if (!navigator.onLine || map.getZoom() < 10.5) return;
+      if (safetyPending) {
+        scheduleSafetyRefresh(500);
+        return;
+      }
       if (!map.isStyleLoaded()) {
         scheduleSafetyRefresh(180);
         return;
