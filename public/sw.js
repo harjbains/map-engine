@@ -1,4 +1,4 @@
-const SHELL_CACHE = "map-engine-shell-v3-3-5";
+const SHELL_CACHE = "map-engine-shell-v3-3-9";
 const MAP_CACHE = "map-engine-map-v1";
 
 const scopeUrl = new URL(self.registration.scope);
@@ -28,12 +28,14 @@ async function precacheAppShell() {
 }
 
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(precacheAppShell());
 });
 
 async function activateAppShell() {
   const keys = await caches.keys();
   await Promise.all(keys.filter((key) => key.startsWith("map-engine-shell-") && key !== SHELL_CACHE).map((key) => caches.delete(key)));
+  await self.clients.claim();
 }
 
 self.addEventListener("activate", (event) => {

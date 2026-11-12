@@ -6,36 +6,27 @@ export function ChangelogModal({ onClose }: { onClose: () => void }) {
       <header>
         <div>
           <small>MAP-ENGINE</small>
-          <h1>v3.3.5 Updates</h1>
-          <p>Shift Tracking, UI refinements, and more</p>
+          <h1>v3.3.9 Updates</h1>
+          <p>West Midlands Average Speed Zones, Christmas Bauble Theme &amp; Road Styling</p>
         </div>
         <button type="button" aria-label="Close changelog" onClick={onClose}>×</button>
       </header>
       <div style={{ padding: "10px 0", display: "grid", gap: "10px", color: "#d9f5ff", lineHeight: 1.4 }}>
         <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
+          <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>West Midlands Average Speed Zones</h3>
+          <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>All 26 West Midlands Average Speed Zone corridors across Wolverhampton, the Black Country, Birmingham, Solihull, and Coventry are highlighted in solid Magenta with live zone HUD warnings.</p>
+        </article>
+        <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
+          <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>Christmas Shiny Metallic Bauble Theme 🎄</h3>
+          <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>Map controls are styled as 3D jewel-toned metallic Christmas baubles with golden caps and hanging rings (toggleable in Settings).</p>
+        </article>
+        <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
+          <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>Road Widths &amp; Labels</h3>
+          <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>Road widths increased by 10% and road name labels reduced by 10% so names sit cleanly inside road casings.</p>
+        </article>
+        <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
           <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>Shift Tracking</h3>
           <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>You can now start and end multiple shifts in a day to track your true active £/hr. Check your shift history from the Dashboard!</p>
-        </article>
-
-        <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
-          <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>More UI Refinements</h3>
-          <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>Close buttons are now beautifully unified. Light Mode day cards have improved contrast. Dashboard layout is more compact to fit the Tesla screen better. Mileage panel now features +20/-20 adjustment buttons.</p>
-        </article>
-        <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
-          <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>Light Mode</h3>
-          <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>Match your mood with a gorgeous new Light Mode theme! Hit the ☀️ toggle on the dashboard to seamlessly switch the entire UI to match the map.</p>
-        </article>
-        <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
-          <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>Animated £25 Progress</h3>
-          <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>The progress bar is now a solid, animated bar that dynamically changes color as you conquer each £25 block. Includes a satisfying charging animation and £5 markers.</p>
-        </article>
-        <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
-          <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>Quick Mileage Editing</h3>
-          <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>The Weekly History panel has been completely removed. You can now view and edit your daily business miles simply by tapping the days directly on the dashboard!</p>
-        </article>
-        <article style={{ background: "rgba(0,0,0,0.2)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
-          <h3 style={{ margin: "0 0 4px", color: "#35f1bd", fontSize: "16px" }}>Cloud Sync + Midnight Roller</h3>
-          <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>Shifts ending before 04:00 AM still correctly attribute to the previous calendar day, and everything syncs to your Supabase account automatically.</p>
         </article>
       </div>
       <footer>
