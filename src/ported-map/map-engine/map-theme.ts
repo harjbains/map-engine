@@ -1,9 +1,9 @@
 import type maplibregl from "maplibre-gl";
 
-export const ROAD_WIDTH_SCALE = 0.48;
-export const B_ROAD_WIDTH_SCALE = 0.48;
-export const MOTORWAY_WIDTH_SCALE = 0.48;
-export const LOCAL_ROAD_WIDTH_SCALE = 0.48;
+export const ROAD_WIDTH_SCALE = 0.528;
+export const B_ROAD_WIDTH_SCALE = 0.528;
+export const MOTORWAY_WIDTH_SCALE = 0.528;
+export const LOCAL_ROAD_WIDTH_SCALE = 0.528;
 
 export const ROAD_HIERARCHY_MIN_ZOOM = [
   ["road-motorway", 4],
@@ -32,7 +32,7 @@ export const PLACE_LAYOUTS = [
 ] as const;
 
 const scaleRoadWidthOutput = (value: unknown, scale: number): unknown => {
-  if (typeof value === "number") return value * scale;
+  if (typeof value === "number") return Number((value * scale).toFixed(3));
   if (Array.isArray(value) && value[0] === "case") {
     return ["case", value[1], scaleRoadWidthOutput(value[2], scale), scaleRoadWidthOutput(value[3], scale)];
   }
@@ -100,7 +100,7 @@ const MAP_THEME_PAINTS = {
     ["road-local-casing", "line-opacity", LOCAL_ROAD_CASING_OPACITY],
     ["road-name", "text-color", "#282622"],
     ["road-name", "text-halo-color", "#fffdf7"],
-    ["road-name", "text-halo-width", 2.2],
+    ["road-name", "text-halo-width", 2.0],
     ["route-motorway", "text-color", "#fff"],
     ["route-motorway", "text-halo-color", "#245d91"],
     ["route-a", "text-color", "#ffffff"],
@@ -154,7 +154,7 @@ const MAP_THEME_PAINTS = {
     ["road-local-casing", "line-opacity", LOCAL_ROAD_CASING_OPACITY],
     ["road-name", "text-color", "#e2e7e9"],
     ["road-name", "text-halo-color", "#171d20"],
-    ["road-name", "text-halo-width", 2.4],
+    ["road-name", "text-halo-width", 2.1],
     ["route-motorway", "text-color", "#f7fbff"],
     ["route-motorway", "text-halo-color", "#225e92"],
     ["route-a", "text-color", "#ffffff"],
@@ -194,7 +194,8 @@ export function applyMapTheme(map: maplibregl.Map, darkMode: boolean) {
     map.setLayoutProperty("road-name", "text-ignore-placement", false);
     map.setLayoutProperty("road-name", "text-optional", true);
     map.setLayoutProperty("road-name", "text-letter-spacing", 0.012);
-    map.setLayoutProperty("road-name", "text-size", ["interpolate", ["linear"], ["zoom"], 13, 10.5, 15, 12.5, 17, 15.5, 19, 18]);
+    // 10% smaller road names across all zoom levels
+    map.setLayoutProperty("road-name", "text-size", ["interpolate", ["linear"], ["zoom"], 13, 9.45, 15, 11.25, 17, 13.95, 19, 16.2]);
   }
   for (const [layer, size] of PLACE_LAYOUTS) {
     if (map.getLayer(layer)) {

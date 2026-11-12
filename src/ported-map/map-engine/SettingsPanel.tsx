@@ -4,6 +4,7 @@ import { AVERAGE_SPEED_ZONE_PALETTES } from "./safety-layers";
 type ToggleableSettingKey =
   | SafetyOverlayToggleKey
   | "darkMode"
+  | "xmasTheme"
   | "autoRefreshLocation"
   | "showSpeed"
   | "showBuildings"
@@ -146,6 +147,7 @@ export function SettingsPanel({ settings, offlinePack, packRadius, packProgress,
 
           <section className="settings-group">
             <h3>Driving view</h3>
+            <Toggle label="Christmas bauble theme 🎄" checked={settings.xmasTheme} onChange={(value) => onToggle("xmasTheme", value)} />
             <Toggle label="Auto-refresh &amp; auto-centre GPS" checked={settings.autoRefreshLocation} onChange={(value) => onToggle("autoRefreshLocation", value)} />
             <Toggle label="Night map mode" checked={settings.darkMode} onChange={(value) => onToggle("darkMode", value)} />
             <Toggle label="Default 3D view" checked={settings.default3d} onChange={onDefault3d} />

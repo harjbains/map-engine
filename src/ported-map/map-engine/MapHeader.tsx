@@ -50,7 +50,7 @@ export function MapHeader({
         </div>
       </div>
       <div className="header-actions">
-        <button className={`icon-button settings-button ${settingsOpen ? "active" : ""}`} aria-label="Open settings" aria-pressed={settingsOpen} onClick={onOpenSettings}><span /></button>
+        <button className={`icon-button settings-button ${settingsOpen ? "active" : ""}`} aria-label="Open settings" aria-pressed={settingsOpen} onClick={onOpenSettings}><i className="bauble-cap" aria-hidden="true" /><span /></button>
         <span className={`status-icon traffic-status-icon ${trafficState}`} aria-label={trafficLabel} title={trafficTitle}>T</span>
         <button className={`icon-button dark-mode-button ${darkMode ? "active" : ""}`} aria-label={`Switch to ${darkMode ? "day" : "night"} mode`} aria-pressed={darkMode} title={`Switch to ${darkMode ? "day" : "night"} mode`} onClick={onToggleDarkMode}>
           {darkMode ? (
@@ -65,7 +65,7 @@ export function MapHeader({
           )}
         </button>
         {onRefreshLocation && (
-          <button className="icon-button mode-button active" onClick={onRefreshLocation} aria-label="Refresh GPS location" title="Refresh GPS location">
+          <button className="icon-button mode-button refresh-button active" onClick={onRefreshLocation} aria-label="Refresh GPS location" title="Refresh GPS location">
             <svg className="location-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
               <path d="M21 3v5h-5" />
@@ -73,7 +73,7 @@ export function MapHeader({
           </button>
         )}
         {onOpenDashboard && (
-          <button className="icon-button mode-button active" onClick={onOpenDashboard} aria-label="Open Earnings Dashboard" title="Dashboard">
+          <button className="icon-button mode-button earnings-button active" onClick={onOpenDashboard} aria-label="Open Earnings Dashboard" title="Dashboard">
             £
           </button>
         )}

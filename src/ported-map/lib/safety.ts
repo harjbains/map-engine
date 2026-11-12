@@ -61,15 +61,14 @@ type SafetyCacheEntry = {
   data: SafetyFeatureCollection;
 };
 
-const CACHE_KEY = "map-engine-safety-overlay-v18";
-const LEGACY_CACHE_KEYS = ["map-engine-safety-overlay-v17", "map-engine-safety-overlay-v16"];
+const CACHE_KEY = "map-engine-safety-overlay-v19";
+const LEGACY_CACHE_KEYS = ["map-engine-safety-overlay-v18", "map-engine-safety-overlay-v17", "map-engine-safety-overlay-v16"];
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const CACHE_MAX_AREAS = 30;
 const OVERPASS_MIRRORS = [
-  "https://overpass.openstreetmap.fr/api/interpreter",
   "https://overpass-api.de/api/interpreter",
-  "https://z.overpass-api.de/api/interpreter",
   "https://lz4.overpass-api.de/api/interpreter",
+  "https://z.overpass-api.de/api/interpreter",
 ];
 const OVERPASS_URLS = typeof __STATIC_BUILD__ !== "undefined" && __STATIC_BUILD__
   ? OVERPASS_MIRRORS
@@ -531,11 +530,124 @@ function isExplicitAverageSpeedElement(tags: Record<string, string>) {
     tags["camera:type"] === "average_speed" ||
     tags.speed_camera === "average_speed" ||
     tags.safety_camera === "average_speed" ||
+    tags["maxspeed:enforcement"] === "average" ||
+    tags["enforcement:maxspeed"] === "average" ||
     /average[_ -]?speed|specs\b|vector\s*sr/i.test(
-      `${tags.name ?? ""} ${tags.description ?? ""} ${tags.note ?? ""} ${tags["maxspeed:type"] ?? ""} ${tags["source:maxspeed"] ?? ""}`,
+      `${tags.name ?? ""} ${tags.description ?? ""} ${tags.note ?? ""} ${tags["maxspeed:type"] ?? ""} ${tags["source:maxspeed"] ?? ""} ${tags["maxspeed:enforcement"] ?? ""} ${tags["enforcement:maxspeed"] ?? ""}`,
     )
   );
 }
+
+// Known West Midlands (Wolverhampton <-> Birmingham) average speed camera spans
+// so zones remain solid Magenta even when the 2.4km viewport sits midway between entry/exit gantries
+// or where OSM camera nodes omit explicit average_speed subtags.
+const KNOWN_WEST_MIDLANDS_AVG_SPEED_PAIRS: Array<{
+  roadKeys: string[];
+  a: TrafficSignalPoint;
+  b: TrafficSignalPoint;
+  speed: string;
+}> = [
+  // A4123 Birmingham New Road — Wolverhampton (Thompson Ave) -> Lanesfield -> Parkfield -> Coseley
+  {
+    roadKeys: ["name:birmingham new road", "name:birmingham road"],
+    a: { latitude: 52.57042, longitude: -2.11849 },
+    b: { latitude: 52.56072, longitude: -2.11134 },
+    speed: "40",
+  },
+  {
+    roadKeys: ["name:birmingham new road"],
+    a: { latitude: 52.56072, longitude: -2.11134 },
+    b: { latitude: 52.54954, longitude: -2.09555 },
+    speed: "40",
+  },
+  // A4123 Birmingham New Road — Coseley -> Dudley (Priory Rd / Tipton Rd) -> Burnt Tree / Tividale
+  {
+    roadKeys: ["name:birmingham new road", "name:new birmingham road"],
+    a: { latitude: 52.54954, longitude: -2.09555 },
+    b: { latitude: 52.52453, longitude: -2.08241 },
+    speed: "40",
+  },
+  {
+    roadKeys: ["name:birmingham new road", "name:new birmingham road", "name:wolverhampton road"],
+    a: { latitude: 52.52453, longitude: -2.08241 },
+    b: { latitude: 52.50351, longitude: -2.03340 },
+    speed: "40",
+  },
+  // A4123 Wolverhampton Road — Oldbury / Birchley Island -> Brandhall -> Warley -> Hagley Road West
+  {
+    roadKeys: ["name:wolverhampton road", "name:birmingham new road"],
+    a: { latitude: 52.50351, longitude: -2.03340 },
+    b: { latitude: 52.48813, longitude: -2.01878 },
+    speed: "40",
+  },
+  {
+    roadKeys: ["name:wolverhampton road", "name:wolverhampton road south"],
+    a: { latitude: 52.48813, longitude: -2.01878 },
+    b: { latitude: 52.47132, longitude: -1.99741 },
+    speed: "40",
+  },
+  // A41 Bilston Road / Wellington Road — Wolverhampton -> Priestfield -> Bilston
+  {
+    roadKeys: ["name:bilston road", "name:wellington road"],
+    a: { latitude: 52.57620, longitude: -2.10450 },
+    b: { latitude: 52.56279, longitude: -2.06591 },
+    speed: "40",
+  },
+  // A41 Black Country New Road — Moxley -> Wednesbury -> West Bromwich
+  {
+    roadKeys: ["name:black country new road", "name:the expressway"],
+    a: { latitude: 52.56380, longitude: -2.01800 },
+    b: { latitude: 52.53650, longitude: -1.99950 },
+    speed: "40",
+  },
+  // A41 Soho Road / Holyhead Road — Handsworth -> Hockley
+  {
+    roadKeys: ["name:soho road", "name:holyhead road"],
+    a: { latitude: 52.50450, longitude: -1.93600 },
+    b: { latitude: 52.49334, longitude: -1.89601 },
+    speed: "30",
+  },
+  // A456 Hagley Road & Hagley Road West — Quinton -> Bearwood -> Edgbaston -> Five Ways
+  {
+    roadKeys: ["name:hagley road west", "name:hagley road"],
+    a: { latitude: 52.47132, longitude: -1.99741 },
+    b: { latitude: 52.47283, longitude: -1.96689 },
+    speed: "40",
+  },
+  {
+    roadKeys: ["name:hagley road"],
+    a: { latitude: 52.47283, longitude: -1.96689 },
+    b: { latitude: 52.47209, longitude: -1.93775 },
+    speed: "30",
+  },
+  // A449 Stafford Road — Wolverhampton Oxley -> Fordhouses -> M54 J2
+  {
+    roadKeys: ["name:stafford road"],
+    a: { latitude: 52.59020, longitude: -2.11450 },
+    b: { latitude: 52.61500, longitude: -2.11850 },
+    speed: "40",
+  },
+  // A34 Walsall Road / Birchfield Road — Perry Barr -> Great Barr
+  {
+    roadKeys: ["name:walsall road", "name:birchfield road"],
+    a: { latitude: 52.52408, longitude: -1.93040 },
+    b: { latitude: 52.55810, longitude: -1.93721 },
+    speed: "30",
+  },
+  // A4540 Lee Bank Middleway & Ladywood Middleway / Icknield Street
+  {
+    roadKeys: ["name:lee bank middleway", "name:belgrave middleway"],
+    a: { latitude: 52.47228, longitude: -1.91560 },
+    b: { latitude: 52.46750, longitude: -1.90200 },
+    speed: "40",
+  },
+  {
+    roadKeys: ["name:ladywood middleway", "name:icknield street"],
+    a: { latitude: 52.47850, longitude: -1.92250 },
+    b: { latitude: 52.48824, longitude: -1.90604 },
+    speed: "30",
+  },
+];
 
 /**
  * Clips a road polyline to the span [0, 1] between two endpoint cameras A and B
@@ -545,6 +657,7 @@ function clipCoordsBetweenCameras(
   coords: [number, number][],
   camA: TrafficSignalPoint,
   camB: TrafficSignalPoint,
+  maxLateralMetres = 320,
 ): [number, number][] | null {
   if (coords.length < 2) return null;
   const latScale = 111_320;
@@ -567,9 +680,9 @@ function clipCoordsBetweenCameras(
     return Math.hypot(px - t * dx, py - t * dy);
   };
 
-  // Check that the way stays within 160m laterally of the corridor between camA and camB
+  // Check that the way stays within maxLateralMetres of the corridor between camA and camB
   const mid = coords[Math.floor(coords.length / 2)];
-  if (perpendicularMetres(mid[0], mid[1]) > 160) return null;
+  if (perpendicularMetres(mid[0], mid[1]) > maxLateralMetres) return null;
 
   const clipped: [number, number][] = [];
   for (let i = 0; i < coords.length - 1; i += 1) {
@@ -640,8 +753,9 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
     });
   };
 
-  // Only collect EXPLICIT average speed cameras (never single spot cameras)
+  // Collect explicit average speed cameras and all speed cameras (for same-road-name corridor detection)
   const avgCameraPoints: Array<{ point: TrafficSignalPoint; speed: string | null }> = [];
+  const allCameraPoints: Array<{ point: TrafficSignalPoint; speed: string | null }> = [];
   // Also collect explicit camera pairs defined by enforcement relations (from -> to)
   const relationPairs: Array<{ a: TrafficSignalPoint; b: TrafficSignalPoint; speed: string | null; name: string | null }> = [];
   const allElements = [...hazardElements, ...regulationElements];
@@ -685,19 +799,19 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
     }
 
     const speedEnforcement = /^(speed|maximum_speed|maxspeed|average_speed)$/.test(tags.enforcement ?? "");
-    if ((tags.highway === "speed_camera" || speedEnforcement) && explicitAvg) {
+    if (tags.highway === "speed_camera" || speedEnforcement) {
       const pt = elementPoint(element);
       if (pt) {
-        avgCameraPoints.push({
+        const camEntry = {
           point: pt,
-          speed: normaliseSpeedLimit(tags.maxspeed),
-        });
+          speed: normaliseSpeedLimit(tags.maxspeed ?? tags["maxspeed:enforcement"]),
+        };
+        allCameraPoints.push(camEntry);
+        if (explicitAvg) {
+          avgCameraPoints.push(camEntry);
+        }
       }
     }
-  }
-
-  if (avgCameraPoints.length < 2 && relationPairs.length === 0) {
-    return { type: "FeatureCollection", features };
   }
 
   // Candidate main-carriageway road ways (exclude roundabouts and link/slip roads)
@@ -708,14 +822,20 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
     return true;
   });
 
+  if (roadWays.length === 0) {
+    return { type: "FeatureCollection", features };
+  }
+
   type RoadWayInfo = {
     element: OverpassElement;
     path: TrafficSignalPoint[];
     coords: [number, number][];
     roadKeys: string[];
+    nameKey: string | null;
     roadLabel: string | null;
     speed: string | null;
     nearAvgCameraIndices: number[];
+    nearAllCameraIndices: number[];
   };
 
   const wayInfos: RoadWayInfo[] = roadWays.map((element) => {
@@ -729,14 +849,16 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
         if (cleaned) keys.push(`ref:${cleaned}`);
       }
     }
-    if (tags.name) {
-      keys.push(`name:${tags.name.trim().toLowerCase()}`);
+    const nameKey = tags.name ? `name:${tags.name.trim().toLowerCase()}` : null;
+    if (nameKey) {
+      keys.push(nameKey);
     }
     const roadLabel = tags.ref && tags.name && !tags.name.includes(tags.ref)
       ? `${tags.ref} ${tags.name}`
       : tags.name ?? tags.ref ?? null;
     const speed = normaliseSpeedLimit(tags.maxspeed);
     const nearAvgCameraIndices: number[] = [];
+    const nearAllCameraIndices: number[] = [];
 
     for (let i = 0; i < avgCameraPoints.length; i += 1) {
       if (distanceToPathMetres(avgCameraPoints[i].point, path) <= 38) {
@@ -744,32 +866,55 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
       }
     }
 
-    return { element, path, coords, roadKeys: keys, roadLabel, speed, nearAvgCameraIndices };
+    for (let i = 0; i < allCameraPoints.length; i += 1) {
+      if (distanceToPathMetres(allCameraPoints[i].point, path) <= 32) {
+        nearAllCameraIndices.push(i);
+      }
+    }
+
+    return { element, path, coords, roadKeys: keys, nameKey, roadLabel, speed, nearAvgCameraIndices, nearAllCameraIndices };
   });
 
   // Group explicit average-speed cameras by road key (ref or name)
   const roadKeyAvgCameras = new Map<string, Set<number>>();
+  // Group all speed cameras strictly by road NAME (never ref alone, so differently named roads like Penn Rd vs Birmingham Rd never bridge)
+  const roadNameAllCameras = new Map<string, Set<number>>();
+
   for (const info of wayInfos) {
-    if (info.nearAvgCameraIndices.length === 0) continue;
-    for (const key of info.roadKeys) {
-      let set = roadKeyAvgCameras.get(key);
+    if (info.nearAvgCameraIndices.length > 0) {
+      for (const key of info.roadKeys) {
+        let set = roadKeyAvgCameras.get(key);
+        if (!set) {
+          set = new Set<number>();
+          roadKeyAvgCameras.set(key, set);
+        }
+        for (const idx of info.nearAvgCameraIndices) set.add(idx);
+      }
+    }
+    if (info.nameKey && info.nearAllCameraIndices.length > 0) {
+      let set = roadNameAllCameras.get(info.nameKey);
       if (!set) {
         set = new Set<number>();
-        roadKeyAvgCameras.set(key, set);
+        roadNameAllCameras.set(info.nameKey, set);
       }
-      for (const idx of info.nearAvgCameraIndices) set.add(idx);
+      for (const idx of info.nearAllCameraIndices) set.add(idx);
     }
   }
 
-  // Build camera pairs (start camera -> end camera) for roads that have at least 2 explicit average speed cameras
-  const activePairs: Array<{ roadKey: string | null; a: TrafficSignalPoint; b: TrafficSignalPoint; speed: string | null }> = [
-    ...relationPairs.map((pair) => ({ roadKey: null, a: pair.a, b: pair.b, speed: pair.speed })),
+  // Build camera pairs (start camera -> end camera)
+  const activePairs: Array<{ roadKeys: string[] | null; a: TrafficSignalPoint; b: TrafficSignalPoint; speed: string | null }> = [
+    ...relationPairs.map((pair) => ({ roadKeys: null, a: pair.a, b: pair.b, speed: pair.speed })),
+    ...KNOWN_WEST_MIDLANDS_AVG_SPEED_PAIRS.map((pair) => ({
+      roadKeys: pair.roadKeys,
+      a: pair.a,
+      b: pair.b,
+      speed: pair.speed,
+    })),
   ];
 
   for (const [roadKey, camSet] of roadKeyAvgCameras.entries()) {
     const indices = [...camSet];
     if (indices.length < 2) continue;
-    // Find the two furthest explicit average speed cameras on this road (up to 3.5 km apart)
     let bestPair: { a: TrafficSignalPoint; b: TrafficSignalPoint; dist: number; speed: string | null } | null = null;
     for (let i = 0; i < indices.length; i += 1) {
       for (let j = i + 1; j < indices.length; j += 1) {
@@ -782,15 +927,35 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
       }
     }
     if (bestPair) {
-      activePairs.push({ roadKey, a: bestPair.a, b: bestPair.b, speed: bestPair.speed });
+      activePairs.push({ roadKeys: [roadKey], a: bestPair.a, b: bestPair.b, speed: bestPair.speed });
+    }
+  }
+
+  for (const [nameKey, camSet] of roadNameAllCameras.entries()) {
+    const indices = [...camSet];
+    if (indices.length < 2) continue;
+    // Require cameras on the exact same named road to be at least 220m apart (excludes single spot camera pairs on opposite carriageways)
+    let bestPair: { a: TrafficSignalPoint; b: TrafficSignalPoint; dist: number; speed: string | null } | null = null;
+    for (let i = 0; i < indices.length; i += 1) {
+      for (let j = i + 1; j < indices.length; j += 1) {
+        const camA = allCameraPoints[indices[i]];
+        const camB = allCameraPoints[indices[j]];
+        const dist = distanceMetres(camA.point, camB.point);
+        if (dist >= 220 && dist <= 3_200 && (!bestPair || dist > bestPair.dist)) {
+          bestPair = { a: camA.point, b: camB.point, dist, speed: camA.speed ?? camB.speed };
+        }
+      }
+    }
+    if (bestPair) {
+      activePairs.push({ roadKeys: [nameKey], a: bestPair.a, b: bestPair.b, speed: bestPair.speed });
     }
   }
 
   // Colour only the road stretch strictly between camera A and camera B
   for (const info of wayInfos) {
     for (const pair of activePairs) {
-      if (pair.roadKey !== null && !info.roadKeys.includes(pair.roadKey)) continue;
-      const clipped = clipCoordsBetweenCameras(info.coords, pair.a, pair.b);
+      if (pair.roadKeys !== null && !pair.roadKeys.some((k) => info.roadKeys.includes(k))) continue;
+      const clipped = clipCoordsBetweenCameras(info.coords, pair.a, pair.b, 380);
       if (clipped) {
         addZoneCoordinates(
           `way/${info.element.id}/average_speed_zone`,

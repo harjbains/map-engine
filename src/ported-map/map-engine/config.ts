@@ -25,6 +25,7 @@ export type SafetyOverlayToggleKey =
 
 export type Settings = {
   darkMode: boolean;
+  xmasTheme: boolean;
   default3d: boolean;
   autoZoom: boolean;
   autoRefreshLocation: boolean;
@@ -74,6 +75,7 @@ export type InstallPromptEvent = Event & {
 
 export const DEFAULT_SETTINGS: Settings = {
   darkMode: false,
+  xmasTheme: true,
   default3d: true,
   autoZoom: true,
   autoRefreshLocation: true,
@@ -112,7 +114,7 @@ export const STORAGE_KEYS = {
   locationGranted: "map-engine-location-granted-v1",
 } as const;
 
-export const APP_VERSION = "v3.3.7";
+export const APP_VERSION = "v3.3.8";
 export const ROUTE_TIMEOUT_MS = 18_000;
 export const DEFAULT_START = { longitude: -2.152557, latitude: 52.556476, zoom: 15.3 } as const;
 

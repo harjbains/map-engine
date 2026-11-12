@@ -705,3 +705,225 @@
   .average-speed-zone-banner { top: 174px; }
   .average-speed-zone-banner ~ .camera-alert { top: 230px; }
 }
+
+/* ==========================================================================
+   Christmas (Xmas) Shiny Metallic Bauble Theme
+   ========================================================================== */
+.bauble-cap {
+  display: none;
+}
+
+.drive-shell.xmas-theme .header-actions {
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.drive-shell.xmas-theme .zoom-controls {
+  gap: 11px;
+}
+
+/* Shared 3D metallic bauble geometry & specular finish */
+.drive-shell.xmas-theme .settings-button,
+.drive-shell.xmas-theme .traffic-status-icon,
+.drive-shell.xmas-theme .dark-mode-button,
+.drive-shell.xmas-theme .header-actions .mode-button,
+.drive-shell.xmas-theme .destination-search-toggle,
+.drive-shell.xmas-theme .zoom-controls button {
+  position: relative;
+  overflow: visible;
+  border: 1.5px solid rgba(255, 232, 163, 0.72) !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+  box-shadow:
+    inset -5px -7px 13px rgba(0, 0, 0, 0.52),
+    inset 3px 4px 9px rgba(255, 255, 255, 0.48),
+    0 8px 20px rgba(0, 0, 0, 0.34),
+    0 0 12px rgba(255, 215, 110, 0.22) !important;
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+
+.drive-shell.xmas-theme .settings-button:hover,
+.drive-shell.xmas-theme .dark-mode-button:hover,
+.drive-shell.xmas-theme .header-actions .mode-button:hover,
+.drive-shell.xmas-theme .destination-search-toggle:hover,
+.drive-shell.xmas-theme .zoom-controls button:hover {
+  transform: translateY(-1px) scale(1.04);
+  filter: brightness(1.08);
+}
+
+/* Golden bauble cap (::before) and hanging loop (::after) for buttons with free pseudo-elements */
+.drive-shell.xmas-theme .traffic-status-icon::before,
+.drive-shell.xmas-theme .dark-mode-button::before,
+.drive-shell.xmas-theme .header-actions .mode-button::before,
+.drive-shell.xmas-theme .destination-search-toggle::before,
+.drive-shell.xmas-theme .zoom-controls button::before,
+.drive-shell.xmas-theme .settings-button .bauble-cap {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  width: 14px;
+  height: 6px;
+  transform: translateX(-50%);
+  border: 1px solid #9c6d10;
+  border-radius: 3px 3px 1px 1px;
+  background: linear-gradient(90deg, #b8860b 0%, #fff1a8 35%, #d4af37 65%, #8a5a00 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.drive-shell.xmas-theme .traffic-status-icon::after,
+.drive-shell.xmas-theme .dark-mode-button::after,
+.drive-shell.xmas-theme .header-actions .mode-button::after,
+.drive-shell.xmas-theme .destination-search-toggle::after,
+.drive-shell.xmas-theme .zoom-controls button::after,
+.drive-shell.xmas-theme .settings-button .bauble-cap::after {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: -13px;
+  width: 9px;
+  height: 9px;
+  transform: translateX(-50%);
+  border: 2px solid #e6c14c;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.drive-shell.xmas-theme .settings-button .bauble-cap::after {
+  top: -8px;
+}
+
+/* 1. Settings Button — Shiny Ruby Crimson Metallic Bauble */
+.drive-shell.xmas-theme .settings-button {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.42) 11%, transparent 27%),
+    radial-gradient(circle at 72% 82%, rgba(255, 160, 175, 0.38) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #ff3b56 0%, #c90f2b 48%, #730414 88%, #4a020c 100%) !important;
+}
+.drive-shell.xmas-theme .settings-button span,
+.drive-shell.xmas-theme .settings-button::before,
+.drive-shell.xmas-theme .settings-button::after {
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+.drive-shell.xmas-theme .settings-button span::before,
+.drive-shell.xmas-theme .settings-button span::after {
+  border-color: #ffe38f !important;
+  background: #9e0b22 !important;
+}
+
+/* 2. Traffic Status ('T') — Shiny Emerald Pine Green Metallic Bauble */
+.drive-shell.xmas-theme .traffic-status-icon {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.42) 11%, transparent 27%),
+    radial-gradient(circle at 72% 82%, rgba(134, 239, 172, 0.38) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #22c55e 0%, #0d8a3e 48%, #05471f 88%, #022c12 100%) !important;
+}
+.drive-shell.xmas-theme .traffic-status-icon.error,
+.drive-shell.xmas-theme .traffic-status-icon.off {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.35) 11%, transparent 27%),
+    radial-gradient(circle at 38% 35%, #94a3b8 0%, #475569 52%, #1e293b 90%) !important;
+}
+
+/* 3. Day / Night Mode Button — Shiny Royal Sapphire Blue Metallic Bauble */
+.drive-shell.xmas-theme .dark-mode-button {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.42) 11%, transparent 27%),
+    radial-gradient(circle at 72% 82%, rgba(147, 197, 253, 0.42) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #3b82f6 0%, #1d4ed8 48%, #0f297a 88%, #071547 100%) !important;
+}
+
+/* 4. Refresh GPS Button — Shiny Burnished Gold Metallic Bauble */
+.drive-shell.xmas-theme .header-actions .mode-button.refresh-button {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.48) 12%, transparent 28%),
+    radial-gradient(circle at 72% 82%, rgba(254, 240, 138, 0.45) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #fbbf24 0%, #ca8a04 48%, #78350f 88%, #451a03 100%) !important;
+}
+
+/* 5. Earnings ('£') Button — Shiny Amethyst Purple Metallic Bauble */
+.drive-shell.xmas-theme .header-actions .mode-button.earnings-button {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.42) 11%, transparent 27%),
+    radial-gradient(circle at 72% 82%, rgba(233, 213, 255, 0.4) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #c084fc 0%, #7e22ce 48%, #4c1d95 88%, #2e1065 100%) !important;
+}
+
+/* 6. Destination Search Toggle (Left) — Shiny Cranberry Rose-Gold Metallic Bauble */
+.drive-shell.xmas-theme .destination-search-toggle {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.44) 11%, transparent 27%),
+    radial-gradient(circle at 72% 82%, rgba(251, 207, 232, 0.42) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #f43f5e 0%, #be123c 48%, #700a24 88%, #450515 100%) !important;
+}
+
+/* 7. Bottom-Right Zoom & View Controls — 4 Distinct Metallic Baubles */
+/* '+' Zoom In — Holly Crimson Red Bauble */
+.drive-shell.xmas-theme .zoom-controls button:nth-child(1) {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.42) 11%, transparent 27%),
+    radial-gradient(circle at 72% 82%, rgba(252, 165, 165, 0.38) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #ef4444 0%, #b91c1c 48%, #690b0b 88%, #3f0505 100%) !important;
+}
+
+/* '-' Zoom Out — Evergreen Pine Metallic Bauble */
+.drive-shell.xmas-theme .zoom-controls button:nth-child(2) {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.42) 11%, transparent 27%),
+    radial-gradient(circle at 72% 82%, rgba(110, 231, 183, 0.38) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #10b981 0%, #047857 48%, #064e3b 88%, #022c22 100%) !important;
+}
+
+/* '3D / 2D' Tilt — Burnished Copper-Gold Metallic Bauble */
+.drive-shell.xmas-theme .zoom-controls button.tilt-button {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.45) 11%, transparent 27%),
+    radial-gradient(circle at 72% 82%, rgba(253, 224, 71, 0.42) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #f59e0b 0%, #b45309 48%, #6b2706 88%, #3b1302 100%) !important;
+}
+
+/* 'Area' Button — Ice Cyan / Frosted Silver-Blue Metallic Bauble */
+.drive-shell.xmas-theme .zoom-controls button.area-button {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.48) 12%, transparent 28%),
+    radial-gradient(circle at 72% 82%, rgba(165, 243, 252, 0.44) 0%, transparent 40%),
+    radial-gradient(circle at 38% 35%, #06b6d4 0%, #0369a1 48%, #0c4a6e 88%, #082f49 100%) !important;
+}
+.drive-shell.xmas-theme .zoom-controls button.area-button svg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+
+/* Festive touches on Brand Lockup, Compass Strip & Speed Card */
+.drive-shell.xmas-theme .brand-lockup {
+  border-color: rgba(212, 175, 55, 0.55);
+  box-shadow:
+    0 8px 28px rgba(42, 48, 50, 0.18),
+    inset 0 0 0 1px rgba(255, 215, 0, 0.22);
+}
+.drive-shell.xmas-theme .brand-mark {
+  background: linear-gradient(180deg, #ef4444 0%, #15803d 100%);
+  filter: drop-shadow(0 2px 5px rgba(220, 38, 38, 0.45));
+}
+.drive-shell.xmas-theme .compass-strip {
+  border-color: rgba(212, 175, 55, 0.52);
+  box-shadow:
+    0 8px 28px rgba(42, 48, 50, 0.18),
+    inset 0 0 0 1px rgba(255, 215, 0, 0.2);
+}
+.drive-shell.xmas-theme .compass-strip > i {
+  border-top-color: #dc2626;
+}
+.drive-shell.xmas-theme .speed-card {
+  border-color: #d4af37;
+  box-shadow:
+    0 8px 26px rgba(0, 0, 0, 0.25),
+    0 0 0 2px rgba(220, 38, 38, 0.35);
+}

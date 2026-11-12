@@ -1201,7 +1201,7 @@ export default function MapEngine({ dashboard, preview, onSaveTodayEarnings, onS
   };
 
   return (
-    <main className={`drive-shell ${settings.darkMode ? "classic-dark dark" : "classic"}${dashboard ? " uber-active" : ""}`}>
+    <main className={`drive-shell ${settings.darkMode ? "classic-dark dark" : "classic"}${settings.xmasTheme ? " xmas-theme" : ""}${dashboard ? " uber-active" : ""}`}>
       <div ref={mapNode} className="map-surface" aria-label="Live Map Engine road map" />
       <div ref={vehicleElementRef} className="vehicle-map-marker" aria-label="Vehicle position" hidden={!fix} />
       <MapHeader
