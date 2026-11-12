@@ -61,7 +61,7 @@ type SafetyCacheEntry = {
   data: SafetyFeatureCollection;
 };
 
-const CACHE_KEY = "map-engine-safety-overlay-v22";
+const CACHE_KEY = "map-engine-safety-overlay-v23";
 const LEGACY_CACHE_KEYS = ["map-engine-safety-overlay-v21", "map-engine-safety-overlay-v20", "map-engine-safety-overlay-v19", "map-engine-safety-overlay-v18", "map-engine-safety-overlay-v17", "map-engine-safety-overlay-v16"];
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const CACHE_MAX_AREAS = 30;
@@ -549,24 +549,35 @@ export const KNOWN_WEST_MIDLANDS_AVG_SPEED_PAIRS: Array<{
   speed: string;
   maxLateralMetres?: number;
 }> = [
-  // 1. A34 Birmingham Road between Lake Avenue, Charlemont Road, Beacon Road, Chapel Lane, Wilderness Lane and Lodge Road (Walsall / Sandwell — 30 mph, IDs 4410, 4411, 4412, 4413)
+  // 1a. A34 Birmingham Road between Lake Avenue and Charlemont Road, Walsall (30 mph, IDs 4410, 4411)
   {
-    id: "wmp-4410-4411-a34-birmingham-rd-walsall",
+    id: "wmp-4410-4411-a34-birmingham-rd-lake-charlemont",
     roadLabel: "A34 Birmingham Road",
     roadKeys: ["name:birmingham road", "ref:A34"],
     a: { latitude: 52.572043, longitude: -1.959669 },
-    b: { latitude: 52.563915, longitude: -1.946237 },
+    b: { latitude: 52.567785, longitude: -1.951758 },
     speed: "30",
-    maxLateralMetres: 140,
+    maxLateralMetres: 130,
   },
+  // 1b. A34 Birmingham Road between Beacon Road and Chapel Lane, Walsall (30 mph, ID 4412)
   {
-    id: "wmp-4412-4413-a34-birmingham-rd-sandwell",
+    id: "wmp-4412-a34-birmingham-rd-beacon-chapel",
     roadLabel: "A34 Birmingham Road",
     roadKeys: ["name:birmingham road", "ref:A34"],
     a: { latitude: 52.563915, longitude: -1.946237 },
-    b: { latitude: 52.556403, longitude: -1.936432 },
+    b: { latitude: 52.559200, longitude: -1.940100 },
     speed: "30",
-    maxLateralMetres: 140,
+    maxLateralMetres: 130,
+  },
+  // 1c. A34 Birmingham Road between Wilderness Lane and Lodge Road, Sandwell (30 mph, ID 4413)
+  {
+    id: "wmp-4413-a34-birmingham-rd-wilderness-lodge",
+    roadLabel: "A34 Birmingham Road",
+    roadKeys: ["name:birmingham road", "ref:A34"],
+    a: { latitude: 52.556403, longitude: -1.936432 },
+    b: { latitude: 52.550800, longitude: -1.930100 },
+    speed: "30",
+    maxLateralMetres: 130,
   },
   // 2. A34 New Town Row between New John St West and Newbury Road, Birmingham (30 mph, ID 181)
   {
@@ -583,20 +594,20 @@ export const KNOWN_WEST_MIDLANDS_AVG_SPEED_PAIRS: Array<{
     id: "wmp-339-340-a34-stratford-rd-marshall-dogkennel",
     roadLabel: "A34 Stratford Road",
     roadKeys: ["name:stratford road", "ref:A34"],
-    a: { latitude: 52.397321, longitude: -1.818840 },
-    b: { latitude: 52.391381, longitude: -1.808943 },
+    a: { latitude: 52.410620, longitude: -1.825600 },
+    b: { latitude: 52.393925, longitude: -1.824048 },
     speed: "40",
-    maxLateralMetres: 140,
+    maxLateralMetres: 150,
   },
   // 4. A34 Stratford Road Between Dog Kennel Lane and M42 Junction 4, Solihull (40 mph, IDs 337, 338)
   {
     id: "wmp-337-338-a34-stratford-rd-dogkennel-m42",
     roadLabel: "A34 Stratford Road",
     roadKeys: ["name:stratford road", "ref:A34"],
-    a: { latitude: 52.391381, longitude: -1.808943 },
+    a: { latitude: 52.393925, longitude: -1.824048 },
     b: { latitude: 52.379789, longitude: -1.787769 },
     speed: "40",
-    maxLateralMetres: 150,
+    maxLateralMetres: 160,
   },
   // 5. A3400 Stratford Road between Avenue Albert and School Road, Solihull (30 mph, IDs 2313, 2314)
   {
