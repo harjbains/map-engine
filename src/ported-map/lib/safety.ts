@@ -61,8 +61,8 @@ type SafetyCacheEntry = {
   data: SafetyFeatureCollection;
 };
 
-const CACHE_KEY = "map-engine-safety-overlay-v21";
-const LEGACY_CACHE_KEYS = ["map-engine-safety-overlay-v20", "map-engine-safety-overlay-v19", "map-engine-safety-overlay-v18", "map-engine-safety-overlay-v17", "map-engine-safety-overlay-v16"];
+const CACHE_KEY = "map-engine-safety-overlay-v22";
+const LEGACY_CACHE_KEYS = ["map-engine-safety-overlay-v21", "map-engine-safety-overlay-v20", "map-engine-safety-overlay-v19", "map-engine-safety-overlay-v18", "map-engine-safety-overlay-v17", "map-engine-safety-overlay-v16"];
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const CACHE_MAX_AREAS = 30;
 const OVERPASS_MIRRORS = [
@@ -538,7 +538,8 @@ function isExplicitAverageSpeedElement(tags: Record<string, string>) {
   );
 }
 
-// Known West Midlands average speed camera spans clipped strictly between their actual entry and exit camera poles.
+// Official West Midlands Police (wmsafetycameras.co.uk) Average Speed Camera routes.
+// Exclusively these routes are permanently coloured in Magenta on the map.
 export const KNOWN_WEST_MIDLANDS_AVG_SPEED_PAIRS: Array<{
   id: string;
   roadLabel: string;
@@ -548,234 +549,413 @@ export const KNOWN_WEST_MIDLANDS_AVG_SPEED_PAIRS: Array<{
   speed: string;
   maxLateralMetres?: number;
 }> = [
-  // 1. A4123 Zone 1 — Lanesfield (Lawnswood Ave) to Coseley (Shaw Rd / Ivyhouse Lane)
+  // 1. A34 Birmingham Road between Lake Avenue, Charlemont Road, Beacon Road, Chapel Lane, Wilderness Lane and Lodge Road (Walsall / Sandwell — 30 mph, IDs 4410, 4411, 4412, 4413)
   {
-    id: "wm-a4123-lanesfield-coseley",
-    roadLabel: "A4123 Birmingham New Road",
-    roadKeys: ["name:birmingham new road", "ref:A4123"],
-    a: { latitude: 52.56351, longitude: -2.11461 },
-    b: { latitude: 52.54954, longitude: -2.09555 },
-    speed: "40",
-    maxLateralMetres: 180,
-  },
-  // 2. A4123 Zone 2 — Dudley: Birmingham New Road & Priory Road junction to Burnt Tree Island
-  {
-    id: "wm-a4123-dudley-priory-burnt-tree",
-    roadLabel: "A4123 Birmingham New Road",
-    roadKeys: ["name:birmingham new road", "name:new birmingham road", "ref:A4123"],
-    a: { latitude: 52.52453, longitude: -2.08241 },
-    b: { latitude: 52.50783, longitude: -2.03968 },
-    speed: "40",
-    maxLateralMetres: 240,
-  },
-  // 3. A4123 Zone 3 — Oldbury: Birchley Island (M5 J2) to Hagley Road West (Quinton)
-  {
-    id: "wm-a4123-birchley-causeway",
-    roadLabel: "A4123 Wolverhampton Road",
-    roadKeys: ["name:wolverhampton road", "ref:A4123"],
-    a: { latitude: 52.49480, longitude: -2.02336 },
-    b: { latitude: 52.48813, longitude: -2.01878 },
-    speed: "40",
-    maxLateralMetres: 160,
+    id: "wmp-4410-4411-a34-birmingham-rd-walsall",
+    roadLabel: "A34 Birmingham Road",
+    roadKeys: ["name:birmingham road", "ref:A34"],
+    a: { latitude: 52.572043, longitude: -1.959669 },
+    b: { latitude: 52.563915, longitude: -1.946237 },
+    speed: "30",
+    maxLateralMetres: 140,
   },
   {
-    id: "wm-a4123-causeway-quinton",
-    roadLabel: "A4123 Wolverhampton Road",
-    roadKeys: ["name:wolverhampton road", "name:wolverhampton road south", "ref:A4123"],
-    a: { latitude: 52.48813, longitude: -2.01878 },
-    b: { latitude: 52.47132, longitude: -1.99741 },
-    speed: "40",
-    maxLateralMetres: 180,
+    id: "wmp-4412-4413-a34-birmingham-rd-sandwell",
+    roadLabel: "A34 Birmingham Road",
+    roadKeys: ["name:birmingham road", "ref:A34"],
+    a: { latitude: 52.563915, longitude: -1.946237 },
+    b: { latitude: 52.556403, longitude: -1.936432 },
+    speed: "30",
+    maxLateralMetres: 140,
   },
-  // 4. A41 Bilston Road / Wellington Road — Stowheath / Priestfield to Bilston
+  // 2. A34 New Town Row between New John St West and Newbury Road, Birmingham (30 mph, ID 181)
   {
-    id: "wm-a41-bilston-road",
-    roadLabel: "A41 Bilston Road",
-    roadKeys: ["name:bilston road", "name:wellington road", "ref:A41"],
-    a: { latitude: 52.56455, longitude: -2.07449 },
-    b: { latitude: 52.56279, longitude: -2.06591 },
+    id: "wmp-181-a34-new-town-row",
+    roadLabel: "A34 New Town Row",
+    roadKeys: ["name:new town row", "name:newtown row", "ref:A34"],
+    a: { latitude: 52.493020, longitude: -1.895550 },
+    b: { latitude: 52.498290, longitude: -1.895600 },
+    speed: "30",
+    maxLateralMetres: 110,
+  },
+  // 3. A34 Stratford Road Between B4102 Marshall Lake Road and Dog Kennel Lane, Solihull (40 mph, IDs 339, 340)
+  {
+    id: "wmp-339-340-a34-stratford-rd-marshall-dogkennel",
+    roadLabel: "A34 Stratford Road",
+    roadKeys: ["name:stratford road", "ref:A34"],
+    a: { latitude: 52.397321, longitude: -1.818840 },
+    b: { latitude: 52.391381, longitude: -1.808943 },
     speed: "40",
     maxLateralMetres: 140,
   },
-  // 5. A41 Black Country New Road — Moxley to Patent Shaft (Wednesbury)
+  // 4. A34 Stratford Road Between Dog Kennel Lane and M42 Junction 4, Solihull (40 mph, IDs 337, 338)
   {
-    id: "wm-a41-bcnr-wednesbury",
-    roadLabel: "A41 Black Country New Road",
-    roadKeys: ["name:black country new road", "ref:A41"],
-    a: { latitude: 52.56120, longitude: -2.01280 },
-    b: { latitude: 52.55150, longitude: -2.00680 },
-    speed: "40",
-    maxLateralMetres: 160,
-  },
-  // 6. A449 Stafford Road — Oxley Moor Rd to Wobaston Rd / M54 J2 (Fordhouses)
-  {
-    id: "wm-a449-stafford-road",
-    roadLabel: "A449 Stafford Road",
-    roadKeys: ["name:stafford road", "ref:A449"],
-    a: { latitude: 52.60550, longitude: -2.12300 },
-    b: { latitude: 52.61950, longitude: -2.12120 },
-    speed: "40",
-    maxLateralMetres: 160,
-  },
-  // 7. A454 Willenhall Road — Moseley Rd to Neachells Lane
-  {
-    id: "wm-a454-willenhall-road",
-    roadLabel: "A454 Willenhall Road",
-    roadKeys: ["name:willenhall road", "ref:A454"],
-    a: { latitude: 52.58080, longitude: -2.08850 },
-    b: { latitude: 52.57860, longitude: -2.06800 },
-    speed: "30",
-    maxLateralMetres: 150,
-  },
-  // 8. A4540 Lee Bank Middleway (Five Ways to Bristol Street)
-  {
-    id: "wm-a4540-leebank",
-    roadLabel: "A4540 Lee Bank Middleway",
-    roadKeys: ["name:lee bank middleway", "ref:A4540"],
-    a: { latitude: 52.47228, longitude: -1.91560 },
-    b: { latitude: 52.46841, longitude: -1.90630 },
-    speed: "40",
-    maxLateralMetres: 120,
-  },
-  // 9. A4540 Belgrave Middleway (Sherlock St to Haden Circus)
-  {
-    id: "wm-a4540-belgrave",
-    roadLabel: "A4540 Belgrave Middleway",
-    roadKeys: ["name:belgrave middleway", "ref:A4540"],
-    a: { latitude: 52.46537, longitude: -1.89380 },
-    b: { latitude: 52.46359, longitude: -1.88878 },
-    speed: "40",
-    maxLateralMetres: 120,
-  },
-  // 10. A4540 Icknield Street / Ladywood Middleway
-  {
-    id: "wm-a4540-icknield-ladywood",
-    roadLabel: "A4540 Icknield Street",
-    roadKeys: ["name:icknield street", "name:ladywood middleway", "ref:A4540"],
-    a: { latitude: 52.48339, longitude: -1.90187 },
-    b: { latitude: 52.48824, longitude: -1.90604 },
-    speed: "30",
-    maxLateralMetres: 120,
-  },
-  // 11. A456 Hagley Road — Bearwood (Lordswood Rd) to Edgbaston (Portland Rd)
-  {
-    id: "wm-a456-hagley-road",
-    roadLabel: "A456 Hagley Road",
-    roadKeys: ["name:hagley road", "ref:A456"],
-    a: { latitude: 52.47283, longitude: -1.96689 },
-    b: { latitude: 52.47209, longitude: -1.93775 },
-    speed: "30",
-    maxLateralMetres: 160,
-  },
-  // 12. A41 Soho Road — Whitehall Rd to Hockley
-  {
-    id: "wm-a41-soho-road",
-    roadLabel: "A41 Soho Road",
-    roadKeys: ["name:soho road", "ref:A41"],
-    a: { latitude: 52.49402, longitude: -1.90684 },
-    b: { latitude: 52.49334, longitude: -1.89601 },
-    speed: "30",
-    maxLateralMetres: 120,
-  },
-  // 13. A34 Walsall Road — Perry Barr (One Stop) to Tower Hill
-  {
-    id: "wm-a34-walsall-road",
-    roadLabel: "A34 Walsall Road",
-    roadKeys: ["name:walsall road", "name:birchfield road", "ref:A34"],
-    a: { latitude: 52.52408, longitude: -1.93040 },
-    b: { latitude: 52.53761, longitude: -1.92258 },
-    speed: "30",
-    maxLateralMetres: 160,
-  },
-  // 14. A38 Bristol Road — Priory Rd to Pebble Mill (Edgbaston / Selly Oak)
-  {
-    id: "wm-a38-bristol-road",
-    roadLabel: "A38 Bristol Road",
-    roadKeys: ["name:bristol road", "ref:A38"],
-    a: { latitude: 52.46241, longitude: -1.90419 },
-    b: { latitude: 52.45013, longitude: -1.91891 },
-    speed: "30",
-    maxLateralMetres: 150,
-  },
-  // 15. A38 Bristol Road South — Northfield to Longbridge
-  {
-    id: "wm-a38-bristol-road-south",
-    roadLabel: "A38 Bristol Road South",
-    roadKeys: ["name:bristol road south", "ref:A38"],
-    a: { latitude: 52.40880, longitude: -1.97523 },
-    b: { latitude: 52.39607, longitude: -1.99862 },
-    speed: "30",
-    maxLateralMetres: 180,
-  },
-  // 16. A38 Kingsbury Road / Tyburn Road — Erdington
-  {
-    id: "wm-a38-kingsbury-tyburn",
-    roadLabel: "A38 Kingsbury Road",
-    roadKeys: ["name:kingsbury road", "name:tyburn road", "ref:A38"],
-    a: { latitude: 52.52792, longitude: -1.81415 },
-    b: { latitude: 52.52590, longitude: -1.78777 },
-    speed: "40",
-    maxLateralMetres: 160,
-  },
-  // 17. A45 Coventry Road — Hay Mills to Swan Island (Yardley)
-  {
-    id: "wm-a45-haymills-yardley",
-    roadLabel: "A45 Coventry Road",
-    roadKeys: ["name:coventry road", "ref:A45"],
-    a: { latitude: 52.46319, longitude: -1.83063 },
-    b: { latitude: 52.46111, longitude: -1.80578 },
-    speed: "40",
-    maxLateralMetres: 150,
-  },
-  // 18. A45 Coventry Road — Sheldon to Elmdon
-  {
-    id: "wm-a45-sheldon-elmdon",
-    roadLabel: "A45 Coventry Road",
-    roadKeys: ["name:coventry road", "ref:A45"],
-    a: { latitude: 52.45769, longitude: -1.79733 },
-    b: { latitude: 52.45031, longitude: -1.75966 },
-    speed: "40",
-    maxLateralMetres: 160,
-  },
-  // 19. A47 Heartlands Parkway — Nechells to Bromford
-  {
-    id: "wm-a47-heartlands-parkway",
-    roadLabel: "A47 Heartlands Parkway",
-    roadKeys: ["name:heartlands parkway", "name:fort parkway", "ref:A47"],
-    a: { latitude: 52.49424, longitude: -1.85550 },
-    b: { latitude: 52.49694, longitude: -1.82293 },
-    speed: "40",
-    maxLateralMetres: 180,
-  },
-  // 20. A34 Stratford Road — Shirley to Monkspath
-  {
-    id: "wm-a34-stratford-road",
+    id: "wmp-337-338-a34-stratford-rd-dogkennel-m42",
     roadLabel: "A34 Stratford Road",
     roadKeys: ["name:stratford road", "ref:A34"],
-    a: { latitude: 52.39719, longitude: -1.81789 },
-    b: { latitude: 52.38245, longitude: -1.79249 },
+    a: { latitude: 52.391381, longitude: -1.808943 },
+    b: { latitude: 52.379789, longitude: -1.787769 },
     speed: "40",
-    maxLateralMetres: 160,
+    maxLateralMetres: 150,
   },
-  // 21. B4102 Lode Lane — Solihull
+  // 5. A3400 Stratford Road between Avenue Albert and School Road, Solihull (30 mph, IDs 2313, 2314)
   {
-    id: "wm-b4102-lode-lane",
-    roadLabel: "B4102 Lode Lane",
-    roadKeys: ["name:lode lane", "ref:B4102"],
-    a: { latitude: 52.43898, longitude: -1.78364 },
-    b: { latitude: 52.43163, longitude: -1.78102 },
+    id: "wmp-2313-2314-a3400-stratford-rd",
+    roadLabel: "A3400 Stratford Road",
+    roadKeys: ["name:stratford road", "ref:A3400"],
+    a: { latitude: 52.361200, longitude: -1.781600 },
+    b: { latitude: 52.353200, longitude: -1.776800 },
     speed: "30",
     maxLateralMetres: 120,
   },
-  // 22. A452 Collector Road — Castle Bromwich
+  // 6. A38 Bristol Road between Priory Road and Speedwell Road, Birmingham (30 mph, IDs 928, 929)
   {
-    id: "wm-a452-collector-road",
-    roadLabel: "A452 Collector Road",
-    roadKeys: ["name:collector road", "ref:A452"],
-    a: { latitude: 52.50183, longitude: -1.77940 },
-    b: { latitude: 52.50202, longitude: -1.77421 },
+    id: "wmp-928-929-a38-bristol-rd",
+    roadLabel: "A38 Bristol Road",
+    roadKeys: ["name:bristol road", "ref:A38"],
+    a: { latitude: 52.462521, longitude: -1.904237 },
+    b: { latitude: 52.456700, longitude: -1.909200 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 7. A41 Black Country New Road between Moxley Junction and Patent Shaft Roundabout (40 mph, IDs 4418, 4419)
+  {
+    id: "wmp-4418-4419-a41-bcnr-moxley-patentshaft",
+    roadLabel: "A41 Black Country New Road",
+    roadKeys: ["name:black country new road", "ref:A41"],
+    a: { latitude: 52.560260, longitude: -2.046355 },
+    b: { latitude: 52.556500, longitude: -2.035447 },
+    speed: "40",
+    maxLateralMetres: 140,
+  },
+  // 8. A4114 London Road between Daventry Road and Ringway St Johns, Coventry (30 mph, IDs 520, 521)
+  {
+    id: "wmp-520-521-a4114-london-rd",
+    roadLabel: "A4114 London Road",
+    roadKeys: ["name:london road", "ref:A4114"],
+    a: { latitude: 52.402185, longitude: -1.499863 },
+    b: { latitude: 52.394938, longitude: -1.495389 },
+    speed: "30",
+    maxLateralMetres: 130,
+  },
+  // 9. A4123 Birmingham New Road between Priory Road and Burnt Tree, Dudley (40 mph, IDs 1049, 1050)
+  {
+    id: "wmp-1049-1050-a4123-priory-burnttree",
+    roadLabel: "A4123 Birmingham New Road",
+    roadKeys: ["name:birmingham new road", "name:new birmingham road", "ref:A4123"],
+    a: { latitude: 52.527628, longitude: -2.084752 },
+    b: { latitude: 52.507830, longitude: -2.039680 },
+    speed: "40",
+    maxLateralMetres: 240,
+  },
+  // 10. A4123 Wolverhampton Road between Bleakhouse Road and Pound Road, Sandwell (40 mph, IDs 4420, 4421)
+  {
+    id: "wmp-4420-4421-a4123-pound-bleakhouse",
+    roadLabel: "A4123 Wolverhampton Road",
+    roadKeys: ["name:wolverhampton road", "ref:A4123"],
+    a: { latitude: 52.488130, longitude: -2.018780 },
+    b: { latitude: 52.471617, longitude: -1.998055 },
+    speed: "40",
+    maxLateralMetres: 160,
+  },
+  // 11. A4148 Broadway North Between Persehouse Street and Princes Avenue, Walsall (30 mph, IDs 4414, 4415)
+  {
+    id: "wmp-4414-4415-a4148-broadway-north",
+    roadLabel: "A4148 Broadway North",
+    roadKeys: ["name:broadway north", "ref:A4148"],
+    a: { latitude: 52.588234, longitude: -1.972525 },
+    b: { latitude: 52.585716, longitude: -1.965251 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 12. A4444 Black Country New Road between The Lunt Junction and Moxley Junction (40 mph, IDs 4416, 4417)
+  {
+    id: "wmp-4416-4417-a4444-bcnr-lunt-moxley",
+    roadLabel: "A4444 Black Country New Road",
+    roadKeys: ["name:black country new road", "ref:A4444"],
+    a: { latitude: 52.568085, longitude: -2.054076 },
+    b: { latitude: 52.561280, longitude: -2.050387 },
+    speed: "40",
+    maxLateralMetres: 140,
+  },
+  // 13. A449 Stafford Rd between Oxley Ave and Greenwood Rd, Wolverhampton (40 mph, IDs 736, 737)
+  {
+    id: "wmp-736-737-a449-stafford-rd",
+    roadLabel: "A449 Stafford Road",
+    roadKeys: ["name:stafford road", "ref:A449"],
+    a: { latitude: 52.608500, longitude: -2.126500 },
+    b: { latitude: 52.615843, longitude: -2.131525 },
+    speed: "40",
+    maxLateralMetres: 140,
+  },
+  // 14. A45 Coventry Road between Berkley Road and Rowland Road/Steyning Road, Birmingham (40 mph, IDs 926, 927)
+  {
+    id: "wmp-926-927-a45-coventry-rd",
+    roadLabel: "A45 Coventry Road",
+    roadKeys: ["name:coventry road", "ref:A45"],
+    a: { latitude: 52.463190, longitude: -1.830630 },
+    b: { latitude: 52.461110, longitude: -1.805780 },
+    speed: "40",
+    maxLateralMetres: 140,
+  },
+  // 15. A4540 Belgrave Middleway / Leebank Middleway between Five Ways and Haden Circus Roundabout (40 mph, IDs 174, 175)
+  {
+    id: "wmp-174-a4540-leebank-middleway",
+    roadLabel: "A4540 Lee Bank Middleway",
+    roadKeys: ["name:lee bank middleway", "name:leebank middleway", "name:belgrave middleway", "ref:A4540"],
+    a: { latitude: 52.472280, longitude: -1.915600 },
+    b: { latitude: 52.467805, longitude: -1.904438 },
     speed: "40",
     maxLateralMetres: 120,
+  },
+  {
+    id: "wmp-175-a4540-belgrave-middleway",
+    roadLabel: "A4540 Belgrave Middleway",
+    roadKeys: ["name:belgrave middleway", "name:lee bank middleway", "ref:A4540"],
+    a: { latitude: 52.467805, longitude: -1.904438 },
+    b: { latitude: 52.463590, longitude: -1.888780 },
+    speed: "40",
+    maxLateralMetres: 140,
+  },
+  // 16. A4540 New John St West between Hospital Street and Lucas Circus, Birmingham (30 mph, IDs 178, 179)
+  {
+    id: "wmp-178-179-a4540-new-john-st-west",
+    roadLabel: "A4540 New John Street West",
+    roadKeys: ["name:new john street west", "name:new john st west", "ref:A4540"],
+    a: { latitude: 52.493860, longitude: -1.906016 },
+    b: { latitude: 52.493038, longitude: -1.901629 },
+    speed: "30",
+    maxLateralMetres: 110,
+  },
+  // 17. A456 Hagley Road between Lordswood Road and Portland Road, Birmingham (30 mph, IDs 924, 925)
+  {
+    id: "wmp-924-925-a456-hagley-rd",
+    roadLabel: "A456 Hagley Road",
+    roadKeys: ["name:hagley road", "ref:A456"],
+    a: { latitude: 52.472830, longitude: -1.966890 },
+    b: { latitude: 52.471963, longitude: -1.937567 },
+    speed: "30",
+    maxLateralMetres: 150,
+  },
+  // 18. A458 Windmill Hill between Lye and Halesowen, Dudley (30 mph, IDs 939, 940)
+  {
+    id: "wmp-939-940-a458-windmill-hill",
+    roadLabel: "A458 Windmill Hill",
+    roadKeys: ["name:windmill hill", "name:colley gate", "ref:A458"],
+    a: { latitude: 52.459408, longitude: -2.085156 },
+    b: { latitude: 52.457083, longitude: -2.078560 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 19. A4600 Ansty Road Between Sewall Highway & Clifford Bridge Rd, Coventry (40 mph, IDs 1552, 1553)
+  {
+    id: "wmp-1552-1553-a4600-ansty-rd",
+    roadLabel: "A4600 Ansty Road",
+    roadKeys: ["name:ansty road", "ref:A4600"],
+    a: { latitude: 52.418181, longitude: -1.457556 },
+    b: { latitude: 52.420413, longitude: -1.452338 },
+    speed: "40",
+    maxLateralMetres: 120,
+  },
+  // 20. Allard Way between London Road and Binley Road, Coventry (40 mph, IDs 548, 549)
+  {
+    id: "wmp-548-549-allard-way",
+    roadLabel: "Allard Way",
+    roadKeys: ["name:allard way", "ref:A4082"],
+    a: { latitude: 52.390560, longitude: -1.481599 },
+    b: { latitude: 52.404284, longitude: -1.460610 },
+    speed: "40",
+    maxLateralMetres: 160,
+  },
+  // 21. B4098 Tamworth Road between Bennetts Road Roundabout and Long Lane, Coventry (30 mph, IDs 538, 539)
+  {
+    id: "wmp-538-539-b4098-tamworth-rd",
+    roadLabel: "B4098 Tamworth Road",
+    roadKeys: ["name:tamworth road", "ref:B4098"],
+    a: { latitude: 52.435895, longitude: -1.531844 },
+    b: { latitude: 52.445032, longitude: -1.543298 },
+    speed: "30",
+    maxLateralMetres: 140,
+  },
+  // 22. B4110 London Road between Allard Way and Robert Close, Coventry (30 mph, IDs 1556, 1557)
+  {
+    id: "wmp-1556-1557-b4110-london-rd",
+    roadLabel: "B4110 London Road",
+    roadKeys: ["name:london road", "ref:B4110", "ref:A4114"],
+    a: { latitude: 52.390016, longitude: -1.481613 },
+    b: { latitude: 52.380196, longitude: -1.468091 },
+    speed: "30",
+    maxLateralMetres: 140,
+  },
+  // 23. B4114 Bradford Road between Chester Road and Old Croft Lane, Solihull (30 mph, IDs 334, 336)
+  {
+    id: "wmp-334-336-b4114-bradford-rd",
+    roadLabel: "B4114 Bradford Road",
+    roadKeys: ["name:bradford road", "name:collector road", "ref:B4114"],
+    a: { latitude: 52.501830, longitude: -1.779400 },
+    b: { latitude: 52.502020, longitude: -1.774210 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 24. B425 Lode Lane between Henley Crescent and Moat Lane, Solihull (30 mph, IDs 326, 327)
+  {
+    id: "wmp-326-327-b425-lode-lane",
+    roadLabel: "B425 Lode Lane",
+    roadKeys: ["name:lode lane", "ref:B425", "ref:B4102"],
+    a: { latitude: 52.438980, longitude: -1.783640 },
+    b: { latitude: 52.426037, longitude: -1.776790 },
+    speed: "30",
+    maxLateralMetres: 140,
+  },
+  // 25. Bell Green Road between Old Church Road and Sewall Highway, Coventry (30 mph, IDs 528, 529)
+  {
+    id: "wmp-528-529-bell-green-rd",
+    roadLabel: "Bell Green Road",
+    roadKeys: ["name:bell green road", "ref:B4109"],
+    a: { latitude: 52.436121, longitude: -1.475865 },
+    b: { latitude: 52.432735, longitude: -1.481125 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 26. Binley Road between Bray Lane & Sky Blue Way, Coventry (30 mph, IDs 516, 518)
+  {
+    id: "wmp-516-518-binley-rd",
+    roadLabel: "Binley Road",
+    roadKeys: ["name:binley road", "ref:A428"],
+    a: { latitude: 52.406800, longitude: -1.489500 },
+    b: { latitude: 52.406189, longitude: -1.481914 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 27. Foleshill Road between Eagle Street and Ringway St Nicholas, Coventry (30 mph, IDs 534, 535)
+  {
+    id: "wmp-534-535-foleshill-rd",
+    roadLabel: "Foleshill Road",
+    roadKeys: ["name:foleshill road", "ref:B4113"],
+    a: { latitude: 52.413769, longitude: -1.509492 },
+    b: { latitude: 52.419054, longitude: -1.507256 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 28. Hearsall Common between Broad Lane and Queensland Avenue, Coventry (30 mph, IDs 556, 557)
+  {
+    id: "wmp-556-557-hearsall-common",
+    roadLabel: "Hearsall Common",
+    roadKeys: ["name:hearsall common", "ref:B4101"],
+    a: { latitude: 52.404048, longitude: -1.545470 },
+    b: { latitude: 52.404946, longitude: -1.535410 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 29. Hearsall Lane between Queensland Avenue and Spon End, Coventry (30 mph, IDs 558, 559)
+  {
+    id: "wmp-558-559-hearsall-lane",
+    roadLabel: "Hearsall Lane",
+    roadKeys: ["name:hearsall lane", "ref:B4101"],
+    a: { latitude: 52.405044, longitude: -1.535310 },
+    b: { latitude: 52.408345, longitude: -1.530141 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 30. Henley Road between Newhall Road & Woodway Lane, Coventry (30 mph, IDs 522, 523)
+  {
+    id: "wmp-522-523-henley-rd",
+    roadLabel: "Henley Road",
+    roadKeys: ["name:henley road", "ref:B4082"],
+    a: { latitude: 52.430420, longitude: -1.462086 },
+    b: { latitude: 52.428826, longitude: -1.446834 },
+    speed: "30",
+    maxLateralMetres: 130,
+  },
+  // 31. Hinckley Road between Wigston Road and Woodway Lane, Coventry (40 mph, IDs 530, 531)
+  {
+    id: "wmp-530-531-hinckley-rd",
+    roadLabel: "Hinckley Road",
+    roadKeys: ["name:hinckley road", "ref:A4600"],
+    a: { latitude: 52.425095, longitude: -1.443855 },
+    b: { latitude: 52.430346, longitude: -1.438321 },
+    speed: "40",
+    maxLateralMetres: 120,
+  },
+  // 32. Kenilworth Road between A45 Kenpas Highway and Leamington Road, Coventry (40 mph, IDs 546, 547)
+  {
+    id: "wmp-546-547-kenilworth-rd",
+    roadLabel: "Kenilworth Road",
+    roadKeys: ["name:kenilworth road", "ref:A429"],
+    a: { latitude: 52.386505, longitude: -1.534930 },
+    b: { latitude: 52.396339, longitude: -1.517011 },
+    speed: "40",
+    maxLateralMetres: 140,
+  },
+  // 33. Keresley Road between Brownshill Green Road and Tamworth Road, Coventry (30 mph, IDs 544, 545)
+  {
+    id: "wmp-544-545-keresley-rd",
+    roadLabel: "Keresley Road",
+    roadKeys: ["name:keresley road"],
+    a: { latitude: 52.428647, longitude: -1.529087 },
+    b: { latitude: 52.435564, longitude: -1.531717 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 34. Longford Road / Bedworth Road between Oban Road and Windmill Road, Coventry (30 mph, IDs 526, 527)
+  {
+    id: "wmp-526-527-longford-bedworth-rd",
+    roadLabel: "Longford Road",
+    roadKeys: ["name:longford road", "name:bedworth road", "ref:B4113"],
+    a: { latitude: 52.444252, longitude: -1.488684 },
+    b: { latitude: 52.453614, longitude: -1.485271 },
+    speed: "30",
+    maxLateralMetres: 130,
+  },
+  // 35. Old Church Road between Foleshill Road and Mannion Avenue, Coventry (30 mph, IDs 532, 533)
+  {
+    id: "wmp-532-533-old-church-rd",
+    roadLabel: "Old Church Road",
+    roadKeys: ["name:old church road", "ref:B4109"],
+    a: { latitude: 52.440501, longitude: -1.508609 },
+    b: { latitude: 52.437922, longitude: -1.492107 },
+    speed: "30",
+    maxLateralMetres: 130,
+  },
+  // 36. Radford Road between Ringway St Nicholas and Brownshill Green Road, Coventry (30 mph, IDs 542, 543)
+  {
+    id: "wmp-542-543-radford-rd",
+    roadLabel: "Radford Road",
+    roadKeys: ["name:radford road", "ref:B4098"],
+    a: { latitude: 52.411848, longitude: -1.515194 },
+    b: { latitude: 52.428345, longitude: -1.528805 },
+    speed: "30",
+    maxLateralMetres: 150,
+  },
+  // 37. Stoney Stanton Road between Howard Street and Crabmill Lane, Coventry (30 mph, IDs 536, 537)
+  {
+    id: "wmp-536-537-stoney-stanton-rd",
+    roadLabel: "Stoney Stanton Road",
+    roadKeys: ["name:stoney stanton road", "ref:B4109"],
+    a: { latitude: 52.414690, longitude: -1.504458 },
+    b: { latitude: 52.427238, longitude: -1.491383 },
+    speed: "30",
+    maxLateralMetres: 150,
+  },
+  // 38. The Scotchill / Burnaby Road between Beake Avenue and Keresley Road, Coventry (30 mph, IDs 524, 525)
+  {
+    id: "wmp-524-525-scotchill-burnaby-rd",
+    roadLabel: "Burnaby Road / The Scotchill",
+    roadKeys: ["name:the scotchill", "name:burnaby road"],
+    a: { latitude: 52.435381, longitude: -1.522757 },
+    b: { latitude: 52.435717, longitude: -1.531385 },
+    speed: "30",
+    maxLateralMetres: 120,
+  },
+  // 39. Walsgrave Road between Briton Road and Church Lane, Coventry (30 mph, IDs 540, 541)
+  {
+    id: "wmp-540-541-walsgrave-rd",
+    roadLabel: "Walsgrave Road",
+    roadKeys: ["name:walsgrave road", "ref:A4600"],
+    a: { latitude: 52.411638, longitude: -1.480215 },
+    b: { latitude: 52.411365, longitude: -1.475118 },
+    speed: "30",
+    maxLateralMetres: 110,
   },
 ];
 
@@ -907,7 +1087,10 @@ export function extractTileAverageSpeedZones(
     if (rawName) {
       keys.push(`name:${rawName.trim().toLowerCase()}`);
     }
-    if (keys.length === 0) continue;
+
+    const isMajorRoadGeometry =
+      cls === "trunk" || cls === "primary" || cls === "secondary" || cls === "tertiary";
+    if (keys.length === 0 && !isMajorRoadGeometry) continue;
 
     const geom = feat.geometry;
     if (!geom) continue;
@@ -920,9 +1103,15 @@ export function extractTileAverageSpeedZones(
     if (lines.length === 0) continue;
 
     for (const pair of KNOWN_WEST_MIDLANDS_AVG_SPEED_PAIRS) {
-      if (!pair.roadKeys.some((k) => keys.includes(k))) continue;
+      const hasKeyMatch = keys.length > 0 && pair.roadKeys.some((k) => keys.includes(k));
+      if (!hasKeyMatch && keys.length > 0) continue;
+
+      const lateralLimit = hasKeyMatch
+        ? (pair.maxLateralMetres ?? 160)
+        : Math.min(pair.maxLateralMetres ?? 120, 34);
+
       for (let lineIdx = 0; lineIdx < lines.length; lineIdx += 1) {
-        const clipped = clipCoordsBetweenCameras(lines[lineIdx], pair.a, pair.b, pair.maxLateralMetres ?? 380);
+        const clipped = clipCoordsBetweenCameras(lines[lineIdx], pair.a, pair.b, lateralLimit);
         if (!clipped) continue;
         const startCoord = clipped[0];
         const endCoord = clipped[clipped.length - 1];
@@ -948,7 +1137,7 @@ export function extractTileAverageSpeedZones(
   return { type: "FeatureCollection", features };
 }
 
-function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationElements: OverpassElement[]): SafetyFeatureCollection {
+function averageSpeedZoneFeatures(_hazardElements: OverpassElement[], regulationElements: OverpassElement[]): SafetyFeatureCollection {
   const features: SafetyFeatureCollection["features"] = [];
   const seenIds = new Set<string>();
 
@@ -975,67 +1164,6 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
     });
   };
 
-  // Collect explicit average speed cameras and all speed cameras (for same-road-name corridor detection)
-  const avgCameraPoints: Array<{ point: TrafficSignalPoint; speed: string | null }> = [];
-  const allCameraPoints: Array<{ point: TrafficSignalPoint; speed: string | null }> = [];
-  // Also collect explicit camera pairs defined by enforcement relations (from -> to)
-  const relationPairs: Array<{ a: TrafficSignalPoint; b: TrafficSignalPoint; speed: string | null; name: string | null }> = [];
-  const allElements = [...hazardElements, ...regulationElements];
-
-  for (const element of allElements) {
-    const tags = element.tags ?? {};
-    const explicitAvg = isExplicitAverageSpeedElement(tags);
-
-    if (element.type === "way" && explicitAvg && Array.isArray(element.geometry) && element.geometry.length >= 2) {
-      if (tags.junction === "roundabout" || tags.junction === "circular") continue;
-      const speed = normaliseSpeedLimit(tags.maxspeed);
-      const roadLabel = tags.ref && tags.name ? `${tags.ref} ${tags.name}` : tags.name ?? tags.ref ?? null;
-      const coordinates = element.geometry.map(({ lon, lat }) => [lon, lat] as [number, number]);
-      addZoneCoordinates(`way/${element.id}/average_speed_zone`, coordinates, speed, roadLabel);
-    }
-
-    if (element.type === "relation" && explicitAvg && Array.isArray(element.members)) {
-      const speed = normaliseSpeedLimit(tags.maxspeed);
-      const roadLabel = tags.name ?? tags.ref ?? null;
-      let addedMemberWay = false;
-      for (const member of element.members) {
-        if (member.type === "way" && Array.isArray(member.geometry) && member.geometry.length >= 2) {
-          const coordinates = member.geometry.map(({ lon, lat }) => [lon, lat] as [number, number]);
-          addZoneCoordinates(`way/${member.ref}/average_speed_zone`, coordinates, speed, roadLabel);
-          addedMemberWay = true;
-        }
-      }
-      if (!addedMemberWay) {
-        const nodeMembers = element.members.filter(
-          (m) => m.type === "node" && typeof m.lat === "number" && typeof m.lon === "number",
-        );
-        if (nodeMembers.length >= 2) {
-          relationPairs.push({
-            a: { latitude: nodeMembers[0].lat!, longitude: nodeMembers[0].lon! },
-            b: { latitude: nodeMembers[nodeMembers.length - 1].lat!, longitude: nodeMembers[nodeMembers.length - 1].lon! },
-            speed,
-            name: roadLabel,
-          });
-        }
-      }
-    }
-
-    const speedEnforcement = /^(speed|maximum_speed|maxspeed|average_speed)$/.test(tags.enforcement ?? "");
-    if (tags.highway === "speed_camera" || speedEnforcement) {
-      const pt = elementPoint(element);
-      if (pt) {
-        const camEntry = {
-          point: pt,
-          speed: normaliseSpeedLimit(tags.maxspeed ?? tags["maxspeed:enforcement"]),
-        };
-        allCameraPoints.push(camEntry);
-        if (explicitAvg) {
-          avgCameraPoints.push(camEntry);
-        }
-      }
-    }
-  }
-
   // Candidate main-carriageway road ways (exclude roundabouts and link/slip roads)
   const roadWays = regulationElements.filter((el) => {
     if (el.type !== "way" || !el.tags?.highway || !Array.isArray(el.geometry) || el.geometry.length < 2) return false;
@@ -1048,109 +1176,36 @@ function averageSpeedZoneFeatures(hazardElements: OverpassElement[], regulationE
     return { type: "FeatureCollection", features };
   }
 
-  type RoadWayInfo = {
-    element: OverpassElement;
-    path: TrafficSignalPoint[];
-    coords: [number, number][];
-    roadKeys: string[];
-    nameKey: string | null;
-    roadLabel: string | null;
-    speed: string | null;
-    nearAvgCameraIndices: number[];
-    nearAllCameraIndices: number[];
-  };
-
-  const wayInfos: RoadWayInfo[] = roadWays.map((element) => {
+  for (const element of roadWays) {
     const tags = element.tags ?? {};
-    const path = (element.geometry ?? []).map(({ lat, lon }) => ({ latitude: lat, longitude: lon }));
     const coords = (element.geometry ?? []).map(({ lon, lat }) => [lon, lat] as [number, number]);
-    const keys: string[] = [];
+    const roadKeys: string[] = [];
     if (tags.ref) {
       for (const part of tags.ref.split(/[;/,]+/)) {
         const cleaned = part.trim().toUpperCase();
-        if (cleaned) keys.push(`ref:${cleaned}`);
+        if (cleaned) roadKeys.push(`ref:${cleaned}`);
       }
     }
-    const nameKey = tags.name ? `name:${tags.name.trim().toLowerCase()}` : null;
-    if (nameKey) {
-      keys.push(nameKey);
+    if (tags.name) {
+      roadKeys.push(`name:${tags.name.trim().toLowerCase()}`);
     }
+    if (roadKeys.length === 0) continue;
+
     const roadLabel = tags.ref && tags.name && !tags.name.includes(tags.ref)
       ? `${tags.ref} ${tags.name}`
       : tags.name ?? tags.ref ?? null;
-    const speed = normaliseSpeedLimit(tags.maxspeed);
-    const nearAvgCameraIndices: number[] = [];
-    const nearAllCameraIndices: number[] = [];
 
-    for (let i = 0; i < avgCameraPoints.length; i += 1) {
-      if (distanceToPathMetres(avgCameraPoints[i].point, path) <= 38) {
-        nearAvgCameraIndices.push(i);
-      }
-    }
-
-    for (let i = 0; i < allCameraPoints.length; i += 1) {
-      if (distanceToPathMetres(allCameraPoints[i].point, path) <= 32) {
-        nearAllCameraIndices.push(i);
-      }
-    }
-
-    return { element, path, coords, roadKeys: keys, nameKey, roadLabel, speed, nearAvgCameraIndices, nearAllCameraIndices };
-  });
-
-  // Group explicit average-speed cameras strictly by road NAME so separate sections of a ring road (e.g. A4540) never bridge across gaps
-  const roadKeyAvgCameras = new Map<string, Set<number>>();
-
-  for (const info of wayInfos) {
-    if (info.nameKey && info.nearAvgCameraIndices.length > 0) {
-      let set = roadKeyAvgCameras.get(info.nameKey);
-      if (!set) {
-        set = new Set<number>();
-        roadKeyAvgCameras.set(info.nameKey, set);
-      }
-      for (const idx of info.nearAvgCameraIndices) set.add(idx);
-    }
-  }
-
-  // Build camera pairs (start camera -> end camera)
-  const activePairs: Array<{ roadKeys: string[] | null; a: TrafficSignalPoint; b: TrafficSignalPoint; speed: string | null; maxLateralMetres?: number }> = [
-    ...relationPairs.map((pair) => ({ roadKeys: null, a: pair.a, b: pair.b, speed: pair.speed, maxLateralMetres: 200 })),
-    ...KNOWN_WEST_MIDLANDS_AVG_SPEED_PAIRS.map((pair) => ({
-      roadKeys: pair.roadKeys,
-      a: pair.a,
-      b: pair.b,
-      speed: pair.speed,
-      maxLateralMetres: pair.maxLateralMetres ?? 200,
-    })),
-  ];
-
-  for (const [roadKey, camSet] of roadKeyAvgCameras.entries()) {
-    const indices = [...camSet];
-    if (indices.length < 2) continue;
-    for (let i = 0; i < indices.length; i += 1) {
-      for (let j = i + 1; j < indices.length; j += 1) {
-        const camA = avgCameraPoints[indices[i]];
-        const camB = avgCameraPoints[indices[j]];
-        const dist = distanceMetres(camA.point, camB.point);
-        if (dist >= 80 && dist <= 1_200) {
-          activePairs.push({ roadKeys: [roadKey], a: camA.point, b: camB.point, speed: camA.speed ?? camB.speed, maxLateralMetres: 180 });
-        }
-      }
-    }
-  }
-
-  // Colour only the road stretch strictly between camera A and camera B
-  for (const info of wayInfos) {
-    for (const pair of activePairs) {
-      if (pair.roadKeys !== null && !pair.roadKeys.some((k) => info.roadKeys.includes(k))) continue;
-      const clipped = clipCoordsBetweenCameras(info.coords, pair.a, pair.b, pair.maxLateralMetres ?? 200);
+    // Match exclusively against the official West Midlands Police Average Speed Camera routes
+    for (const pair of KNOWN_WEST_MIDLANDS_AVG_SPEED_PAIRS) {
+      if (!pair.roadKeys.some((k) => roadKeys.includes(k))) continue;
+      const clipped = clipCoordsBetweenCameras(coords, pair.a, pair.b, pair.maxLateralMetres ?? 180);
       if (clipped) {
         addZoneCoordinates(
-          `way/${info.element.id}/average_speed_zone`,
+          `way/${element.id}/${pair.id}/average_speed_zone`,
           clipped,
-          info.speed ?? pair.speed,
-          info.roadLabel,
+          pair.speed,
+          pair.roadLabel || roadLabel,
         );
-        break;
       }
     }
   }

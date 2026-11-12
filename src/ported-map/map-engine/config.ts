@@ -114,7 +114,7 @@ export const STORAGE_KEYS = {
   locationGranted: "map-engine-location-granted-v1",
 } as const;
 
-export const APP_VERSION = "v3.4.0";
+export const APP_VERSION = "v3.4.1";
 export const ROUTE_TIMEOUT_MS = 18_000;
 export const DEFAULT_START = { longitude: -2.152557, latitude: 52.556476, zoom: 15.3 } as const;
 
